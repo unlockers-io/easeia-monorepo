@@ -187,9 +187,14 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
 ## CI (GitHub Actions)
 
-Three workflows are checked in: `check.yml` (one job running the secret scan, formatting, dead-code analysis, lint, typecheck and unit tests), `e2e.yml`, and `react-doctor.yml` (pull requests only). Validation runs on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `orchestrator standards --for .github/workflows/check.yml` prints the rules they follow.
+Four workflows are checked in:
 
-`check.yml` also runs the Postgres-backed AI budget test and `pnpm audit --audit-level=high`, and `release.yml` dispatches it for the version PR.
+- `check.yml`: one job running the gitleaks secret scan, formatting, dead-code analysis, the shadcn component check, lint, typecheck, unit tests, the Postgres-backed AI budget test and `pnpm audit --audit-level=high`.
+- `e2e.yml`: builds `web`, `api` and `landing`, then runs the Playwright suite in Chromium against Postgres and Redis service containers.
+- `react-doctor.yml`: React Doctor on pull requests only.
+- `release.yml`: runs on pushes to `main`. The Changesets action opens the "chore: version packages" PR or, once that PR merges, publishes `@easeia/astro-content` through npm trusted publishing and confirms the version reached the registry. It dispatches every workflow that declares both `pull_request` and `workflow_dispatch` (`check.yml` and `e2e.yml`) onto the version PR, whose own `pull_request` runs never execute.
+
+`check.yml` and `e2e.yml` run on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `orchestrator standards --for .github/workflows/check.yml` prints the rules they follow.
 
 ## References
 
