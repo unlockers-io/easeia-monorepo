@@ -34,6 +34,10 @@ type AstroDataValue =
   | { [key: string]: AstroDataValue };
 type AstroSourceValue = z.infer<typeof astroSourceValueSchema> | undefined;
 
+const invalidXmlChars = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gv;
+
+const stripInvalidXmlChars = (text: string): string => text.replace(invalidXmlChars, "");
+
 const stripNulls = (value: AstroSourceValue): AstroDataValue => {
   if (value === null) {
     return undefined;
@@ -52,7 +56,10 @@ const stripNulls = (value: AstroSourceValue): AstroDataValue => {
     }
     return out;
   }
-  if (typeof value === "boolean" || typeof value === "number" || typeof value === "string") {
+  if (typeof value === "string") {
+    return stripInvalidXmlChars(value);
+  }
+  if (typeof value === "boolean" || typeof value === "number") {
     return value;
   }
   return undefined;
@@ -119,20 +126,21 @@ export const easeiaLoader = (config: EaseiaClientConfig): Loader => ({
     ctx.store.clear();
     const entries = await Promise.all(
       posts.map(async (post) => {
+        const body = stripInvalidXmlChars(post.body);
         const [data, rendered] = await Promise.all([
           ctx.parseData({
             data: stripNullsRecord(post.frontmatter),
             id: post.slug,
           }),
-          ctx.renderMarkdown(post.body),
+          ctx.renderMarkdown(body),
         ]);
-        return { data, post, rendered };
+        return { body, data, post, rendered };
       }),
     );
-    for (const { data, post, rendered } of entries) {
-      const digest = ctx.generateDigest({ body: post.body, data });
+    for (const { body, data, post, rendered } of entries) {
+      const digest = ctx.generateDigest({ body, data });
       ctx.store.set({
-        body: post.body,
+        body,
         data,
         digest,
         id: post.slug,

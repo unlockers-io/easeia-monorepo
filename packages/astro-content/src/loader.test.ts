@@ -101,6 +101,39 @@ describe("easeiaLoader", () => {
     });
   });
 
+  it("strips XML-invalid control characters from frontmatter strings and the body", async () => {
+    setupFetchMock([
+      {
+        ...samplePost,
+        body: "# Hello\u0011",
+        frontmatter: {
+          ...samplePost.frontmatter,
+          description: "conquiste clientes recorrentes e aplique\u0011",
+          title: "Hello\u0019 World",
+        },
+      },
+    ]);
+    const loader = easeiaLoader({
+      apiKey: "easeia_buildkey",
+      apiUrl: "https://api.easeia.dev",
+      siteId: "site_abc",
+    });
+    const ctx = makeContext();
+    // @ts-expect-error — loose context typing for the test
+    await loader.load(ctx);
+
+    expect(ctx.renderMarkdown).toHaveBeenCalledWith("# Hello");
+    expect(ctx.store.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "# Hello",
+        data: expect.objectContaining({
+          description: "conquiste clientes recorrentes e aplique",
+          title: "Hello World",
+        }),
+      }),
+    );
+  });
+
   it("rewrites __ASTRO_IMAGE_ placeholders into real img tags with dimensions from the manifest", async () => {
     const bodyImageUrl = "https://img.easeia.com/sites/s1/posts/p1/abc.jpg";
     const post: BuildPost = {
