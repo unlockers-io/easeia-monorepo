@@ -1,0 +1,51 @@
+name: easeia
+
+services:
+  postgres:
+    # pgvector image is the canonical Postgres + pgvector bundle. Avoids the
+    # extension installation step that plain `postgres:*` would need.
+    image: pgvector/pgvector:pg18
+    container_name: easeia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: easeia
+      POSTGRES_PASSWORD: easeia123
+      POSTGRES_DB: easeia
+    # Bind to a non-default host port so this stack coexists with other
+    # local Postgres instances. Connection string uses 5440 → 5432.
+    ports:
+      # Loopback-bound: an unqualified mapping publishes these dev credentials on every host interface.
+      - "127.0.0.1:5440:5432"
+    volumes:
+      # Postgres 18 expects the mount at /var/lib/postgresql (major-version subdir lives inside). See docker-library/postgres#1259.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U easeia -d easeia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    # BullMQ requires Redis ≥6.2; alpine keeps the image tiny for local dev.
+    image: redis:7-alpine
+    container_name: easeia-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    # Same reasoning as postgres above. Connection string uses 6381 → 6379.
+    ports:
+      - "127.0.0.1:6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

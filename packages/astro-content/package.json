@@ -1,0 +1,64 @@
+{
+  "name": "@easeia/astro-content",
+  "version": "0.5.1",
+  "description": "Astro content loader + image prefetch CLI that pulls posts from the Easeia build API at build time.",
+  "keywords": [
+    "astro",
+    "astro-loader",
+    "content",
+    "easeia"
+  ],
+  "homepage": "https://github.com/unlockers-io/easeia-monorepo/tree/main/packages/astro-content#readme",
+  "bugs": {
+    "url": "https://github.com/unlockers-io/easeia-monorepo/issues"
+  },
+  "license": "MIT",
+  "author": "Pedro Filho <pedro@filho.me>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unlockers-io/easeia-monorepo.git",
+    "directory": "packages/astro-content"
+  },
+  "bin": {
+    "easeia-prefetch-images": "./dist/bin/prefetch.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "cp ../../LICENSE LICENSE && tsdown",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
+    "dev": "tsdown --watch",
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@repo/config-vitest": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^26.2.0",
+    "astro": "^7.2.8",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "peerDependencies": {
+    "astro": "^6.0.0 || ^7.0.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

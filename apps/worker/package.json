@@ -1,0 +1,50 @@
+{
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
+    "dev": "tsdown --watch --on-success \"node dist/index.mjs\"",
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "dev:plain": "tsdown --watch --on-success \"node dist/index.mjs\""
+  },
+  "dependencies": {
+    "@repo/ai": "workspace:*",
+    "@repo/blob": "workspace:*",
+    "@repo/classify": "workspace:*",
+    "@repo/dataforseo": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/health": "workspace:*",
+    "@repo/hero": "workspace:*",
+    "@repo/jobs": "workspace:*",
+    "@repo/links": "workspace:*",
+    "@repo/money-sites": "workspace:*",
+    "@repo/observability": "workspace:*",
+    "@repo/posts": "workspace:*",
+    "@repo/rewrite": "workspace:*",
+    "@repo/search-console": "workspace:*",
+    "@repo/sites": "workspace:*",
+    "@repo/suggest-links": "workspace:*",
+    "bullmq": "^6.0.9",
+    "dotenv": "^17.4.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@repo/config-vitest": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@rollup/plugin-alias": "^6.0.0",
+    "@types/node": "^26.2.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1",
+    "zod-compiler": "^1.27.0"
+  }
+}

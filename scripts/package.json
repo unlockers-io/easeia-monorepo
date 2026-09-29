@@ -1,0 +1,28 @@
+{
+  "name": "@scripts/wp-to-astro",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "convert-bodies": "tsx convert-bodies-to-md.ts",
+    "backfill-publish": "tsx backfill-publish.ts",
+    "issue-site-keys": "tsx issue-site-keys.ts",
+    "update-sites-with-hooks": "tsx update-sites-with-hooks.ts",
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/api-types": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/jobs": "workspace:*",
+    "tsx": "^4.23.11",
+    "turndown": "^7.2.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/turndown": "^5.0.5",
+    "typescript": "^7.0.2"
+  }
+}

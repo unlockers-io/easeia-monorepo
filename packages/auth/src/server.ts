@@ -1,0 +1,225 @@
+import type { PrismaClient } from "@repo/db";
+import { log } from "@repo/observability";
+import type { MailerConfig } from "@repo/transactional";
+import { sendTransactionalEmail } from "@repo/transactional";
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { bearer } from "better-auth/plugins/bearer";
+import { username } from "better-auth/plugins/username";
+import type { BetterAuthPlugin } from "better-auth/types";
+
+import { createSignupGuard, type SignupMode } from "./signup";
+
+export { isSignupOpen } from "./signup";
+
+export const COOKIE_PREFIX = "easeia";
+
+type AuthConfig = {
+  allowedHosts: Array<string>;
+  extraPlugins?: Array<BetterAuthPlugin>;
+  fromEmail?: string;
+  prisma: PrismaClient;
+  rateLimitEnabled?: boolean;
+  resendApiKey?: string;
+  secret: string;
+  signupMode?: SignupMode;
+  trustedOrigins?: Array<string>;
+  useSecureCookies?: boolean;
+};
+
+export const createAuth = (config: AuthConfig) => {
+  const {
+    allowedHosts,
+    extraPlugins = [],
+    fromEmail,
+    prisma,
+    rateLimitEnabled = false,
+    resendApiKey,
+    secret,
+    signupMode = "first-user",
+    trustedOrigins = [],
+    useSecureCookies = false,
+  } = config;
+
+  const mailer: MailerConfig | null =
+    resendApiKey !== undefined &&
+    resendApiKey !== "" &&
+    fromEmail !== undefined &&
+    fromEmail.trim() !== ""
+      ? { apiKey: resendApiKey, from: fromEmail }
+      : null;
+
+  const guardSignup = createSignupGuard(signupMode, () => prisma.user.count());
+  // Keep the count and insert under one database lock across web replicas.
+  const guardedPrisma =
+    signupMode === "first-user"
+      ? prisma.$extends({
+          query: {
+            user: {
+              create: ({ args }) =>
+                prisma.$transaction(async (tx) => {
+                  await tx.$executeRaw`SELECT pg_advisory_xact_lock(1701199301)`;
+                  await createSignupGuard(signupMode, () => tx.user.count())();
+                  return tx.user.create(args);
+                }),
+            },
+          },
+        })
+      : prisma;
+
+  return betterAuth({
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["email"],
+      },
+    },
+
+    advanced: {
+      cookiePrefix: COOKIE_PREFIX,
+      defaultCookieAttributes: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+      },
+      useSecureCookies,
+    },
+
+    basePath: "/api/auth",
+
+    // Dynamic base URL: Better Auth derives the canonical origin from the
+    // incoming request when its host matches `allowedHosts`. `allowedHosts`
+    // also auto-extends `trustedOrigins`. See:
+    // https://better-auth.com/docs/reference/options#dynamic-base-url
+    baseURL: {
+      allowedHosts,
+      fallback: "http://localhost:4000",
+      protocol: "auto",
+    },
+
+    database: prismaAdapter(guardedPrisma, {
+      provider: "postgresql",
+    }),
+
+    databaseHooks: { user: { create: { before: guardSignup } } },
+
+    emailAndPassword: {
+      disableSignUp: signupMode === "closed",
+      enabled: true,
+      maxPasswordLength: 128,
+      minPasswordLength: 12,
+      onExistingUserSignUp: mailer
+        ? async ({ user }, request) => {
+            const origin = request?.headers.get("origin") ?? "";
+            // Swallowed on purpose: surfacing this failure to the client would
+            // reveal whether the address already has an account. Now that
+            // sendEmail rejects, the catch is what keeps that property.
+            try {
+              await sendTransactionalEmail(
+                {
+                  resetPasswordUrl: `${origin}/recover`,
+                  signInUrl: `${origin}/login`,
+                  type: "sign-up-attempt",
+                  userEmail: user.email,
+                  userId: user.id,
+                  username: user.name,
+                },
+                mailer,
+              );
+            } catch (error) {
+              log.error({ err: error, message: "failed to send sign-up attempt email" });
+            }
+          }
+        : undefined,
+      requireEmailVerification: Boolean(mailer),
+      sendResetPassword: async ({ url, user }) => {
+        if (!mailer) {
+          return;
+        }
+        await sendTransactionalEmail(
+          {
+            resetUrl: url,
+            type: "password-reset",
+            userEmail: user.email,
+            userId: user.id,
+            username: user.name,
+          },
+          mailer,
+        );
+      },
+    },
+
+    emailVerification: {
+      autoSignInAfterVerification: true,
+      callbackURL: "/",
+      sendOnSignIn: true,
+      sendVerificationEmail: async ({ url, user }) => {
+        if (!mailer) {
+          return;
+        }
+        await sendTransactionalEmail(
+          {
+            type: "welcome",
+            userEmail: user.email,
+            userId: user.id,
+            username: user.name,
+            verificationUrl: url,
+          },
+          mailer,
+        );
+      },
+    },
+
+    plugins: [username(), bearer(), ...extraPlugins],
+
+    rateLimit: {
+      enabled: rateLimitEnabled,
+      max: 100,
+      storage: "database",
+      window: 60,
+    },
+
+    secret,
+
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
+      expiresIn: 60 * 60 * 24 * 7,
+      storeSessionInDatabase: true,
+      updateAge: 60 * 60 * 24,
+    },
+    trustedOrigins,
+    user: {
+      additionalFields: {
+        displayName: {
+          defaultValue: null,
+          required: false,
+          type: "string",
+        },
+      },
+      changeEmail: {
+        enabled: true,
+        sendChangeEmailConfirmation: async ({ newEmail, url, user }) => {
+          if (!mailer) {
+            return;
+          }
+          await sendTransactionalEmail(
+            {
+              changeUrl: url,
+              currentEmail: user.email,
+              newEmail,
+              type: "change-email-confirmation",
+              userId: user.id,
+              username: user.name,
+            },
+            mailer,
+          );
+        },
+      },
+    },
+  });
+};
+
+export type Auth = ReturnType<typeof createAuth>;
+export type { AuthConfig };

@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T20:54:23.971051+00:00",
+  "title": "Design System: Easeia Admin",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Pale gray",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Secondary ink",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Fine rule",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "destructive": {
+        "role": "state",
+        "displayName": "Failure red",
+        "tonalRamp": [
+          "oklch(0.15 0.21 27)",
+          "oklch(0.26 0.21 27)",
+          "oklch(0.38 0.21 27)",
+          "oklch(0.49 0.21 27)",
+          "oklch(0.61 0.21 27)",
+          "oklch(0.72 0.21 27)",
+          "oklch(0.84 0.21 27)",
+          "oklch(0.95 0.21 27)"
+        ]
+      },
+      "success": {
+        "role": "state",
+        "displayName": "Success green",
+        "tonalRamp": [
+          "oklch(0.15 0.15 150)",
+          "oklch(0.26 0.15 150)",
+          "oklch(0.38 0.15 150)",
+          "oklch(0.49 0.15 150)",
+          "oklch(0.61 0.15 150)",
+          "oklch(0.72 0.15 150)",
+          "oklch(0.84 0.15 150)",
+          "oklch(0.95 0.15 150)"
+        ]
+      },
+      "warning": {
+        "role": "state",
+        "displayName": "Warning amber",
+        "tonalRamp": [
+          "oklch(0.15 0.16 72)",
+          "oklch(0.26 0.16 72)",
+          "oklch(0.38 0.16 72)",
+          "oklch(0.49 0.16 72)",
+          "oklch(0.61 0.16 72)",
+          "oklch(0.72 0.16 72)",
+          "oklch(0.84 0.16 72)",
+          "oklch(0.95 0.16 72)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "input-xs",
+        "value": "0 1px 2px rgb(0 0 0 / 0.05)",
+        "purpose": "Existing shared input treatment; report panels remain flat."
+      },
+      {
+        "name": "graph-legend-sm",
+        "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "Existing legend overlay on the graph, not the default report surface."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Tailwind default for shared control state changes."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Shared CSS media query shortens animation and transition durations and disables smooth scrolling."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shared compact action; the large variant is 36px high.",
+      "html": "<button class=\"ds-button-primary\" type=\"button\">Save changes</button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:0;font-size:14px;font-weight:600;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1);background:var(--primary, oklch(0.12 0 0));color:var(--background, oklch(0.985 0 0));}.ds-button-primary:hover{background:color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 85%,transparent);}.ds-button-primary:focus-visible{outline:none;border-color:var(--primary, oklch(0.12 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 50%,transparent);}.ds-button-primary:active{transform:translateY(1px);}.ds-button-primary:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition-duration:.01ms;}}"
+    },
+    {
+      "name": "Outline button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Shared compact action; the large variant is 36px high.",
+      "html": "<button class=\"ds-button-outline\" type=\"button\">View details</button>",
+      "css": ".ds-button-outline{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:0;font-size:14px;font-weight:600;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1);background:var(--background, oklch(0.985 0 0));color:var(--primary, oklch(0.12 0 0));border-color:var(--primary, oklch(0.12 0 0));}.ds-button-outline:hover{background:var(--primary, oklch(0.12 0 0));color:var(--background, oklch(0.985 0 0));}.ds-button-outline:focus-visible{outline:none;border-color:var(--primary, oklch(0.12 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 50%,transparent);}.ds-button-outline:active{transform:translateY(1px);}.ds-button-outline:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-outline{transition-duration:.01ms;}}"
+    },
+    {
+      "name": "Email field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A labeled shared field with visible keyboard focus and invalid state.",
+      "html": "<label class=\"ds-label\">Email address<input class=\"ds-input\" type=\"email\" placeholder=\"you@example.com\"></label>",
+      "css": ".ds-label{display:grid;gap:8px;font-size:14px;font-weight:500;color:var(--primary, oklch(0.12 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-input{width:240px;max-width:100%;height:36px;border:1px solid var(--border, oklch(0.85 0 0));border-radius:0;background:transparent;padding:4px 12px;font-size:16px;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;color:var(--primary, oklch(0.12 0 0));box-shadow:0 1px 2px rgb(0 0 0 / .05);transition:color 150ms,box-shadow 150ms;}.ds-input::placeholder{color:var(--muted-foreground, oklch(0.4 0 0));}.ds-input:focus-visible{outline:none;border-color:var(--primary, oklch(0.12 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 50%,transparent);}.ds-input[aria-invalid=true]{border-color:var(--destructive, oklch(0.55 0.21 27));}.ds-input:disabled{opacity:.5;cursor:not-allowed;}@media(min-width:768px){.ds-input{font-size:14px;}}@media(prefers-reduced-motion:reduce){.ds-input{transition-duration:.01ms;}}"
+    },
+    {
+      "name": "Numbered navigation rail",
+      "kind": "nav",
+      "description": "Report contents with active page emphasis; the mobile strip hides indices.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Sections\"><a aria-current=\"page\" href=\"#overview\"><span>00</span>Overview</a><a href=\"#sites\"><span>01</span>Sites</a></nav>",
+      "css": ".ds-nav{display:flex;gap:4px;overflow-x:auto;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-nav a{display:flex;align-items:center;min-height:44px;padding:0 8px;gap:12px;font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none;color:var(--muted-foreground, oklch(0.4 0 0));}.ds-nav a>span{display:none;}.ds-nav a:hover{color:var(--primary, oklch(0.12 0 0));}.ds-nav a[aria-current]{color:var(--primary, oklch(0.12 0 0));font-weight:700;box-shadow:inset 0 -2px currentColor;}.ds-nav a:focus-visible{outline:2px solid var(--primary, oklch(0.12 0 0));outline-offset:-2px;}@media(min-width:768px){.ds-nav{flex-direction:column;gap:0;}.ds-nav a{min-height:0;padding:10px 0;border-bottom:1px solid var(--border, oklch(0.85 0 0));}.ds-nav a>span{display:block;width:20px;font-size:12px;font-variant-numeric:tabular-nums;}.ds-nav a[aria-current]{box-shadow:none;}}"
+    },
+    {
+      "name": "Published badge",
+      "kind": "chip",
+      "description": "A compact shared status badge with an explicit label and inline SVG.",
+      "html": "<span class=\"ds-badge\"><svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m8 12 3 3 5-6\"/></svg>Published</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:4px;height:20px;border:1px solid transparent;border-radius:0;padding:2px 6px;background:var(--primary, oklch(0.12 0 0));color:var(--background, oklch(0.985 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}.ds-badge:hover{background:color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 90%,transparent);}"
+    },
+    {
+      "name": "Report card",
+      "kind": "card",
+      "description": "Shared Card with an ink top rule and compact inner spacing.",
+      "html": "<article class=\"ds-card\"><h2>Search Console</h2><p>Search performance for this site.</p></article>",
+      "css": ".ds-card{display:flex;flex-direction:column;gap:16px;border-top:1px solid var(--primary, oklch(0.12 0 0));border-radius:0;background:var(--card,oklch(0.985 0 0));color:var(--primary, oklch(0.12 0 0));padding:16px;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:14px;}.ds-card h2{margin:0;font-size:16px;font-weight:700;line-height:1.375;letter-spacing:-.025em;}.ds-card p{margin:0;color:var(--muted-foreground, oklch(0.4 0 0));}"
+    },
+    {
+      "name": "Numbered section rule",
+      "kind": "custom",
+      "description": "SectionHead aligns an index, title and optional aside over a fine rule.",
+      "html": "<div class=\"ds-section\"><span aria-hidden=\"true\">01</span><h2>Publishing schedule</h2></div>",
+      "css": ".ds-section{display:grid;grid-template-columns:auto 1fr;align-items:baseline;column-gap:16px;row-gap:4px;border-bottom:1px solid var(--primary, oklch(0.12 0 0));padding-bottom:8px;color:var(--primary, oklch(0.12 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-section>span{font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;}.ds-section h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.025em;}@media(min-width:768px){.ds-section{grid-template-columns:176px 1fr;}}"
+    },
+    {
+      "name": "Key figure",
+      "kind": "custom",
+      "description": "Neutral large tabular value with a quiet label, drawn from StatGrid.",
+      "html": "<div class=\"ds-stat\"><p>4</p><span>Enabled sites</span></div>",
+      "css": ".ds-stat{padding:16px 0;border-top:4px solid var(--primary, oklch(0.12 0 0));border-bottom:1px solid var(--border, oklch(0.85 0 0));color:var(--primary, oklch(0.12 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-stat p{margin:0;font-size:30px;line-height:1;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;}.ds-stat span{display:block;margin-top:8px;font-size:12px;font-weight:600;color:var(--muted-foreground, oklch(0.4 0 0));}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Annual Report",
+    "overview": "The working annual report: a compact numbered navigation rail, strong page rules, large key figures and dense operational tables. Schibsted Grotesk and neutral paper keep the existing admin coherent; status color helps an operator interpret state.",
+    "keyCharacteristics": [
+      "Numbered navigation and section rules.",
+      "Large tabular figures beside compact operational detail.",
+      "Square shared controls and semantic status color."
+    ],
+    "rules": [
+      {
+        "name": "State Color",
+        "body": "Use chromatic color to communicate state; keep the surrounding report neutral.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do reuse @repo/ui controls, palette and Schibsted Grotesk.",
+      "Do keep report sections, statistics and tables aligned with the existing admin grid.",
+      "Do accompany status color with a readable label or icon.",
+      "Do keep graph filters in normal document flow above the canvas."
+    ],
+    "donts": [
+      "Don’t introduce decorative brand colors or a separate visual identity for new dashboard pages.",
+      "Don’t turn every report section into a raised card.",
+      "Don’t imply per-user roles in an instance with shared full-admin access."
+    ]
+  }
+}

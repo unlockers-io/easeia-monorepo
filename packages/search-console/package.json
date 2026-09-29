@@ -1,0 +1,28 @@
+{
+  "name": "@repo/search-console",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@googleapis/searchconsole": "^7.0.0",
+    "@repo/db": "workspace:*",
+    "google-auth-library": "^10.9.0"
+  },
+  "devDependencies": {
+    "@repo/config-vitest": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,124 @@
+name: E2E Tests
+
+on:
+  pull_request:
+  # Dispatched by release.yml for the changeset-release/main PR, whose
+  # pull_request runs are parked unexecuted behind an approval gate.
+  workflow_dispatch:
+  schedule:
+    - cron: 28 4 * * 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    # Bumped 30 -> 45 because the suite hit the 30min cap on PRs #33 + #39:
+    # 3 app builds + chromium/firefox/webkit Playwright runs in series.
+    timeout-minutes: 45
+    env:
+      CI: true
+      SIGNUP_MODE: open
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:4000
+      NEXT_PUBLIC_WEB_APP_URL: http://127.0.0.1:3000
+      CORS_ORIGINS: http://127.0.0.1:3000,http://127.0.0.1:3001
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      PGAPPNAME: easeia:ci:e2e
+      BETTER_AUTH_SECRET: test-secret-minimum-32-characters-long-for-e2e
+      EXPOSE_TESTING_API: 1
+      # Use 127.0.0.1 (not localhost) to match playwright.config.ts baseURL.
+      # Mismatched hosts split cookie scope: login sets cookies on 127.0.0.1
+      # but cross-origin fetches to localhost don't send them, producing 401s
+      # on every authed API request from browser tests.
+      REDIS_URL: redis://localhost:6379
+      WP_ENCRYPTION_KEY: deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+      # Gates the `tests/e2e/auth-email/` suite. When unset (forks, contributors
+      # without secret access), those specs `test.skip()` themselves and the
+      # rest of the suite still runs.
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY_TEST }}
+      # Required only for the optional mail integration suite.
+      FROM_EMAIL: "Easeia <noreply@email.easeia.com>"
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 1s
+          --health-timeout 5s
+          --health-retries 30
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 1s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Plan validation
+        id: plan
+        run: node .github/ci/ci.mjs plan e2e
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          runtime: node@24
+          cache: true
+      - name: Restore Turbo task cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-node24-e2e-${{ github.event.pull_request.number || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ runner.arch }}-node24-e2e-${{ github.event.pull_request.number || github.ref_name }}-
+            turbo-${{ runner.os }}-${{ runner.arch }}-node24-e2e-main-
+      - name: Restore Next.js compiler cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: "apps/*/.next/cache"
+          key: next-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}-e2e-${{ github.event.pull_request.number || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}-e2e-${{ github.event.pull_request.number || github.ref_name }}-
+            next-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}-e2e-main-
+      - run: pnpm db:push
+      - run: pnpm build --filter=web --filter=api --filter=landing
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - name: Restore Chromium
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-chromium
+      - name: Install Playwright browsers and system deps
+        run: pnpm exec playwright install --with-deps chromium
+      - run: node .github/ci/ci.mjs run e2e -- pnpm test:e2e
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        name: Upload CI evidence
+        if: ${{ !cancelled() }}
+        with:
+          name: ci-execution-${{ github.workflow }}-${{ github.job }}-${{ github.run_attempt }}
+          path: .ci-results/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error

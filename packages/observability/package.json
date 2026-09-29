@@ -1,0 +1,59 @@
+{
+  "name": "@repo/observability",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./fields": "./src/fields.ts",
+    "./next": "./src/next.ts",
+    "./next/instrumentation": "./src/next-instrumentation.ts",
+    "./hono": "./src/hono.ts",
+    "./worker": "./src/worker.ts",
+    "./auth": "./src/auth.ts"
+  },
+  "scripts": {
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "evlog": "^2.25.0"
+  },
+  "devDependencies": {
+    "@repo/config-vitest": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.3.0",
+    "better-auth": "^1.7.6",
+    "hono": "^4.13.9",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "peerDependencies": {
+    "better-auth": "^1.7.3",
+    "hono": "^4.12.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "better-auth": {
+      "optional": true
+    },
+    "hono": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
+}

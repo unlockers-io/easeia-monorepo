@@ -1,0 +1,99 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["**/.env.*local", "LICENSE"],
+  "globalEnv": [
+    "NODE_ENV",
+    "AI_MONTHLY_BUDGET_USD",
+    "AI_BUDGET_START_MONTH",
+    "BODY_IMAGES_ENABLED",
+    "HERO_AUTOGEN_ENABLED",
+    "OPENAI_IMAGE_QUALITY",
+    "OPENAI_GENERATION_MODEL",
+    "OPENAI_REWRITE_MODEL",
+    "OPENAI_IMAGE_MODEL"
+  ],
+  "globalPassThroughEnv": ["PGAPPNAME"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": ["dist/**", "LICENSE", ".next/**", "!.next/cache/**"],
+      "env": [
+        "API_URL",
+        "AUTH_ALLOWED_HOSTS",
+        "BETTER_AUTH_COOKIE_DOMAIN",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "CORS_ORIGINS",
+        "DATABASE_URL",
+        "DATAFORSEO_LOGIN",
+        "DATAFORSEO_PASSWORD",
+        "EXPOSE_TESTING_API",
+        "FROM_EMAIL",
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+        "NEXT_PUBLIC_WEB_APP_URL",
+        "OPENAI_API_KEY",
+        "REDIS_URL",
+        "RESEND_API_KEY",
+        "SIGNUP_MODE",
+        "TRUSTED_ORIGINS",
+        "VERCEL",
+        "WEB_APP_URL",
+        "WP_ENCRYPTION_KEY",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_ENABLE_ANALYTICS"
+      ]
+    },
+    "lint": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "db:generate"]
+    },
+    "format:check": {
+      "cache": false
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "start": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": ["coverage/**"],
+      "cache": false
+    },
+    "test:watch": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "test:coverage": {
+      "dependsOn": ["^build", "db:generate"],
+      "outputs": ["coverage/**"],
+      "cache": false
+    },
+    "clean": {
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:push": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "dev:plain": {
+      "cache": false,
+      "dependsOn": ["^build"],
+      "persistent": true
+    }
+  }
+}

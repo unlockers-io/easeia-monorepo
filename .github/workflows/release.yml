@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write # push the version commit and git tags
+  pull-requests: write # open/update the "Version Packages" PR
+  id-token: write # OIDC exchange for npm trusted publishing
+  actions: write # dispatch the gate workflows onto the version branch
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Persisted credentials are the point here: changesets pushes the
+      # version commit and tags through this token.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          runtime: node@24 # matches engines.node ">=24"
+
+      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        id: changesets
+        with:
+          version-script: pnpm version-packages
+          publish-script: pnpm release
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # changesets derives "published" from the publish command's exit code
+      # and never asks the registry, so the tags and the GitHub release can
+      # outlive a publish that never landed. The deadline covers the whole set
+      # rather than each package in turn: a per-package window multiplies by the
+      # number of packages released, and the registry's indexing lag is one lag
+      # for the release, not one per name.
+      - name: Verify the published versions reached the registry
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED: ${{ steps.changesets.outputs.published-packages }}
+        run: |
+          set -euo pipefail
+          pending=$(echo "$PUBLISHED" | jq -r '.[] | "\(.name)@\(.version)"')
+          deadline=$((SECONDS + 900))
+          while :; do
+            missing=""
+            for spec in $pending; do
+              npm view "$spec" version --prefer-online >/dev/null 2>&1 || missing="$missing $spec"
+            done
+            pending="$missing"
+            [ -n "$pending" ] || break
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::changesets reported a successful publish but after 15 minutes the registry has no:$pending"
+              exit 1
+            fi
+            sleep 30
+          done
+
+      # The version PR is authored by GITHUB_TOKEN, so its pull_request runs are
+      # created in `action_required` and never execute: without this the PR would
+      # merge and publish to npm on the feature PR's CI alone, and changesets
+      # rewrites every version and internal dependency range in the workspace.
+      # workflow_dispatch is exempt from that approval gate.
+      #
+      # A gate is any workflow carrying both triggers, derived here rather than
+      # listed: a hand-maintained list silently skips a gate added later, and
+      # merging this PR publishes to npm. Advisory workflows stay out of the set
+      # by not declaring workflow_dispatch.
+      - name: Run gates on the version PR
+        if: steps.changesets.outputs.pr-number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gates=""
+          for file in .github/workflows/*.yml; do
+            grep -q '^  pull_request:' "$file" || continue
+            grep -q '^  workflow_dispatch:' "$file" || continue
+            gates="$gates $(basename "$file")"
+          done
+          if [ -z "$gates" ]; then
+            echo "::error::found no dispatchable gate workflows"
+            exit 1
+          fi
+          echo "dispatching:$gates"
+          for workflow in $gates; do
+            gh workflow run "$workflow" --ref changeset-release/main
+          done

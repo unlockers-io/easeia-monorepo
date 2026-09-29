@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible problem in Easeia.
+body:
+  - type: markdown
+    attributes:
+      value: Report vulnerabilities to hello@easeia.com. Remove credentials and customer data from logs and screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Include the affected app or package.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use fictional domains and synthetic data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include relevant error messages with sensitive values removed.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js and pnpm versions, browser, and deployment method.

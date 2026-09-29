@@ -1,0 +1,15 @@
+.git
+.context
+.agents
+.claude
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+**/.env*
+**/src/generated
+**/*.tsbuildinfo
+playwright-report
+test-results
+.DS_Store

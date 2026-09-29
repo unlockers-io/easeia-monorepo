@@ -1,0 +1,10 @@
+{
+  "extends": "@repo/typescript-config/server.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2024"
+  },
+  "include": ["src/**/*.ts"]
+}

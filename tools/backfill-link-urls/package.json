@@ -1,0 +1,22 @@
+{
+  "name": "@tools/backfill-link-urls",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "@repo/sites": "workspace:*",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.11"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

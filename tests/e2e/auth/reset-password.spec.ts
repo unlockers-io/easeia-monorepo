@@ -1,0 +1,50 @@
+import { test, expect } from "../fixtures/auth.fixture";
+
+test.describe("Reset Password", () => {
+  test("renders the reset password form", async ({ page, resetPasswordPage }) => {
+    await page.context().clearCookies();
+
+    await resetPasswordPage.goto("any-token-value");
+
+    await resetPasswordPage.expectHeadingVisible();
+  });
+
+  test("shows the invalid link state without a token", async ({ page, resetPasswordPage }) => {
+    await page.context().clearCookies();
+
+    await resetPasswordPage.goto();
+
+    await resetPasswordPage.expectInvalidLinkVisible();
+    expect(page.url()).toContain("/reset-password");
+  });
+
+  test("shows error when passwords do not match", async ({ page, resetPasswordPage }) => {
+    await page.context().clearCookies();
+
+    await resetPasswordPage.goto("any-token-value");
+    await resetPasswordPage.submit("NewPassword123!", "DifferentPassword1!");
+
+    await expect(page.getByText(/passwords do not match/i)).toBeVisible();
+    expect(page.url()).toContain("/reset-password");
+  });
+
+  test("shows validation error for short password", async ({ page, resetPasswordPage }) => {
+    await page.context().clearCookies();
+
+    await resetPasswordPage.goto("any-token-value");
+    await resetPasswordPage.submit("short", "short");
+
+    await expect(page.getByText(/at least 12 characters/i).first()).toBeVisible();
+    expect(page.url()).toContain("/reset-password");
+  });
+
+  test("rejects an invalid token at the auth server", async ({ page, resetPasswordPage }) => {
+    await page.context().clearCookies();
+
+    await resetPasswordPage.goto("definitely-not-a-real-token");
+    await resetPasswordPage.submit("ValidPassword123!", "ValidPassword123!");
+
+    await expect(page.locator('[data-sonner-toast][data-type="error"]')).toBeVisible();
+    expect(page.url()).toContain("/reset-password");
+  });
+});

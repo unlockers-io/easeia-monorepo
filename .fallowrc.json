@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "workspaces": {
+    "packages": ["apps/*", "packages/*", "tools/*"]
+  },
+  "entry": [
+    "**/prisma.config.ts",
+    "apps/*/src/lib/observability.ts",
+    "oxlint.config.ts",
+    "tools/maintenance/*.ts",
+    "packages/transactional/src/emails/**/*.tsx"
+  ],
+  "ignorePatterns": [
+    "tests/e2e/setup/auth.setup.ts",
+    "tools/_shared",
+    "verify-auth.js",
+    ".github/ci/*.mjs"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-*",
+    "better-auth",
+    "hono",
+    "@tailwindcss/postcss",
+    "postcss",
+    "postcss-load-config",
+    "pino-pretty",
+    "tailwindcss",
+    "@prisma/client",
+    "@vitest/coverage-v8",
+    "jsdom",
+    "shadcn",
+    "@shadcn/lint",
+    "react",
+    "@react-email/ui",
+    "@react-email/preview-server",
+    "react-email",
+    "@types/react-dom",
+    "react-dom",
+    "@tanstack/react-form"
+  ],
+  "rules": {
+    "unused-dependencies": "warn",
+    "private-type-leaks": "off"
+  },
+  "typeAware": {
+    "enabled": true,
+    "require": "best-effort"
+  }
+}

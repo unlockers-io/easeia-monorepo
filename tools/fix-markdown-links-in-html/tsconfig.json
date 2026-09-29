@@ -1,0 +1,8 @@
+{
+  "extends": "@repo/typescript-config/server.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["*.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@repo/typescript-config/server.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["*.ts"]
+}

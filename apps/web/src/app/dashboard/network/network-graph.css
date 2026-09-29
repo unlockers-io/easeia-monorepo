@@ -1,0 +1,6 @@
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge.animated path {
+    stroke-dasharray: none;
+    animation: none;
+  }
+}

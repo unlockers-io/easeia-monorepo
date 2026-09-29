@@ -1,0 +1,106 @@
+name: easeia-selfhost
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql://easeia:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.selfhost}@postgres:5432/easeia
+  REDIS_URL: redis://redis:6379
+  NODE_ENV: production
+  WEB_APP_URL: ${PUBLIC_WEB_URL:-http://localhost:3000}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  SIGNUP_MODE: ${SIGNUP_MODE:-first-user}
+
+x-app: &app
+  restart: unless-stopped
+  env_file: ${EASEIA_ENV_FILE:-.env.selfhost}
+  environment: *app-env
+  depends_on:
+    schema:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: easeia
+      POSTGRES_USER: easeia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.selfhost}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U easeia -d easeia]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, "yes", --maxmemory-policy, noeviction]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  schema:
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+      target: schema
+    env_file: ${EASEIA_ENV_FILE:-.env.selfhost}
+    environment:
+      <<: *app-env
+      PGAPPNAME: easeia:${DEPLOY_ENVIRONMENT:-production}:db
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+      target: api
+    environment:
+      <<: *app-env
+      PGAPPNAME: easeia:${DEPLOY_ENVIRONMENT:-production}:api
+      PORT: "4000"
+      HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+
+  worker:
+    <<: *app
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+      target: worker
+    environment:
+      <<: *app-env
+      PGAPPNAME: easeia:${DEPLOY_ENVIRONMENT:-production}:worker
+    # The worker owns five in-process timers. Multiple replicas double-fire them.
+    deploy:
+      replicas: 1
+
+  web:
+    <<: *app
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+      target: web
+    environment:
+      <<: *app-env
+      PGAPPNAME: easeia:${DEPLOY_ENVIRONMENT:-production}:web
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+
+volumes:
+  postgres_data:
+  redis_data:

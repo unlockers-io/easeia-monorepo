@@ -1,0 +1,5 @@
+artifacts/
+easeia-astro-content-*.tgz
+
+# Copied from the root license during build.
+/LICENSE

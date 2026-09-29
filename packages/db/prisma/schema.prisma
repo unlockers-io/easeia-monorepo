@@ -1,0 +1,592 @@
+datasource db {
+  provider   = "postgresql"
+  extensions = [pgvector(map: "vector")]
+}
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+// ─── Auth (Better Auth) ────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  username        String? @unique
+  displayUsername String? @unique
+  displayName     String?
+
+  accounts          Account[]
+  googleConnections GoogleConnection[]
+  sessions          Session[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+}
+
+model Account {
+  id         String @id @default(cuid())
+  accountId  String
+  issuer     String @default("local:credential")
+  providerId String
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessToken  String? @db.Text
+  refreshToken String? @db.Text
+  idToken      String? @db.Text
+
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+
+  scope     String?
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([issuer, accountId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@index([identifier])
+}
+
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+
+model AiMonthlyBudget {
+  month        String  @id
+  usedMicroUsd BigInt  @default(0)
+  halted       Boolean @default(false)
+}
+
+// ─── Easeia ───────────────────────────────────────────────────
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  ARCHIVED
+}
+
+enum JobKind {
+  PUBLISH
+  CRAWL_LINKS
+  GENERATE_IMAGE
+  EMBED
+  SNAPSHOT_SITE
+  CLASSIFY
+  SUGGEST_LINKS
+  BACKFILL_NETWORK
+  CRAWL_MONEY_SITE
+  CRAWL_MONEY_SITE_PAGE
+  REWRITE_POST
+  BACKFILL_REWRITE
+  CRAWL_GSC_LINKS
+  BACKFILL_GSC_LINKS
+  // Generates a brand-new post for a Site via LLM and stores it as a
+  // DRAFT (Posts.create with publish=false) into the Site's bucket.
+  // Fanned out by the worker's hourly refill scan (see
+  // apps/worker/src/lib/scheduler-fanout.ts) or by manual "Refill now"
+  // server actions. Publishing is a separate hop; the scheduler picks
+  // the oldest DRAFT from the bucket on cadence and enqueues PUBLISH.
+  GENERATE_POST
+  // Illustrates a published post: an LLM pass picks 2-4 spots in the
+  // finished body, each is generated with gpt-image-2, uploaded to R2 as
+  // a non-hero PostImage, and spliced into the body as Markdown. Fanned
+  // out by PUBLISH, so the post can go live before its images land; the
+  // job triggers its own deploy when they do.
+  GENERATE_BODY_IMAGES
+  TRIGGER_DEPLOY
+}
+
+// Provenance for ExternalBacklink rows. Lets CSV-imported rows coexist
+// with API-derived rows for the same (siteId, sourceDomain) pair so we
+// don't clobber a manual CSV upload with the smaller URL-inspection
+// sample, or vice versa.
+enum ExternalBacklinkSource {
+  CSV
+  GSC_API
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum LinkType {
+  INTERNAL
+  PBN
+  EXTERNAL
+}
+
+enum LinkSource {
+  MANUAL
+  SUGGESTED
+  IMPORTED
+}
+
+enum LinkStatus {
+  ACTIVE
+  BROKEN
+  REMOVED
+}
+
+// Niches operate like tags; multi-valued per Site and per Post.
+// Used for cross-site link relevance scoring and topical clustering.
+enum Niche {
+  PHOTOGRAPHY
+  VIDEOGRAPHY
+  FILM
+  AUDIO
+  ARCHITECTURE
+  REAL_ESTATE
+  FASHION
+  CULTURE
+  EVENTS
+  WEDDING
+  PORTRAIT
+  COMMERCIAL
+  TECH
+  LIFESTYLE
+  TRAVEL
+  FOOD
+  BUSINESS
+}
+
+// Sites operate in a single content language. Generation prompts pass this
+// explicitly to the model and the worker validates each generated body
+// against it via franc before storing the draft (LanguageMismatchError).
+enum SiteLanguage {
+  PT
+  EN
+  ES
+}
+
+model Site {
+  id          String    @id @default(cuid())
+  domain      String    @unique
+  isEnabled   Boolean   @default(true)
+  // Content language. Passed explicitly into generation prompts and
+  // checked against the generated body via franc; a mismatch throws
+  // LanguageMismatchError so the bucket never accumulates English drafts
+  // on a Portuguese site (or vice versa). Default PT because the initial
+  // network is Portuguese-speaking; flip per site as the network grows.
+  language    SiteLanguage @default(PT)
+  niches      Niche[]   @default([])
+  // Optional photographic style shared by hero and body image prompts.
+  imageStyle  String?
+  moneySiteId String?
+  moneySite   MoneySite? @relation(fields: [moneySiteId], references: [id], onDelete: SetNull)
+
+  // Astro publishing. Each migrated Site has a Vercel project with a deploy
+  // hook URL: POSTed after publish to trigger a static rebuild. The other
+  // two fields are informational (used by the dashboard for links out).
+  vercelDeployHookUrl String?
+  vercelProjectName   String?
+  astroRepoUrl        String?
+
+  // Public-URL derivation. The live Astro site serves posts at
+  // /{categorySlug}/{slug}/ where categorySlug is `categorySlugMap[category]`
+  // or `slugify(category)`, falling back to `defaultCategory` when the post
+  // has no category. This is a synced COPY of the site repo's
+  // `category-slugs.json`: the theme stays the source of truth; we hold it
+  // so the admin + worker derive the exact live URL. Empty map + the
+  // "sem-categoria" default reproduce the prior slugify-only behavior.
+  categorySlugMap Json   @default("{}")
+  defaultCategory String @default("sem-categoria")
+
+  // Author entity (E-E-A-T). Surfaced on every post by the build API and
+  // meant to be rendered by the Astro themes as a byline, author page, and
+  // schema.org Person markup. All-null → the build API emits author: null.
+  authorName     String?
+  authorBio      String?
+  authorPhotoUrl String?
+  authorUrl      String?
+
+  // Auto-publish scheduler. The hourly worker tick consumes one DRAFT
+  // from this Site's bucket whenever `lastAutoPublishedAt + cadenceDays`
+  // has passed (see apps/worker/src/lib/scheduler-fanout.ts).
+  // `topicHints` is a free-text prompt seed passed to the post generator:
+  // "Focus on destination weddings in coastal Portugal" type guidance.
+  autoPublishEnabled    Boolean   @default(false)
+  cadenceDays           Int?
+  topicHints            String?
+  lastAutoPublishedAt   DateTime?
+
+  // Bucket of pre-generated DRAFT Posts. The hourly tick publishes one
+  // draft per due site on cadence and, separately, refills the bucket
+  // (enqueues GENERATE_POST jobs) when live DRAFT count + in-flight
+  // generations dips below `bucketRefillAt`, topping back up to
+  // `bucketTarget`. Both null → auto-refill off (manual only).
+  bucketTarget          Int?
+  bucketRefillAt        Int?
+
+  posts             Post[]
+  jobs              Job[]
+  snapshots         SiteSnapshot[]
+  externalBacklinks ExternalBacklink[]
+  gscReferringUrls  GscReferringUrl[]
+  apiKeys           ApiKey[]            @relation("ApiKeySite")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isEnabled])
+  @@index([autoPublishEnabled, lastAutoPublishedAt])
+}
+
+// External (off-network) backlinks ingested from Google Search Console's
+// "Top linking sites" CSV export. GSC has no public Links API, so the user
+// manually uploads the CSV from Search Console → Links → Top linking sites.
+// Each row is a referring domain + the count of pages on that domain that
+// link to this Site. Re-imports replace the prior snapshot for the same
+// site/domain pair via the unique constraint below.
+model ExternalBacklink {
+  id           String                 @id @default(cuid())
+  siteId       String
+  site         Site                   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  sourceDomain String
+  linkingPages Int
+  source       ExternalBacklinkSource @default(CSV)
+  importedAt   DateTime               @default(now())
+
+  @@unique([siteId, sourceDomain, source])
+  @@index([siteId])
+}
+
+// Raw rows for the GSC URL Inspection backlink workflow. One row per
+// (post, referring URL) pair observed by Google. The CRAWL_GSC_LINKS
+// handler re-aggregates these into ExternalBacklink rows (one per
+// sourceDomain) so the BacklinksCard can read a flat summary without
+// touching this table. Kept raw so re-aggregation stays accurate when
+// posts are re-inspected over time.
+model GscReferringUrl {
+  id           String   @id @default(cuid())
+  siteId       String
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  toPostId     String
+  toPost       Post     @relation(fields: [toPostId], references: [id], onDelete: Cascade)
+  referringUrl String
+  observedAt   DateTime @default(now())
+
+  @@unique([siteId, toPostId, referringUrl])
+  @@index([siteId])
+  @@index([toPostId])
+}
+
+model Post {
+  id     String @id @default(cuid())
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  slug     String
+  title    String
+  body    String  @db.Text
+  excerpt String?
+
+  status      PostStatus @default(DRAFT)
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  // Marker for idempotency: BACKFILL_REWRITE skips posts where this is non-null
+  // unless `force: true` is passed.
+  rewrittenAt DateTime?
+
+  // Stored for DataForSEO SERP rank tracking. Not pushed to WordPress;
+  // each WP site's SEO plugin handles its own meta locally.
+  focusKeyword String?
+
+  featuredImage    String?
+  featuredImagePrompt String? // last prompt used when AI-generated
+
+  categories String[] @default([])
+  tags       String[] @default([])
+  niches     Niche[]  @default([])
+
+  // pgvector: text-embedding-3-small dim. Re-embed only when body changes.
+  embedding Unsupported("vector(1536)")?
+
+  outbound Link[] @relation("outbound")
+  inbound  Link[] @relation("inbound")
+  jobs     Job[]
+  images   PostImage[]
+
+  gscReferringUrls GscReferringUrl[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([siteId, slug])
+  @@index([siteId, status])
+  @@index([status, scheduledAt])
+}
+
+model PostImage {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  blobKey   String   // sites/{siteId}/posts/{postId}/{hash}.{ext}
+  blobUrl   String   // public read URL composed from R2_PUBLIC_BASE_URL + blobKey
+  filename  String   // stable filename used in MD body and on-disk during build
+  mime      String
+  width     Int?
+  height    Int?
+  alt       String?
+  isHero    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, filename])
+  @@index([postId])
+}
+
+model Link {
+  id         String @id @default(cuid())
+  fromPostId String
+  fromPost   Post   @relation("outbound", fields: [fromPostId], references: [id], onDelete: Cascade)
+
+  type LinkType
+
+  // Resolved target: null when EXTERNAL or unresolved (deleted target etc.)
+  toPostId String?
+  toPost   Post?   @relation("inbound", fields: [toPostId], references: [id], onDelete: SetNull)
+
+  // Raw href as it appears in the rendered HTML; always populated.
+  toUrl      String
+  anchorText String
+  rel        String? // "nofollow", "ugc", "sponsored", null
+  position   Int? // paragraph index within fromPost.body
+
+  // null = pending review, true = approved, false = rejected. Used for
+  // source=SUGGESTED rows; remains null for IMPORTED/MANUAL.
+  approved    Boolean?
+  // Set when source=SUGGESTED; lets us age out stale unreviewed
+  // suggestions if we add a retention policy later.
+  suggestedAt DateTime?
+
+  source LinkSource @default(MANUAL)
+  status LinkStatus @default(ACTIVE)
+
+  lastCheckedAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([fromPostId])
+  @@index([toPostId])
+  @@index([type])
+  @@index([status])
+  @@index([fromPostId, source, approved])
+}
+
+model Job {
+  id     String @id @default(cuid())
+  kind   JobKind
+  status JobStatus @default(QUEUED)
+
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  siteId String?
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  attempts  Int     @default(0)
+  lastError String?
+  payload   Json
+
+  // BullMQ job id: lets us reconcile state if the queue and DB drift.
+  queueJobId String? @unique
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  @@index([status, kind])
+  @@index([postId])
+  @@index([siteId])
+  // Covers the bucket refill scan's in-flight count
+  // (apps/worker/src/lib/scheduler-fanout.ts): per-site filter on
+  // kind=GENERATE_POST + status IN (QUEUED, RUNNING).
+  @@index([siteId, kind, status])
+}
+
+model ApiKey {
+  id     String @id @default(cuid())
+  name   String
+
+  // sha256 of the full token. The token itself is only ever shown to the
+  // creator at issue time; never stored or logged.
+  hash   String @unique
+  prefix String // first 8 chars for display in UI ("cm_live_a1b2…")
+
+  scopes    String[] @default([]) // posts:read posts:write sites:read sync:write links:write
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  lastUsed  DateTime?
+
+  // When set, restricts this key to a single Site (used for content:read
+  // keys handed to Astro builds). Unscoped admin/automation keys keep this
+  // null and remain valid against the non-build routes.
+  siteId String?
+  site   Site?   @relation("ApiKeySite", fields: [siteId], references: [id], onDelete: SetNull)
+
+  @@index([prefix])
+  @@index([siteId])
+}
+
+model AuditLog {
+  id     String @id @default(cuid())
+  actor  String // "user:<id>" or "apikey:<id>"
+  action String // post.publish, link.create, site.update, etc.
+  target String // entity reference, e.g. "post:cl..." or "site:cl..."
+  meta   Json
+
+  createdAt DateTime @default(now())
+
+  @@index([actor])
+  @@index([target])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Google OAuth tokens stored per User. Currently used for Search Console
+// (scope: webmasters.readonly). Tokens are encrypted at rest with the same
+// libsodium key as Site credentials (`WP_ENCRYPTION_KEY`).
+model GoogleConnection {
+  id           String @id @default(cuid())
+  userId       String @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Encrypted Google OAuth tokens.
+  accessToken  String
+  refreshToken String?
+  scope        String
+  expiresAt    DateTime
+
+  // Email of the connected Google account (informational; matches the
+  // identity that consented to the OAuth grant).
+  googleEmail  String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Daily rollup written by the worker's SNAPSHOT_SITE job. The dashboard
+// reads only from this table, never hits DataForSEO/GSC at render time.
+// Per-source fields are nullable so a single fetch failure doesn't void
+// the whole row; the `errors` JSON records what went wrong.
+model SiteSnapshot {
+  id     String @id @default(cuid())
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // UTC midnight; unique per site/day.
+  date DateTime @db.Date
+
+  // DataForSEO
+  domainRank       Int?
+  backlinksTotal   Int?
+  referringDomains Int?
+  onPageScore      Float?
+
+  // Search Console
+  gscImpressions Int?
+  gscClicks      Int?
+  gscAvgPosition Float?
+
+  // Local (always populated)
+  postsLast7d          Int @default(0)
+  postsLast30d         Int @default(0)
+  daysSinceLastPublish Int?
+
+  // Reachability: gates the score; null score when unreachable.
+  reachable Boolean @default(true)
+
+  // Composite 0–100 from @repo/health; null when reachable=false or not enough data.
+  healthScore Int?
+
+  // Per-source error strings: { dataforseo?, gsc?, reachability? }
+  errors Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@unique([siteId, date])
+  @@index([siteId, date(sort: Desc)])
+}
+
+model MoneySite {
+  id                String          @id @default(cuid())
+  domain            String          @unique
+  name              String
+  sitemapUrl        String
+  // Optional path prefix to filter content URLs from the sitemap (e.g. "/spaces/"
+  // for Acme Studios). Pages whose URL path doesn't start with this prefix are skipped.
+  // null/empty means "include every URL".
+  contentPathPrefix String?
+  isEnabled         Boolean         @default(true)
+  pages             MoneySitePage[]
+  pbnSites          Site[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model MoneySitePage {
+  id            String                          @id @default(cuid())
+  moneySiteId   String
+  moneySite     MoneySite                       @relation(fields: [moneySiteId], references: [id], onDelete: Cascade)
+  url           String
+  title         String
+  // Plain-text extract used for embedding + display. Not full HTML.
+  excerpt       String                          @db.Text
+  niches        Niche[]                         @default([])
+  tags          String[]                        @default([])
+  embedding     Unsupported("vector(1536)")?
+  lastCrawledAt DateTime?
+  createdAt     DateTime                        @default(now())
+  updatedAt     DateTime                        @updatedAt
+
+  @@unique([moneySiteId, url])
+  @@index([moneySiteId])
+}
+
+// Public Cloud interest list, independent of administrator accounts.
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String?
+  createdAt DateTime @default(now())
+}

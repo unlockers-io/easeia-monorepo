@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T20:54:23.970606+00:00",
+  "title": "Design System: Easeia Landing",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Pale gray",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Secondary ink",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Fine rule",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.26 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "destructive": {
+        "role": "state",
+        "displayName": "Failure red",
+        "tonalRamp": [
+          "oklch(0.15 0.21 27)",
+          "oklch(0.26 0.21 27)",
+          "oklch(0.38 0.21 27)",
+          "oklch(0.49 0.21 27)",
+          "oklch(0.61 0.21 27)",
+          "oklch(0.72 0.21 27)",
+          "oklch(0.84 0.21 27)",
+          "oklch(0.95 0.21 27)"
+        ]
+      },
+      "success": {
+        "role": "state",
+        "displayName": "Success green",
+        "tonalRamp": [
+          "oklch(0.15 0.15 150)",
+          "oklch(0.26 0.15 150)",
+          "oklch(0.38 0.15 150)",
+          "oklch(0.49 0.15 150)",
+          "oklch(0.61 0.15 150)",
+          "oklch(0.72 0.15 150)",
+          "oklch(0.84 0.15 150)",
+          "oklch(0.95 0.15 150)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "input-xs",
+        "value": "0 1px 2px rgb(0 0 0 / 0.05)",
+        "purpose": "Existing shared input treatment; report panels remain flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Tailwind default for shared control state changes."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Shared CSS media query shortens animation and transition durations and disables smooth scrolling."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shared compact action; the large variant is 36px high.",
+      "html": "<button class=\"ds-button-primary\" type=\"button\">Save changes</button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:0;font-size:14px;font-weight:600;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1);background:var(--primary, oklch(0.12 0 0));color:var(--background, oklch(0.985 0 0));}.ds-button-primary:hover{background:color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 85%,transparent);}.ds-button-primary:focus-visible{outline:none;border-color:var(--primary, oklch(0.12 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 50%,transparent);}.ds-button-primary:active{transform:translateY(1px);}.ds-button-primary:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition-duration:.01ms;}}"
+    },
+    {
+      "name": "Outline button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Shared compact action; the large variant is 36px high.",
+      "html": "<button class=\"ds-button-outline\" type=\"button\">View details</button>",
+      "css": ".ds-button-outline{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 10px;border:1px solid transparent;border-radius:0;font-size:14px;font-weight:600;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1);background:var(--background, oklch(0.985 0 0));color:var(--primary, oklch(0.12 0 0));border-color:var(--primary, oklch(0.12 0 0));}.ds-button-outline:hover{background:var(--primary, oklch(0.12 0 0));color:var(--background, oklch(0.985 0 0));}.ds-button-outline:focus-visible{outline:none;border-color:var(--primary, oklch(0.12 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 50%,transparent);}.ds-button-outline:active{transform:translateY(1px);}.ds-button-outline:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-outline{transition-duration:.01ms;}}"
+    },
+    {
+      "name": "Email field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A labeled shared field with visible keyboard focus and invalid state.",
+      "html": "<label class=\"ds-label\">Email address<input class=\"ds-input\" type=\"email\" placeholder=\"you@example.com\"></label>",
+      "css": ".ds-label{display:grid;gap:8px;font-size:14px;font-weight:500;color:var(--primary, oklch(0.12 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-input{width:240px;max-width:100%;height:36px;border:1px solid var(--border, oklch(0.85 0 0));border-radius:0;background:transparent;padding:4px 12px;font-size:16px;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;color:var(--primary, oklch(0.12 0 0));box-shadow:0 1px 2px rgb(0 0 0 / .05);transition:color 150ms,box-shadow 150ms;}.ds-input::placeholder{color:var(--muted-foreground, oklch(0.4 0 0));}.ds-input:focus-visible{outline:none;border-color:var(--primary, oklch(0.12 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--primary, oklch(0.12 0 0)) 50%,transparent);}.ds-input[aria-invalid=true]{border-color:var(--destructive, oklch(0.55 0.21 27));}.ds-input:disabled{opacity:.5;cursor:not-allowed;}@media(min-width:768px){.ds-input{font-size:14px;}}@media(prefers-reduced-motion:reduce){.ds-input{transition-duration:.01ms;}}"
+    },
+    {
+      "name": "Report navigation",
+      "kind": "nav",
+      "description": "Desktop text links from the opaque report header. Mobile uses a native disclosure.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#capabilities\">Capabilities</a><a href=\"#api\">API</a><a href=\"#pricing\">Pricing</a></nav>",
+      "css": ".ds-nav{display:flex;flex-wrap:wrap;gap:16px;font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;}.ds-nav a{color:var(--muted-foreground, oklch(0.4 0 0));text-decoration:none;}.ds-nav a:hover{color:var(--primary, oklch(0.12 0 0));text-decoration:underline;text-underline-offset:4px;}.ds-nav a:focus-visible{outline:2px solid var(--primary, oklch(0.12 0 0));outline-offset:2px;}"
+    },
+    {
+      "name": "Published status mark",
+      "kind": "chip",
+      "description": "A text status from the illustrative network table, not a filter.",
+      "html": "<span class=\"ds-status\">Published</span>",
+      "css": ".ds-status{font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--success,oklch(0.52 0.15 150));}"
+    },
+    {
+      "name": "Report figure",
+      "kind": "card",
+      "description": "Flat figure structure with a heavy top rule and explicit demo caption.",
+      "html": "<figure class=\"ds-figure\"><figcaption>Fig. 2 — Network report <span>Demo data</span></figcaption><p>Four blogs and one money site</p></figure>",
+      "css": ".ds-figure{margin:0;border-top:4px solid var(--primary, oklch(0.12 0 0));padding-top:12px;color:var(--primary, oklch(0.12 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-figure figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;}.ds-figure figcaption span{color:var(--muted-foreground, oklch(0.4 0 0));}.ds-figure p{margin:16px 0 0;border-top:1px solid var(--border, oklch(0.85 0 0));padding:16px 0;font-size:14px;}"
+    },
+    {
+      "name": "Numbered section",
+      "kind": "custom",
+      "description": "Functional annual-report section number and heading.",
+      "html": "<section class=\"ds-section\"><span aria-hidden=\"true\">04</span><h2>Pipe posts in from N8N, your CI, or a Slack bot.</h2></section>",
+      "css": ".ds-section{color:var(--primary, oklch(0.12 0 0));font-family:var(--font-sans-face,\"Schibsted Grotesk\"),ui-sans-serif,system-ui,\"Helvetica Neue\",Helvetica,Arial,sans-serif;}.ds-section>span{font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;}.ds-section h2{margin:8px 0 0;max-width:22ch;font-size:30px;line-height:1;font-weight:900;letter-spacing:-.04em;text-wrap:balance;}@media(min-width:768px){.ds-section h2{font-size:44px;}}"
+    },
+    {
+      "name": "API request region",
+      "kind": "custom",
+      "description": "A reversed code surface with keyboard scrolling and a contrasting inset focus outline.",
+      "html": "<div class=\"ds-api\"><div class=\"ds-api-title\">POST /api/posts</div><section class=\"ds-code\" aria-label=\"API request example\" tabindex=\"0\"><pre><code>curl \"$EASEIA_API_URL/api/posts\" \\\n  -H \"Authorization: Bearer $EASEIA_API_KEY\"</code></pre></section></div>",
+      "css": ".ds-api{overflow:hidden;background:var(--primary, oklch(0.12 0 0));color:var(--background, oklch(0.985 0 0));}.ds-api-title{border-bottom:1px solid color-mix(in oklab,var(--background, oklch(0.985 0 0)) 20%,transparent);padding:10px 16px;font-family:ui-monospace,monospace;font-size:12px;font-weight:700;}.ds-code{overflow-x:auto;}.ds-code:focus-visible{outline:2px solid var(--background, oklch(0.985 0 0));outline-offset:-4px;}.ds-code pre{margin:0;padding:20px;font-family:ui-monospace,monospace;font-size:13px;line-height:24px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Annual Report",
+    "overview": "A Swiss annual report for a practical publishing tool: one grotesk, strong black rules, clear numbered sections and near-white paper. The existing logo, flat report figures and real dashboard captures carry the identity. Product imagery uses disclosed synthetic .example data.",
+    "keyCharacteristics": [
+      "Numbered report sections and figure captions.",
+      "Heavy, tightly set headings with restrained body copy.",
+      "Square controls and authentic product screenshots."
+    ],
+    "rules": [
+      {
+        "name": "State Color",
+        "body": "Use chromatic color to communicate state; keep the surrounding report neutral.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do reuse the shared palette and Schibsted Grotesk.",
+      "Do use numbered sections for report wayfinding and captions to identify figures.",
+      "Do show real dashboard captures with disclosed fictional .example data.",
+      "Do preserve visible focus on controls and horizontally scrollable code."
+    ],
+    "donts": [
+      "Don’t replace the confirmed identity with decorative gradients, rounded marketing cards or an unrelated display face.",
+      "Don’t present synthetic examples as customer evidence.",
+      "Don’t imply that Cloud is purchasable or has confirmed pricing."
+    ]
+  }
+}
