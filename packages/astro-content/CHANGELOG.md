@@ -1,5 +1,11 @@
 # @easeia/astro-content
 
+## 0.5.2
+
+### Patch Changes
+
+- 6d4d686: Strip XML-invalid control characters from frontmatter strings and post bodies.
+
 ## 0.5.1
 
 ### Patch Changes

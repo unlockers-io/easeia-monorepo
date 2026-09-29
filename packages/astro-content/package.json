@@ -1,6 +1,6 @@
 {
   "name": "@easeia/astro-content",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Astro content loader + image prefetch CLI that pulls posts from the Easeia build API at build time.",
   "keywords": [
     "astro",
