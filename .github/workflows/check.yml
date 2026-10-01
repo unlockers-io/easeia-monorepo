@@ -93,7 +93,7 @@ jobs:
           pnpm --filter @repo/db db:push
           node .github/ci/ci.mjs run test -- pnpm --filter @repo/ai exec vitest run src/budget-store.test.ts
       - name: Audit dependencies
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
         run: node .github/ci/ci.mjs run lint -- pnpm audit --audit-level=high
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         name: Upload CI evidence
