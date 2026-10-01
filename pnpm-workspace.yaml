@@ -16,13 +16,14 @@ overrides:
   # Security: force patched transitive releases to clear pnpm audit advisories.
   # Each pin is the lowest release that carries the fix.
   body-parser: "^2.3.0"
-  "brace-expansion@1": "^1.1.18"
-  "brace-expansion@5": "^5.0.9"
+  "brace-expansion@1": "^1.1.21"
+  "brace-expansion@5": "^5.0.12"
   # Prisma config merges plain records; v8 fixes recursive-graph stack exhaustion.
   "@prisma/config>deepmerge-ts": "^8.0.0"
   "devalue@<5.9.1": "^5.9.2"
+  engine.io: "^6.6.10"
   esbuild: "^0.28.1"
-  fast-uri: "^3.1.6"
+  fast-uri: "^3.1.8"
   hono: "^4.13.9"
   ip-address: "^10.5.1"
   js-yaml: "^4.3.2"
