@@ -20,14 +20,12 @@ import {
 import { Table, TableBody, TableCell, TableRow } from "@repo/ui/components/table";
 import { TableColumns } from "@repo/ui/compositions/table-columns";
 import { ExternalLink, MoreHorizontal, Send, Trash2 } from "lucide-react";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { RewriteTriggerButton } from "@/components/rewrite-trigger-button";
 import { SuggestedLinksPanel } from "@/components/suggested-links-panel";
-import { getSession } from "@/lib/auth-helpers";
 import { readIntegrations } from "@/lib/integrations";
 
 import { deletePostAction, publishPostAction } from "../../actions";
@@ -43,11 +41,7 @@ import { SimilarPostsCard } from "./similar-posts";
 
 const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const [post, session, headersList] = await Promise.all([
-    Posts.detail(id),
-    getSession(),
-    headers(),
-  ]);
+  const post = await Posts.detail(id);
   if (!post) {
     notFound();
   }
@@ -71,9 +65,6 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const nowMs = Date.now();
   const publicPageUrl = postPublicUrl(post.site, post);
   const permalinkLabel = `${post.site.domain} · ${postPath(post.site, post)}`;
-  const host = headersList.get("host") ?? "localhost";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  const origin = `${proto}://${host}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -283,16 +274,9 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       )}
 
-      {session ? (
-        <Suspense fallback={<SeoLoadingCard title="Search Console: page performance" />}>
-          <PostSearchConsoleCard
-            domain={post.site.domain}
-            origin={origin}
-            pageUrl={publicPageUrl}
-            userId={session.user.id}
-          />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<SeoLoadingCard title="Search Console: page performance" />}>
+        <PostSearchConsoleCard domain={post.site.domain} pageUrl={publicPageUrl} />
+      </Suspense>
 
       <OutboundLinksCard outbound={liveOutbound} />
 

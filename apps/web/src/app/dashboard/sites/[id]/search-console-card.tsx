@@ -1,11 +1,4 @@
-import {
-  GoogleNotConfiguredError,
-  GoogleNotConnectedError,
-  loadConnection,
-  resolveSiteUrl,
-  topQueries,
-  totals,
-} from "@repo/search-console";
+import { forSite, GoogleAuthError, GoogleNotConfiguredError } from "@repo/search-console";
 import { Badge } from "@repo/ui/components/badge";
 import {
   Card,
@@ -27,7 +20,6 @@ import Link from "next/link";
 
 import { ProviderErrorCard } from "@/app/dashboard/lib/provider-card";
 import { tryProvider } from "@/app/dashboard/lib/provider-result";
-import { buildRedirectUri } from "@/lib/google-oauth";
 
 const WINDOW_DAYS = 28;
 const TOP_LIMIT = 10;
@@ -67,25 +59,10 @@ const NotVerified = ({ domain }: { domain: string }) => (
   </Card>
 );
 
-export const SearchConsoleCard = async ({
-  domain,
-  origin,
-  userId,
-}: {
-  domain: string;
-  origin: string;
-  userId: string;
-}) => {
-  const connection = await loadConnection(userId);
-  if (!connection) {
-    return <NotConnected />;
-  }
+const EXPECTED_ERRORS = [GoogleAuthError, GoogleNotConfiguredError];
 
-  const ctx = { redirectUri: buildRedirectUri(origin), userId };
-  const resolved = await tryProvider(
-    () => resolveSiteUrl(ctx, domain),
-    [GoogleNotConnectedError, GoogleNotConfiguredError],
-  );
+export const SearchConsoleCard = async ({ domain }: { domain: string }) => {
+  const resolved = await tryProvider(() => forSite(domain), EXPECTED_ERRORS);
   if (!resolved.ok) {
     return (
       <ProviderErrorCard
@@ -96,18 +73,21 @@ export const SearchConsoleCard = async ({
       />
     );
   }
-  if (resolved.data === null || resolved.data === "") {
+  const site = resolved.data;
+  if (site.status === "not_connected") {
+    return <NotConnected />;
+  }
+  if (site.status === "not_verified") {
     return <NotVerified domain={domain} />;
   }
-  const siteUrl = resolved.data;
 
   const fetched = await tryProvider(
     () =>
       Promise.all([
-        totals(ctx, siteUrl, WINDOW_DAYS),
-        topQueries(ctx, siteUrl, { days: WINDOW_DAYS, limit: TOP_LIMIT }),
+        site.totals(WINDOW_DAYS),
+        site.topQueries({ days: WINDOW_DAYS, limit: TOP_LIMIT }),
       ]),
-    [GoogleNotConnectedError, GoogleNotConfiguredError],
+    EXPECTED_ERRORS,
   );
   if (!fetched.ok) {
     return (
@@ -130,7 +110,7 @@ export const SearchConsoleCard = async ({
         </CardTitle>
         <CardDescription>
           Live performance for{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">{siteUrl}</code> · last{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{site.property}</code> · last{" "}
           {WINDOW_DAYS} days.
         </CardDescription>
       </CardHeader>

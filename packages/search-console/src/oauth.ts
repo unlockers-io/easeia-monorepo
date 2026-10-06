@@ -29,7 +29,7 @@ const loadEnv = (): OAuthEnv => {
   return { clientId, clientSecret };
 };
 
-export const oauthClient = (redirectUri: string): OAuth2Client => {
+export const oauthClient = (redirectUri?: string): OAuth2Client => {
   const env = loadEnv();
   return new OAuth2Client({
     clientId: env.clientId,

@@ -1,9 +1,4 @@
-import {
-  isGoogleConfigured,
-  GoogleNotConfiguredError,
-  listVerifiedSites,
-  loadConnection,
-} from "@repo/search-console";
+import { isGoogleConfigured, listVerifiedSites, loadConnection } from "@repo/search-console";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -14,21 +9,14 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { CheckCircle2, ExternalLink, Plug, Unplug } from "lucide-react";
-import { headers } from "next/headers";
 
 import { getSession } from "@/lib/auth-helpers";
-import { buildRedirectUri } from "@/lib/google-oauth";
 
 import { IntegrationsCard } from "./integrations";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
-const ConnectionCard = async ({ origin }: { origin: string }) => {
-  const session = await getSession();
-  if (!session) {
-    return null;
-  }
-  const userId = session.user.id;
+const ConnectionCard = async ({ userId }: { userId: string }) => {
   const connection = await loadConnection(userId);
 
   if (!connection) {
@@ -64,17 +52,10 @@ const ConnectionCard = async ({ origin }: { origin: string }) => {
   let verifiedCount: number | null = null;
   let errorMessage: string | null = null;
   try {
-    const sites = await listVerifiedSites({
-      redirectUri: buildRedirectUri(origin),
-      userId,
-    });
+    const sites = await listVerifiedSites(userId);
     verifiedCount = sites.length;
   } catch (error) {
-    if (error instanceof GoogleNotConfiguredError) {
-      errorMessage = error.message;
-    } else {
-      errorMessage = error instanceof Error ? error.message : String(error);
-    }
+    errorMessage = error instanceof Error ? error.message : String(error);
   }
 
   return (
@@ -138,10 +119,7 @@ const SettingsPage = async ({
     google_error?: string;
   }>;
 }) => {
-  const [params, headersList, session] = await Promise.all([searchParams, headers(), getSession()]);
-  const host = headersList.get("host") ?? "localhost";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  const origin = `${proto}://${host}`;
+  const [params, session] = await Promise.all([searchParams, getSession()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -163,7 +141,7 @@ const SettingsPage = async ({
       {session && <ProfileForm email={session.user.email} name={session.user.name} />}
       <PasswordForm />
       <IntegrationsCard />
-      <ConnectionCard origin={origin} />
+      {session && <ConnectionCard userId={session.user.id} />}
     </div>
   );
 };

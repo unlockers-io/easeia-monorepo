@@ -1,16 +1,9 @@
-/**
- * GoogleConnection persistence: encrypts tokens at rest and refreshes them
- * lazily when an authed client is requested. Refresh writes back to the row
- * so the next call doesn't refresh again.
- */
-import { prisma, type GoogleConnection, type Prisma } from "@repo/db";
-import type { Credentials, OAuth2Client } from "google-auth-library";
+import { prisma, type GoogleConnection } from "@repo/db";
+import type { Credentials } from "google-auth-library";
 
-import { decryptSecret, encryptSecret } from "./crypto";
-import { GoogleAuthError, GoogleNotConnectedError } from "./errors";
-import { oauthClient, SEARCH_CONSOLE_SCOPE } from "./oauth";
-
-const REFRESH_LEEWAY_MS = 60_000;
+import { encryptSecret } from "./crypto";
+import { GoogleAuthError } from "./errors";
+import { SEARCH_CONSOLE_SCOPE } from "./oauth";
 
 export type GoogleConnectionPublic = Omit<GoogleConnection, "accessToken" | "refreshToken">;
 
@@ -30,7 +23,6 @@ export const disconnect = async (userId: string): Promise<void> => {
 
 export const storeConnection = async (params: {
   googleEmail: string | null;
-  redirectUri: string;
   tokens: Credentials;
   userId: string;
 }): Promise<GoogleConnectionPublic> => {
@@ -65,58 +57,4 @@ export const storeConnection = async (params: {
     where: { userId: params.userId },
   });
   return stripTokens(row);
-};
-
-const persistRefresh = async (userId: string, tokens: Credentials): Promise<void> => {
-  if (
-    typeof tokens.access_token !== "string" ||
-    tokens.access_token === "" ||
-    typeof tokens.expiry_date !== "number" ||
-    tokens.expiry_date === 0
-  ) {
-    return;
-  }
-  const data: Prisma.GoogleConnectionUpdateInput = {
-    accessToken: encryptSecret(tokens.access_token),
-    expiresAt: new Date(tokens.expiry_date),
-  };
-  if (typeof tokens.refresh_token === "string" && tokens.refresh_token !== "") {
-    data.refreshToken = encryptSecret(tokens.refresh_token);
-  }
-  await prisma.googleConnection.update({
-    data,
-    where: { userId },
-  });
-};
-
-export const authedClient = async (params: {
-  redirectUri: string;
-  userId: string;
-}): Promise<OAuth2Client> => {
-  const row = await prisma.googleConnection.findUnique({ where: { userId: params.userId } });
-  if (!row) {
-    throw new GoogleNotConnectedError(params.userId);
-  }
-  const client = oauthClient(params.redirectUri);
-  const accessToken = decryptSecret(row.accessToken);
-  const refreshToken =
-    row.refreshToken !== null && row.refreshToken !== "" ? decryptSecret(row.refreshToken) : null;
-  client.setCredentials({
-    access_token: accessToken,
-    expiry_date: row.expiresAt.getTime(),
-    refresh_token: refreshToken ?? undefined,
-    scope: row.scope,
-  });
-
-  const expiresIn = row.expiresAt.getTime() - Date.now();
-  if (expiresIn > REFRESH_LEEWAY_MS) {
-    return client;
-  }
-  if (refreshToken === null || refreshToken === "") {
-    throw new GoogleAuthError("Access token expired and no refresh token stored; reconnect");
-  }
-  const { credentials } = await client.refreshAccessToken();
-  await persistRefresh(params.userId, credentials);
-  client.setCredentials(credentials);
-  return client;
 };

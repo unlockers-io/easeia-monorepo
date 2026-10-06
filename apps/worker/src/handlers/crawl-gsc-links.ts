@@ -1,9 +1,8 @@
 import { ExternalBacklinkSource, prisma } from "@repo/db";
 import type { ConsumerContext } from "@repo/jobs";
-import { inspectUrl } from "@repo/search-console";
+import { forSite } from "@repo/search-console";
 import { postPublicUrl } from "@repo/sites";
 
-import { buildRedirectUri } from "../lib/google-redirect-uri";
 import { createJobLogger } from "../lib/logger";
 
 export const extractSourceDomain = (rawUrl: string): string | null => {
@@ -102,17 +101,15 @@ export const handleCrawlGscLinks = async (
   // (Post.link was dropped with the WordPress→Astro migration).
   const inspectionUrl = postPublicUrl(post.site, post);
 
-  const redirectUri = buildRedirectUri();
-  if (redirectUri === null || redirectUri === "") {
-    log.warn("crawl-gsc-links: APP_URL unset, skipping");
+  const searchConsole = await forSite(post.site.domain);
+  if (searchConsole.status !== "ok") {
+    log.set({ searchConsole: searchConsole.status });
+    log.warn("crawl-gsc-links: Search Console unavailable, skipping");
     log.emit();
     return;
   }
 
-  const result = await inspectUrl(
-    { redirectUri, userId: payload.userId },
-    { inspectionUrl, sitePropertyUrl: payload.sitePropertyUrl },
-  );
+  const result = await searchConsole.inspectUrl(inspectionUrl);
 
   if (result.referringUrls.length > 0) {
     await Promise.allSettled(

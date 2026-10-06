@@ -2,6 +2,7 @@
 
 import { JobKind, prisma } from "@repo/db";
 import { enqueue, fanoutRejections } from "@repo/jobs";
+import { isConnected } from "@repo/search-console";
 import { revalidatePath } from "next/cache";
 
 import { getSession } from "@/lib/auth-helpers";
@@ -18,11 +19,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
     return { error: "Not authenticated.", ok: false };
   }
 
-  const connection = await prisma.googleConnection.findUnique({
-    select: { id: true },
-    where: { userId: session.user.id },
-  });
-  if (!connection) {
+  if (!(await isConnected())) {
     return { error: "Connect Google in Settings before importing.", ok: false };
   }
 
@@ -39,7 +36,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
     sites.map((site) =>
       enqueue({
         kind: JobKind.BACKFILL_GSC_LINKS,
-        payload: { siteId: site.id, userId: session.user.id },
+        payload: { siteId: site.id },
         redisUrl: redisUrl(),
         siteId: site.id,
       }),

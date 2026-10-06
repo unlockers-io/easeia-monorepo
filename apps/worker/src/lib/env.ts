@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  APP_URL: z.url().optional(),
   BODY_IMAGES_ENABLED: z
     .enum(["true", "false"])
     .default("false")

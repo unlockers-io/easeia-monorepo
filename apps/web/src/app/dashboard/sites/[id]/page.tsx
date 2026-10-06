@@ -20,14 +20,12 @@ import {
 } from "@repo/ui/components/table";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, CheckCircle2, ExternalLink, XCircle } from "lucide-react";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { MoneySiteDropdown } from "@/components/money-site-dropdown";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
-import { getSession } from "@/lib/auth-helpers";
 import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
@@ -57,10 +55,8 @@ import { StatGridSkeleton, CardSkeleton, SectionSkeleton } from "./skeletons";
 
 const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const [site, session, headersList, moneySiteOptions] = await Promise.all([
+  const [site, moneySiteOptions] = await Promise.all([
     Sites.find(id),
-    getSession(),
-    headers(),
     prisma.moneySite.findMany({
       orderBy: { domain: "asc" },
       select: { domain: true, id: true, name: true },
@@ -70,9 +66,6 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   if (!site) {
     notFound();
   }
-  const host = headersList.get("host") ?? "localhost";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  const origin = `${proto}://${host}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -232,11 +225,9 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       )}
 
-      {session ? (
-        <Suspense fallback={<CardSkeleton title="Google Search Console" />}>
-          <SearchConsoleCard domain={site.domain} origin={origin} userId={session.user.id} />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<CardSkeleton title="Google Search Console" />}>
+        <SearchConsoleCard domain={site.domain} />
+      </Suspense>
     </div>
   );
 };

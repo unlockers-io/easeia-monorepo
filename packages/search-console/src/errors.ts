@@ -5,13 +5,6 @@ export class GoogleNotConfiguredError extends Error {
   }
 }
 
-export class GoogleNotConnectedError extends Error {
-  constructor(userId: string) {
-    super(`No Google connection for user ${userId}`);
-    this.name = "GoogleNotConnectedError";
-  }
-}
-
 export class GoogleAuthError extends Error {
   constructor(message: string) {
     super(message);
