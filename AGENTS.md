@@ -60,7 +60,7 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/dataforseo`                                             | DataForSEO client wrapper (keyword research, SERP).                                               |
 | `@repo/links` / `@repo/suggest-links`                          | Cross-site internal-link graph + per-post link suggestions.                                       |
 | `@repo/money-sites`                                            | Money-site registry (host, niche, deploy hook).                                                   |
-| `@repo/search-console`                                         | Google Search Console client (OAuth tokens encrypted at rest).                                    |
+| `@repo/search-console`                                         | Search Console per Site (`forSite(domain)`): connection, property, token refresh, OAuth connect.  |
 | `@repo/transactional`                                          | Resend email templates + sender.                                                                  |
 | `@repo/health`                                                 | On-page SEO scoring and health checks.                                                            |
 | `@easeia/astro-content`                                        | Build-time content adapter: fetches posts from `/api/build/*` and surfaces them as Astro content. |

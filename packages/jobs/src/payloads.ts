@@ -8,8 +8,6 @@ type BackfillGscLinksPayload = {
   initialFanoutDone?: boolean;
   postIds?: ReadonlyArray<string>;
   siteId: string;
-  sitePropertyUrl?: string;
-  userId: string;
 };
 
 type JobPayloadMap<T extends Record<JobKind, Prisma.InputJsonObject>> = T;
@@ -19,7 +17,7 @@ type JobPayloads = JobPayloadMap<{
   BACKFILL_NETWORK: BackfillNetworkPayload;
   BACKFILL_REWRITE: BackfillRewritePayload;
   CLASSIFY: { postId: string };
-  CRAWL_GSC_LINKS: { postId: string; sitePropertyUrl: string; userId: string };
+  CRAWL_GSC_LINKS: { postId: string };
   CRAWL_LINKS: { postId: string };
   CRAWL_MONEY_SITE: { moneySiteId: string };
   CRAWL_MONEY_SITE_PAGE: { moneySitePageId: string };

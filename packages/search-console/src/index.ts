@@ -1,16 +1,13 @@
-export { GoogleAuthError, GoogleNotConfiguredError, GoogleNotConnectedError } from "./errors";
-export { isGoogleConfigured, buildAuthUrl, exchangeCode, SEARCH_CONSOLE_SCOPE } from "./oauth";
+export { GoogleAuthError, GoogleNotConfiguredError } from "./errors";
+export { isGoogleConfigured, buildAuthUrl, exchangeCode } from "./oauth";
 export { disconnect, loadConnection, storeConnection, type GoogleConnectionPublic } from "./tokens";
 export {
-  inspectUrl,
+  forSite,
+  isConnected,
   listVerifiedSites,
-  pagePerformance,
-  resolveSiteUrl,
-  topPages,
-  topQueries,
-  totals,
-  type PagePerformance,
-  type SearchAnalyticsTotals,
+  type SearchMetrics,
+  type SiteLookup,
+  type SiteSearchConsole,
   type TopPage,
   type TopQuery,
   type UrlInspectionResult,

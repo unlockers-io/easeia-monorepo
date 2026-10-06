@@ -2,10 +2,9 @@ import { backlinkSummary, domainRankOverview } from "@repo/dataforseo";
 import { prisma, type Prisma } from "@repo/db";
 import { computeHealthScore } from "@repo/health";
 import type { ConsumerContext } from "@repo/jobs";
-import { loadConnection, resolveSiteUrl, totals } from "@repo/search-console";
+import { forSite } from "@repo/search-console";
 import * as Sites from "@repo/sites";
 
-import { env } from "../lib/env";
 import { createJobLogger, log } from "../lib/logger";
 
 type Outcome<T> = { kind: "ok"; value: T } | { error: string; kind: "err" };
@@ -99,34 +98,15 @@ const fetchGsc = async (
 ): Promise<{
   avgPosition: number | null;
   clicks: number | null;
-  errorCode: "not_connected" | "no_app_url" | "not_verified" | null;
+  errorCode: "not_connected" | "not_verified" | null;
   impressions: number | null;
 }> => {
-  if (env.APP_URL === undefined) {
-    return { avgPosition: null, clicks: null, errorCode: "no_app_url", impressions: null };
+  const site = await forSite(domain);
+  if (site.status !== "ok") {
+    return { avgPosition: null, clicks: null, errorCode: site.status, impressions: null };
   }
 
-  const connection = await prisma.googleConnection.findFirst({
-    select: { userId: true },
-  });
-  if (!connection) {
-    return { avgPosition: null, clicks: null, errorCode: "not_connected", impressions: null };
-  }
-
-  const ctx = {
-    redirectUri: `${env.APP_URL.replace(/\/$/v, "")}/api/google/callback`,
-    userId: connection.userId,
-  };
-  if ((await loadConnection(connection.userId)) === null) {
-    return { avgPosition: null, clicks: null, errorCode: "not_connected", impressions: null };
-  }
-
-  const siteUrl = await resolveSiteUrl(ctx, domain);
-  if (siteUrl === null) {
-    return { avgPosition: null, clicks: null, errorCode: "not_verified", impressions: null };
-  }
-
-  const t = await totals(ctx, siteUrl, 7);
+  const t = await site.totals(7);
   if (t === null) {
     // Connected and verified, but the property has no rows in the window.
     // Null metrics drop the search component from the health score entirely;

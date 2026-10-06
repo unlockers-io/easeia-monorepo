@@ -1,6 +1,7 @@
 import { auditPage, DataForSeoError, domainRankOverview, rankedKeywords } from "@repo/dataforseo";
 import { LinkType, prisma } from "@repo/db";
 import { liveLinkWhere } from "@repo/links";
+import { isConnected } from "@repo/search-console";
 import { Badge } from "@repo/ui/components/badge";
 import {
   Table,
@@ -234,7 +235,7 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
   // tsgo (TypeScript 7.0.2) widens a five-element Promise.all over Prisma delegates to any[],
   // which turns every downstream callback parameter into an implicit any. Two smaller groups
   // stay within its tuple inference and keep the five queries running in parallel.
-  const [[backlinks, rows], [externalRows, googleConnection, gscReferringSamples]] =
+  const [[backlinks, rows], [externalRows, googleConnected, gscReferringSamples]] =
     await Promise.all([
       Promise.all([
         prisma.link.count({ where: realLinkFilter }),
@@ -249,7 +250,7 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
           select: { importedAt: true, linkingPages: true, source: true, sourceDomain: true },
           where: { siteId },
         }),
-        prisma.googleConnection.findFirst({ select: { id: true } }),
+        isConnected(),
         prisma.gscReferringUrl.findMany({
           orderBy: { observedAt: "desc" },
           select: { observedAt: true, referringUrl: true },
@@ -328,7 +329,7 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
           ) : null}
         </div>
 
-        <ExternalBacklinksUpload hasGoogleConnection={Boolean(googleConnection)} siteId={siteId} />
+        <ExternalBacklinksUpload hasGoogleConnection={googleConnected} siteId={siteId} />
       </div>
     </Section>
   );

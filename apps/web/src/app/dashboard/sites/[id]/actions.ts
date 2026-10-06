@@ -4,6 +4,7 @@ import { siteUpdatePatchSchema } from "@repo/api-types";
 import { ExternalBacklinkSource, JobKind, prisma, type SiteLanguage } from "@repo/db";
 import { enqueue } from "@repo/jobs";
 import { bucketConfigErrors } from "@repo/posts";
+import { isConnected } from "@repo/search-console";
 import * as Sites from "@repo/sites";
 import { parseExternalBacklinksCsv } from "@repo/sites";
 import { revalidatePath } from "next/cache";
@@ -206,13 +207,9 @@ export type StartGscBacklinkBackfillResult = { error: string; ok: false } | { ok
 export const startGscBacklinkBackfillAction = async (
   siteId: string,
 ): Promise<StartGscBacklinkBackfillResult> => {
-  const session = await requireSession();
+  await requireSession();
 
-  const connection = await prisma.googleConnection.findUnique({
-    select: { id: true },
-    where: { userId: session.user.id },
-  });
-  if (!connection) {
+  if (!(await isConnected())) {
     return { error: "Connect Google in Settings before importing.", ok: false };
   }
 
@@ -226,7 +223,7 @@ export const startGscBacklinkBackfillAction = async (
 
   await enqueue({
     kind: JobKind.BACKFILL_GSC_LINKS,
-    payload: { siteId: site.id, userId: session.user.id },
+    payload: { siteId: site.id },
     redisUrl: redisUrl(),
     siteId: site.id,
   });

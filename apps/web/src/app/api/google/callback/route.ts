@@ -64,7 +64,6 @@ export const GET = async (req: NextRequest) => {
     const tokens = await exchangeCode({ code, redirectUri });
     await storeConnection({
       googleEmail: decodeIdTokenEmail(tokens.id_token),
-      redirectUri,
       tokens,
       userId: session.user.id,
     });

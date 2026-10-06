@@ -1,10 +1,4 @@
-import {
-  GoogleNotConfiguredError,
-  GoogleNotConnectedError,
-  loadConnection,
-  pagePerformance,
-  resolveSiteUrl,
-} from "@repo/search-console";
+import { forSite, GoogleAuthError, GoogleNotConfiguredError } from "@repo/search-console";
 import {
   Card,
   CardContent,
@@ -16,7 +10,6 @@ import { Activity, Search } from "lucide-react";
 import Link from "next/link";
 
 import { tryProvider } from "@/app/dashboard/lib/provider-result";
-import { buildRedirectUri } from "@/lib/google-oauth";
 
 const WINDOW_DAYS = 28;
 
@@ -32,17 +25,24 @@ const Header = ({ children }: { children: React.ReactNode }) => (
 
 export const PostSearchConsoleCard = async ({
   domain,
-  origin,
   pageUrl,
-  userId,
 }: {
   domain: string;
-  origin: string;
   pageUrl: string;
-  userId: string;
 }) => {
-  const connection = await loadConnection(userId);
-  if (!connection) {
+  const resolved = await tryProvider(
+    () => forSite(domain),
+    [GoogleAuthError, GoogleNotConfiguredError],
+  );
+  if (!resolved.ok) {
+    return (
+      <Card>
+        <Header>{resolved.error}</Header>
+      </Card>
+    );
+  }
+  const site = resolved.data;
+  if (site.status === "not_connected") {
     return (
       <Card>
         <Header>
@@ -55,20 +55,7 @@ export const PostSearchConsoleCard = async ({
       </Card>
     );
   }
-
-  const ctx = { redirectUri: buildRedirectUri(origin), userId };
-  const resolved = await tryProvider(
-    () => resolveSiteUrl(ctx, domain),
-    [GoogleNotConnectedError, GoogleNotConfiguredError],
-  );
-  if (!resolved.ok) {
-    return (
-      <Card>
-        <Header>{resolved.error}</Header>
-      </Card>
-    );
-  }
-  if (resolved.data === null || resolved.data === "") {
+  if (site.status === "not_verified") {
     return (
       <Card>
         <Header>
@@ -78,9 +65,8 @@ export const PostSearchConsoleCard = async ({
       </Card>
     );
   }
-  const siteUrl = resolved.data;
 
-  const perf = await pagePerformance(ctx, siteUrl, pageUrl, WINDOW_DAYS);
+  const perf = await site.pagePerformance(pageUrl, WINDOW_DAYS);
 
   return (
     <Card>
@@ -91,7 +77,7 @@ export const PostSearchConsoleCard = async ({
         </CardTitle>
         <CardDescription>
           Last {WINDOW_DAYS} days · property{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">{siteUrl}</code>
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{site.property}</code>
         </CardDescription>
       </CardHeader>
       <CardContent>

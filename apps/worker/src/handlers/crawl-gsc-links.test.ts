@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => {
   Object.assign(process.env, {
-    APP_URL: "https://app.test",
     DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
     REDIS_URL: "redis://localhost:6381",
     WP_ENCRYPTION_KEY: "test-encryption-key",

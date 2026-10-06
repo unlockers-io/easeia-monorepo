@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
-import { loadConnection, resolveSiteUrl, topPages, type TopPage } from "@repo/search-console";
+import { forSite, type TopPage } from "@repo/search-console";
 
 // Striking distance: pages Google already shows on pages 1-3 but not in the
 // top 3. A rewrite pass moves these; position > 30 usually needs links, not
@@ -22,19 +22,6 @@ const slugFromUrl = (url: string): string | null => {
 };
 
 const main = async () => {
-  const appUrl = process.env.APP_URL ?? process.env.WEB_APP_URL;
-  if (appUrl === undefined || appUrl === "") {
-    throw new Error("APP_URL (or WEB_APP_URL) is required to build the Google OAuth redirect URI");
-  }
-  const connection = await prisma.googleConnection.findFirst({ select: { userId: true } });
-  if (!connection || (await loadConnection(connection.userId)) === null) {
-    throw new Error("No Google connection. Connect Search Console in the dashboard first.");
-  }
-  const ctx = {
-    redirectUri: `${stripTrailingSlash(appUrl)}/api/google/callback`,
-    userId: connection.userId,
-  };
-
   const sites = await prisma.site.findMany({
     orderBy: { domain: "asc" },
     select: { domain: true, id: true },
@@ -54,12 +41,15 @@ const main = async () => {
   const candidates: Array<Candidate> = [];
 
   for (const site of sites) {
-    const siteUrl = await resolveSiteUrl(ctx, site.domain);
-    if (siteUrl === null) {
+    const searchConsole = await forSite(site.domain);
+    if (searchConsole.status === "not_connected") {
+      throw new Error("No Google connection. Connect Search Console in the dashboard first.");
+    }
+    if (searchConsole.status === "not_verified") {
       console.warn(`skip ${site.domain}: not verified in Search Console`);
       continue;
     }
-    const pages = await topPages(ctx, siteUrl, { days: WINDOW_DAYS, limit: PAGES_PER_SITE });
+    const pages = await searchConsole.topPages({ days: WINDOW_DAYS, limit: PAGES_PER_SITE });
     const striking = pages.filter(
       (p) =>
         p.position >= MIN_POSITION &&
