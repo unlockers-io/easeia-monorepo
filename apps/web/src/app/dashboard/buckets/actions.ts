@@ -15,6 +15,7 @@ import {
 import { DomainError } from "@repo/sites";
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
 import { redisUrl } from "@/lib/env";
 import { log } from "@/lib/observability";
@@ -77,6 +78,7 @@ export const refillBucketAction = async (
     siteId,
   });
   logRefillFailures(siteId, failures);
+  await audit({ action: "bucket.refill", target: `site:${siteId}` });
 
   revalidatePath("/dashboard/buckets");
   return {
@@ -162,6 +164,7 @@ export const applyNetworkDefaultsAction = async (
     }
     return { bucketSitesUpdated, cadenceSitesUpdated };
   });
+  await audit({ action: "site.update", meta: counts, target: "network" });
 
   revalidatePath("/dashboard/buckets");
   revalidatePath("/dashboard/sites");
@@ -174,6 +177,7 @@ export const applyNetworkDefaultsAction = async (
 
 const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
   aiConfigured: isAiConfigured,
+  audit,
   getRedisUrl: redisUrl,
   logFailures: logRefillFailures,
   refillBuckets: Posts.refillConfiguredBuckets,
@@ -199,6 +203,7 @@ export const publishNextFromBucketAction = async (siteId: string): Promise<Publi
     if (!published) {
       return { error: "Bucket is empty", ok: false };
     }
+    await audit({ action: "post.publish", target: `post:${published.postId}` });
     revalidatePath("/dashboard/buckets");
     return { ok: true };
   } catch (error) {
@@ -217,6 +222,7 @@ export const publishDraftAction = async (postId: string): Promise<PublishDraftRe
   }
   try {
     await Posts.publishBucketDraft(post.id, post.siteId, { redisUrl: redisUrl() });
+    await audit({ action: "post.publish", target: `post:${post.id}` });
     revalidatePath("/dashboard/buckets");
     return { ok: true };
   } catch (error) {
@@ -234,6 +240,7 @@ export const deleteDraftAction = async (postId: string): Promise<void> => {
     throw new Error("Only drafts can be deleted from the bucket");
   }
   await Posts.remove(post.id);
+  await audit({ action: "post.delete", target: `post:${post.id}` });
   revalidatePath("/dashboard/buckets");
 };
 

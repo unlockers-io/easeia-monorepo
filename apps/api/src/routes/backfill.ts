@@ -24,7 +24,7 @@ type BackfillRouteDependencies = {
   getRedisUrl: () => string;
   rateLimit: MiddlewareHandler;
   readStatus: typeof readBackfillNetworkStatus;
-  requirePermission: (action: Action) => MiddlewareHandler;
+  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
 };
 
 const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {

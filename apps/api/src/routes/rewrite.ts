@@ -26,7 +26,7 @@ type RewriteRouteDependencies = {
   getRedisUrl: () => string;
   rateLimit: MiddlewareHandler;
   readStatus: typeof readBackfillRewriteStatus;
-  requirePermission: (action: Action) => MiddlewareHandler;
+  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
 };
 
 const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {

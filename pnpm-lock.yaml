@@ -292,6 +292,9 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@repo/policy':
+        specifier: workspace:*
+        version: link:../../packages/policy
       '@repo/posts':
         specifier: workspace:*
         version: link:../../packages/posts
@@ -923,6 +926,15 @@ importers:
       '@repo/api-types':
         specifier: workspace:*
         version: link:../api-types
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@repo/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:../sites
     devDependencies:
       '@repo/config-vitest':
         specifier: workspace:*
@@ -1253,15 +1265,15 @@ importers:
 
   scripts:
     dependencies:
-      '@repo/api-types':
-        specifier: workspace:*
-        version: link:../packages/api-types
       '@repo/db':
         specifier: workspace:*
         version: link:../packages/db
       '@repo/jobs':
         specifier: workspace:*
         version: link:../packages/jobs
+      '@repo/policy':
+        specifier: workspace:*
+        version: link:../packages/policy
       tsx:
         specifier: ^4.23.11
         version: 4.23.11

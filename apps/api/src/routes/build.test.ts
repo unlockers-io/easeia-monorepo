@@ -30,7 +30,6 @@ const buildRoutes = createBuildRoutes({
   findSite,
   rateLimit: bypassMiddleware,
   requirePermission: allowAction,
-  requireSiteScope: bypassMiddleware,
 });
 
 const makeSite = (overrides: Partial<BuildSite> = {}): BuildSite => ({

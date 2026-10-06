@@ -4,6 +4,7 @@ import { JobKind, prisma } from "@repo/db";
 import { enqueue, fanoutRejections } from "@repo/jobs";
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/access";
 import { getSession } from "@/lib/auth-helpers";
 import { redisUrl } from "@/lib/env";
 import { log } from "@/lib/observability";
@@ -56,6 +57,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
   }
   const skipped = rejections.length;
   const queued = results.length - skipped;
+  await audit({ action: "backlinks.backfill", meta: { queued, skipped }, target: "network" });
 
   revalidatePath("/dashboard/sites");
   return { ok: true, queued, skipped };

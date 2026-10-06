@@ -54,7 +54,7 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/sites`                                                  | Site lifecycle: public projection, Astro deploy-hook dispatch.                                    |
 | `@repo/jobs`                                                   | Durable Job (Prisma `Job` row + BullMQ behind one interface).                                     |
 | `@repo/posts`                                                  | Post intake: state machine + queue handoff. Used by admin + public API.                           |
-| `@repo/policy`                                                 | Authorization policy. `can(actor, action)` is the only verb.                                      |
+| `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.    |
 | `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                             |
 | `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | LLM clients + image/niche/rewrite pipelines.                                                      |
 | `@repo/dataforseo`                                             | DataForSEO client wrapper (keyword research, SERP).                                               |
@@ -167,7 +167,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
 - **Auth flow:** `web` uses `@repo/auth/client` → calls its own `/api/auth/*` route (`apps/web/src/app/api/auth/[...all]/route.ts`) → `@repo/auth/server` uses the Prisma adapter from `@repo/db`.
 - **API structure:** Hono app, routes under `/api/*` (sites, posts, api-keys), health at `/healthz` and `/readyz`.
-- **Public API auth:** Bearer token (`Authorization: Bearer <key>`) → `ApiKey` table sha256 lookup → scope check → audit log.
+- **Access:** `@repo/policy` owns both Channels' access rules. `authenticate` turns `Authorization: Bearer <key>` into an Actor (sha256 lookup, revoked keys rejected); `can(actor, action, siteId?)` is the only authorization verb, and the api guard passes a route's `:siteId` so Site-bound keys stay on their Site; `createApiKey` returns the plaintext once, `listApiKeys`/`revokeApiKey` serve the api routes and the admin page; `recordAudit` writes AuditLog rows for API actors and for admin actions (session user as actor) through `apps/web/src/lib/access.ts`.
 - **Publish pipeline:** `api` enqueues `Job(kind=PUBLISH)` via `@repo/jobs` → `worker` pulls from BullMQ → uploads images to R2 (`@repo/blob`) → writes Markdown body to DB → POSTs the Astro site's deploy hook. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`.
 - **Build order:** Turbo `^build` and `build.dependsOn` includes `db:generate` so Prisma client is generated before dependents build.
 

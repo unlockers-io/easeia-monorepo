@@ -2,14 +2,14 @@ import type { Context, Next } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { secureHeaders } from "hono/secure-headers";
 
-import { getActor } from "./actor";
+import type { AuthVariables } from "./api-auth";
 import { getClientIp } from "./client-ip";
 
 const STANDARD_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
-export const apiRateLimitKey = (c: Context): string => {
-  const actor = getActor(c);
+export const apiRateLimitKey = (c: Context<{ Variables: Partial<AuthVariables> }>): string => {
+  const actor = c.get("actor");
   if (actor !== undefined && actor.id !== "") {
     return `actor:${actor.kind}:${actor.id}`;
   }

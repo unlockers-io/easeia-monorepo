@@ -1,5 +1,6 @@
 import { API_KEY_SCOPES, SITE_SCOPED_API_KEY_SCOPES } from "@repo/api-types";
 import { prisma } from "@repo/db";
+import { listApiKeys } from "@repo/policy";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -23,18 +24,7 @@ import { CreateKeyDialog } from "./create-key-dialog";
 
 const ApiKeysPage = async () => {
   const [keys, sites] = await Promise.all([
-    prisma.apiKey.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        createdAt: true,
-        id: true,
-        lastUsed: true,
-        name: true,
-        prefix: true,
-        revokedAt: true,
-        scopes: true,
-      },
-    }),
+    listApiKeys(),
     prisma.site.findMany({
       orderBy: { domain: "asc" },
       select: { domain: true, id: true },

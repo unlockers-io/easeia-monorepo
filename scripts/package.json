@@ -13,9 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/jobs": "workspace:*",
+    "@repo/policy": "workspace:*",
     "tsx": "^4.23.11",
     "turndown": "^7.2.0",
     "zod": "^4.6.5"

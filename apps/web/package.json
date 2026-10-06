@@ -27,6 +27,7 @@
     "@repo/links": "workspace:*",
     "@repo/money-sites": "workspace:*",
     "@repo/observability": "workspace:*",
+    "@repo/policy": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
