@@ -9,6 +9,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import type { z } from "zod";
 
+import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
 import { sitePublishedPostsTag } from "@/lib/cache-tags";
 import { redisUrl } from "@/lib/env";
@@ -25,6 +26,7 @@ export const updateSiteAction = async (formData: FormData) => {
   await requireSession();
   const { id, patch } = siteUpdateFromFormData(formData);
   await Sites.update(id, patch);
+  await audit({ action: "site.update", target: `site:${id}` });
   revalidatePath("/dashboard/sites");
 };
 
@@ -39,9 +41,11 @@ export const createPostAction = async (formData: FormData) => {
       throw error;
     }
     result = await Posts.create({ ...data, publish: false }, { redisUrl: redisUrl() });
+    await audit({ action: "post.create", target: `post:${result.post.id}` });
     revalidatePath("/dashboard/posts");
     redirect(`/dashboard/posts/${result.post.id}?error=deploy-hook`);
   }
+  await audit({ action: "post.create", target: `post:${result.post.id}` });
   revalidatePath("/dashboard/posts");
   redirect(`/dashboard/posts/${result.post.id}`);
 };
@@ -59,6 +63,7 @@ export const publishPostAction = async (formData: FormData) => {
     throw error;
   }
   const { post } = result;
+  await audit({ action: "post.publish", target: `post:${id}` });
   updateTag(sitePublishedPostsTag(post.siteId));
   revalidatePath(`/dashboard/posts/${id}`);
   revalidatePath("/dashboard/posts");
@@ -69,6 +74,7 @@ export const deletePostAction = async (formData: FormData) => {
   const id = requiredId(formData);
   const post = await prisma.post.findUnique({ select: { siteId: true }, where: { id } });
   await Posts.remove(id);
+  await audit({ action: "post.delete", target: `post:${id}` });
   if (post) {
     updateTag(sitePublishedPostsTag(post.siteId));
   }
@@ -99,6 +105,7 @@ export const refreshSnapshotsAction = async () => {
       }),
     ),
   );
+  await audit({ action: "snapshot.refresh", target: "network" });
 
   revalidatePath("/dashboard");
 };
@@ -113,6 +120,7 @@ export const createSiteAction = async (
   }
   try {
     const site = await Sites.create(parsed.data);
+    await audit({ action: "site.create", target: `site:${site.id}` });
     revalidatePath("/dashboard/sites");
     revalidatePath("/dashboard/posts/new");
     return { id: site.id, ok: true };

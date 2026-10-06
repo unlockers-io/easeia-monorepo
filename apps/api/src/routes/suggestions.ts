@@ -27,7 +27,7 @@ type SuggestionRouteDependencies = {
   audit: typeof recordAudit;
   listSuggestions: (input: SuggestionListInput) => Promise<ReadonlyArray<SuggestionListItem>>;
   rateLimit: MiddlewareHandler;
-  requirePermission: (action: Action) => MiddlewareHandler;
+  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
   updateSuggestion: (
     id: string,
     patch: { anchorText?: string; approved?: boolean },

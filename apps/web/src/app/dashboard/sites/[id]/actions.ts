@@ -10,6 +10,7 @@ import { parseExternalBacklinksCsv } from "@repo/sites";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 
+import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
 import { redisUrl } from "@/lib/env";
 
@@ -22,6 +23,7 @@ export const assignMoneySiteAction = async (
     data: { moneySiteId },
     where: { id: siteId },
   });
+  await audit({ action: "site.update", meta: { moneySiteId }, target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
   revalidatePath("/dashboard");
 };
@@ -70,6 +72,11 @@ export const uploadExternalBacklinksAction = async (
       }),
     ),
   );
+  await audit({
+    action: "backlinks.import",
+    meta: { imported: rows.length, skipped },
+    target: `site:${siteId}`,
+  });
 
   revalidatePath(`/dashboard/sites/${siteId}`);
 
@@ -148,6 +155,7 @@ export const updateAutoPublishAction = async (
     },
     where: { id: siteId },
   });
+  await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
   revalidatePath("/dashboard/buckets");
   return { errors, warnings };
@@ -179,6 +187,7 @@ export const updateSiteAuthorAction = async (
     },
     where: { id: siteId },
   });
+  await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
 };
 
@@ -198,6 +207,7 @@ export const updateSiteCadenceAction = async (
     },
     where: { id: siteId },
   });
+  await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath("/dashboard/sites");
   revalidatePath(`/dashboard/sites/${siteId}`);
 };
@@ -227,6 +237,7 @@ export const startGscBacklinkBackfillAction = async (
     redisUrl: redisUrl(),
     siteId: site.id,
   });
+  await audit({ action: "backlinks.backfill", target: `site:${siteId}` });
 
   revalidatePath(`/dashboard/sites/${siteId}`);
   return { ok: true };
@@ -253,6 +264,7 @@ export const updateSitePublishingAction = async (
   }
   try {
     await Sites.update(siteId, parsed.data);
+    await audit({ action: "site.update", target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
     revalidatePath("/dashboard/posts");
     return { ok: true };

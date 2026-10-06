@@ -5,6 +5,7 @@ import { createRefillAllNeedyBucketsAction } from "./refill-all-action";
 const refillConfiguredBuckets = vi.fn();
 const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
   aiConfigured: () => true,
+  audit: () => Promise.resolve(),
   getRedisUrl: () => "redis://test",
   logFailures: () => {},
   refillBuckets: refillConfiguredBuckets,
@@ -65,6 +66,7 @@ it("does not queue or read Redis when AI is unconfigured", async () => {
   const requireSession = vi.fn().mockResolvedValue(undefined);
   const action = createRefillAllNeedyBucketsAction({
     aiConfigured: () => false,
+    audit: () => Promise.resolve(),
     getRedisUrl,
     logFailures: () => {},
     refillBuckets,

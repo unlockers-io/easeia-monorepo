@@ -1,4 +1,5 @@
 import { AI_NOT_CONFIGURED_MESSAGE } from "@repo/ai";
+import type { AuditEntry } from "@repo/policy";
 
 type RefillResult = {
   failures: ReadonlyArray<Error | string>;
@@ -8,6 +9,7 @@ type RefillResult = {
 
 type RefillAllDependencies = {
   aiConfigured: () => boolean;
+  audit: (entry: AuditEntry) => Promise<void>;
   getRedisUrl: () => string;
   logFailures: (siteId: string, failures: ReadonlyArray<Error | string>) => void;
   refillBuckets: (redisUrl: string) => Promise<ReadonlyArray<RefillResult>>;
@@ -37,6 +39,7 @@ const createRefillAllNeedyBucketsAction =
         queuedPerSite[result.siteId] = result.queued;
       }
     }
+    await dependencies.audit({ action: "bucket.refill", meta: queuedPerSite, target: "network" });
 
     dependencies.revalidate("/dashboard/buckets");
     return {

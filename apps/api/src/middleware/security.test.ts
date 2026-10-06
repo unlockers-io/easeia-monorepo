@@ -1,17 +1,15 @@
+import type { Actor } from "@repo/policy";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthActor } from "./actor";
 import { apiSecurityHeaders, apiRateLimitKey, requestSizeLimit } from "./security";
 
 type SecurityResponseBody = {
   error: { code: string; message: string };
 };
 
-const createMockContext = (
-  options: { actor?: AuthActor; headers?: Record<string, string> } = {},
-) => {
+const createMockContext = (options: { actor?: Actor; headers?: Record<string, string> } = {}) => {
   const { actor, headers = {} } = options;
   let currentActor = actor;
 
@@ -25,7 +23,7 @@ const createMockContext = (
       path: "/test",
       url: "http://localhost/test",
     },
-    set: vi.fn((key: string, value: AuthActor) => {
+    set: vi.fn((key: string, value: Actor) => {
       if (key === "actor") {
         currentActor = value;
       }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ApiKeyScope } from "@repo/api-types";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -29,9 +30,9 @@ import { toast } from "sonner";
 import { createApiKeyAction } from "./actions";
 
 type Props = {
-  scopes: ReadonlyArray<string>;
+  scopes: ReadonlyArray<ApiKeyScope>;
   sites: ReadonlyArray<{ domain: string; id: string }>;
-  siteScopedScopes: ReadonlyArray<string>;
+  siteScopedScopes: ReadonlyArray<ApiKeyScope>;
 };
 
 type CreateKeyState = {
@@ -39,7 +40,7 @@ type CreateKeyState = {
   error: string | undefined;
   name: string;
   open: boolean;
-  picked: ReadonlySet<string>;
+  picked: ReadonlySet<ApiKeyScope>;
   siteId: string;
   token: string | undefined;
 };
@@ -50,7 +51,7 @@ type CreateKeyAction =
   | { type: "create.success"; value: string }
   | { type: "name.set"; value: string }
   | { type: "open.set"; value: boolean }
-  | { type: "pick.toggle"; value: string }
+  | { type: "pick.toggle"; value: ApiKeyScope }
   | { type: "site.set"; value: string };
 
 const createInitialState = (): CreateKeyState => ({
@@ -58,7 +59,7 @@ const createInitialState = (): CreateKeyState => ({
   error: undefined,
   name: "",
   open: false,
-  picked: new Set(),
+  picked: new Set<ApiKeyScope>(),
   siteId: "",
   token: undefined,
 });
@@ -109,26 +110,22 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
     dispatch({ type: "open.set", value: next });
   };
 
-  const handleTogglePick = (scope: string) => {
+  const handleTogglePick = (scope: ApiKeyScope) => {
     dispatch({ type: "pick.toggle", value: scope });
   };
 
   const handleCreate = () => {
-    const fd = new FormData();
-    fd.set("name", name);
-    for (const s of picked) {
-      fd.append("scopes", s);
-    }
-    if (needsSite && siteId !== "") {
-      fd.set("siteId", siteId);
-    }
     startTransition(async () => {
-      const result = await createApiKeyAction(fd);
-      if (result.error !== undefined) {
+      const result = await createApiKeyAction({
+        name,
+        scopes: [...picked],
+        siteId: needsSite && siteId !== "" ? siteId : undefined,
+      });
+      if (!result.ok) {
         dispatch({ type: "create.error", value: result.error });
         return;
       }
-      dispatch({ type: "create.success", value: result.token });
+      dispatch({ type: "create.success", value: result.data });
     });
   };
 

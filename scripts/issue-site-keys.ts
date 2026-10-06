@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 
-import { mintApiKeyToken } from "@repo/api-types";
 import { prisma } from "@repo/db";
+import { createApiKey, listApiKeys } from "@repo/policy";
 
 type Output = {
   domain: string;
@@ -17,27 +17,19 @@ const main = async () => {
     where: { isEnabled: true },
   });
 
+  const keys = await listApiKeys();
   const out: Array<Output> = [];
 
   for (const site of sites) {
     const name = `${site.domain} build`;
-    const existing = await prisma.apiKey.findFirst({
-      where: { name, revokedAt: null, siteId: site.id },
-    });
+    const existing = keys.find(
+      (key) => key.name === name && key.revokedAt === null && key.siteId === site.id,
+    );
     if (existing) {
       console.log(`  skip ${site.domain} — key "${name}" already exists (id=${existing.id})`);
       continue;
     }
-    const { hash, prefix, token } = mintApiKeyToken();
-    await prisma.apiKey.create({
-      data: {
-        hash,
-        name,
-        prefix,
-        scopes: ["content:read"],
-        siteId: site.id,
-      },
-    });
+    const { token } = await createApiKey({ name, scopes: ["content:read"], siteId: site.id });
     out.push({
       domain: site.domain,
       siteId: site.id,

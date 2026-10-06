@@ -1,11 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  API_KEY_SCOPES,
-  apiKeyCreateSchema,
-  isApiKeyScope,
-  mintApiKeyToken,
-} from "@repo/api-types";
-import { prisma } from "@repo/db";
+import { API_KEY_SCOPES, apiKeyCreateSchema } from "@repo/api-types";
+import { createApiKey, listApiKeys, revokeApiKey } from "@repo/policy";
 
 import { createRouter } from "@/lib/openapi";
 import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
@@ -31,17 +26,12 @@ const apiKeySummarySchema = z
     prefix: z.string(),
     revokedAt: z.date().nullable(),
     scopes: z.array(z.enum(API_KEY_SCOPES)),
+    siteId: z.string().nullable(),
   })
   .openapi("ApiKeySummary");
 
-const apiKeyMintedSchema = z
-  .object({
-    createdAt: z.date(),
-    id: z.string(),
-    name: z.string(),
-    prefix: z.string(),
-    scopes: z.array(z.enum(API_KEY_SCOPES)),
-    siteId: z.string().nullable(),
+const apiKeyMintedSchema = apiKeySummarySchema
+  .extend({
     token: z.string().openapi({
       description: "Plaintext token. Returned only at issue time; store it now.",
     }),
@@ -73,24 +63,7 @@ const listApiKeysRoute = createRoute({
   tags: ["API Keys"],
 });
 
-apiKeyRoutes.openapi(listApiKeysRoute, async (c) => {
-  const keys = await prisma.apiKey.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      createdAt: true,
-      id: true,
-      lastUsed: true,
-      name: true,
-      prefix: true,
-      revokedAt: true,
-      scopes: true,
-    },
-  });
-  return c.json(
-    { data: keys.map((key) => Object.assign(key, { scopes: key.scopes.filter(isApiKeyScope) })) },
-    200,
-  );
-});
+apiKeyRoutes.openapi(listApiKeysRoute, async (c) => c.json({ data: await listApiKeys() }, 200));
 
 const createApiKeyRoute = createRoute({
   description:
@@ -118,36 +91,13 @@ const createApiKeyRoute = createRoute({
 });
 
 apiKeyRoutes.openapi(createApiKeyRoute, async (c) => {
-  const data = c.req.valid("json");
-  const { hash, prefix, token } = mintApiKeyToken();
-  const created = await prisma.apiKey.create({
-    data: {
-      hash,
-      name: data.name,
-      prefix,
-      scopes: data.scopes,
-      siteId: data.siteId,
-    },
-  });
+  const issued = await createApiKey(c.req.valid("json"));
   await recordAudit(c, {
     action: "apikey.create",
-    meta: { scopes: created.scopes },
-    target: `apikey:${created.id}`,
+    meta: { scopes: issued.scopes },
+    target: `apikey:${issued.id}`,
   });
-  return c.json(
-    {
-      data: {
-        createdAt: created.createdAt,
-        id: created.id,
-        name: created.name,
-        prefix: created.prefix,
-        scopes: created.scopes.filter(isApiKeyScope),
-        siteId: created.siteId,
-        token,
-      },
-    },
-    201,
-  );
+  return c.json({ data: issued }, 201);
 });
 
 const revokeApiKeyRoute = createRoute({
@@ -172,10 +122,7 @@ const revokeApiKeyRoute = createRoute({
 
 apiKeyRoutes.openapi(revokeApiKeyRoute, async (c) => {
   const { id } = c.req.valid("param");
-  await prisma.apiKey.update({
-    data: { revokedAt: new Date() },
-    where: { id },
-  });
+  await revokeApiKey(id);
   await recordAudit(c, { action: "apikey.revoke", target: `apikey:${id}` });
   return c.json({ ok: true as const }, 200);
 });
