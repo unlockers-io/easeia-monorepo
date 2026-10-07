@@ -29,20 +29,19 @@ export const updateSiteAction = async (formData: FormData) => {
   revalidatePath("/dashboard/sites");
 };
 
+const withError = (path: string, error: Sites.DomainError): string =>
+  `${path}?error=${encodeURIComponent(error.message)}`;
+
 export const createPostAction = async (formData: FormData) => {
   await requireSession();
-  const data = postCreateFromFormData(formData);
   let result: Posts.CreateResult;
   try {
-    result = await Posts.create(data);
+    result = await Posts.create(postCreateFromFormData(formData));
   } catch (error) {
-    if (!(error instanceof Sites.SiteDeployHookMissingError)) {
-      throw error;
+    if (error instanceof Sites.DomainError) {
+      redirect(withError("/dashboard/posts/new", error));
     }
-    result = await Posts.create({ ...data, publish: false });
-    await audit({ action: "post.create", target: `post:${result.post.id}` });
-    revalidatePath("/dashboard/posts");
-    redirect(`/dashboard/posts/${result.post.id}?error=deploy-hook`);
+    throw error;
   }
   await audit({ action: "post.create", target: `post:${result.post.id}` });
   revalidatePath("/dashboard/posts");
@@ -56,14 +55,13 @@ export const publishPostAction = async (formData: FormData) => {
   try {
     result = await Posts.publish(id);
   } catch (error) {
-    if (error instanceof Sites.SiteDeployHookMissingError) {
-      redirect(`/dashboard/posts/${id}?error=deploy-hook`);
+    if (error instanceof Sites.DomainError) {
+      redirect(withError(`/dashboard/posts/${id}`, error));
     }
     throw error;
   }
-  const { post } = result;
   await audit({ action: "post.publish", target: `post:${id}` });
-  updateTag(sitePublishedPostsTag(post.siteId));
+  updateTag(sitePublishedPostsTag(result.post.siteId));
   revalidatePath(`/dashboard/posts/${id}`);
   revalidatePath("/dashboard/posts");
 };
@@ -71,12 +69,9 @@ export const publishPostAction = async (formData: FormData) => {
 export const deletePostAction = async (formData: FormData) => {
   await requireSession();
   const id = requiredId(formData);
-  const post = await prisma.post.findUnique({ select: { siteId: true }, where: { id } });
-  await Posts.remove(id);
+  const post = await Posts.remove(id);
   await audit({ action: "post.delete", target: `post:${id}` });
-  if (post) {
-    updateTag(sitePublishedPostsTag(post.siteId));
-  }
+  updateTag(sitePublishedPostsTag(post.siteId));
   revalidatePath("/dashboard/posts");
   redirect("/dashboard/posts");
 };

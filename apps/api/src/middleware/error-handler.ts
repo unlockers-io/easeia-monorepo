@@ -1,3 +1,4 @@
+import { AiUnavailableError } from "@repo/ai";
 import type { Prisma } from "@repo/db";
 import { DomainError } from "@repo/sites";
 import type { Context } from "hono";
@@ -60,6 +61,10 @@ const createErrorHandler =
         },
         err.httpStatus,
       );
+    }
+
+    if (err instanceof AiUnavailableError) {
+      return c.json({ error: { code: "AI_UNAVAILABLE", message: err.message } }, 503 as const);
     }
 
     if (err instanceof ZodError) {

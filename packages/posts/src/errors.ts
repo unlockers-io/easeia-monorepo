@@ -8,3 +8,22 @@ export class PostNotFoundError extends DomainError {
     this.name = "PostNotFoundError";
   }
 }
+
+export class PostStateError extends DomainError {
+  constructor(message: string) {
+    super(message, "POST_STATE_ERROR", 409);
+    this.name = "PostStateError";
+  }
+}
+
+export class PostValidationError extends DomainError {
+  constructor(issues: ReadonlyArray<ValidationIssue>) {
+    super(
+      `Validation failed: ${issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`,
+      "POST_VALIDATION_ERROR",
+      400,
+      issues,
+    );
+    this.name = "PostValidationError";
+  }
+}

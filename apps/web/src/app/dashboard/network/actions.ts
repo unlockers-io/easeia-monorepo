@@ -3,11 +3,8 @@
 import { assertAiConfigured } from "@repo/ai";
 import { suggestionListQuerySchema } from "@repo/api-types";
 import { networkBackfill, rewriteBackfill } from "@repo/backfill";
-import { JobKind } from "@repo/db";
-import { enqueue } from "@repo/jobs";
 import { approveSuggestion, listSuggestions, rejectSuggestion } from "@repo/links";
-import { get as getPost } from "@repo/posts";
-import { requirePublishable } from "@repo/sites";
+import { requestRewrite } from "@repo/posts";
 import { z } from "zod";
 
 import { audit } from "@/lib/access";
@@ -31,14 +28,7 @@ export const startRewriteAction = async (force: boolean) =>
   });
 export const rewritePostAction = async (postId: string) =>
   withAuth(async () => {
-    assertAiConfigured();
-    const post = await getPost(z.string().min(1).parse(postId));
-    await requirePublishable(post.siteId);
-    const job = await enqueue({
-      kind: JobKind.REWRITE_POST,
-      payload: { force: true, postId },
-      postId,
-    });
+    const job = await requestRewrite(z.string().min(1).parse(postId), { force: true });
     await audit({ action: "rewrite.trigger", target: `post:${postId}` });
     return job;
   });

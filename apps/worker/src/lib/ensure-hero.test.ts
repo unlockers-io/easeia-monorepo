@@ -9,7 +9,7 @@ vi.hoisted(() => {
   });
 });
 
-import { makePublishToAstro, type PublishToAstroDeps } from "./publish-to-astro";
+import { makeEnsureHero, type EnsureHeroDeps } from "./ensure-hero";
 
 const samplePost = {
   categories: ["audio"],
@@ -31,24 +31,23 @@ const herolessPost = {
   title: "T",
 };
 
-const makeDeps = (overrides: Partial<PublishToAstroDeps> = {}): PublishToAstroDeps => ({
+const makeDeps = (overrides: Partial<EnsureHeroDeps> = {}): EnsureHeroDeps => ({
   blob: createFakeBlobStore(),
   fetchImage: vi.fn(() => Promise.resolve(new Uint8Array([1, 2, 3]))),
   findHeroImage: vi.fn(() => Promise.resolve(null)),
   generateHero: vi.fn(),
   r2PublicBaseUrl: undefined,
-  requestRedeploy: vi.fn(() => Promise.resolve("queued" as const)),
   upsertPostImage: vi.fn(() => Promise.resolve(undefined)),
   ...overrides,
 });
 
 const liveSite = { imageStyle: "Professional audio studio scene." };
 
-describe("publishToAstro", () => {
-  it("uploads the hero image to blob, upserts PostImage, enqueues TRIGGER_DEPLOY", async () => {
+describe("ensureHero", () => {
+  it("uploads the hero image to blob and upserts PostImage", async () => {
     const deps = makeDeps();
 
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       post: samplePost,
       site: liveSite,
     });
@@ -60,12 +59,11 @@ describe("publishToAstro", () => {
         postId: "p1",
       }),
     );
-    expect(deps.requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
-  it("generates a hero when none exists and autogen is enabled, then deploys", async () => {
+  it("generates a hero when none exists and autogen is enabled", async () => {
     const deps = makeDeps();
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       autogenEnabled: true,
       post: { ...herolessPost, tags: ["t"] },
       site: liveSite,
@@ -74,20 +72,18 @@ describe("publishToAstro", () => {
       post: expect.objectContaining({ id: "p1" }),
       site: { imageStyle: liveSite.imageStyle },
     });
-    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 
-  it("still deploys (heroless) when generation throws", async () => {
+  it("publishes heroless when generation throws", async () => {
     const deps = makeDeps({
       generateHero: vi.fn().mockRejectedValue(new Error("openai down")),
     });
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       autogenEnabled: true,
       post: herolessPost,
       site: liveSite,
     });
     expect(deps.generateHero).toHaveBeenCalledOnce();
-    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 
   it("does not generate when a hero already exists", async () => {
@@ -100,7 +96,7 @@ describe("publishToAstro", () => {
       ),
       r2PublicBaseUrl: "https://img.easeia.com",
     });
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       autogenEnabled: true,
       post: herolessPost,
       site: liveSite,
@@ -114,7 +110,7 @@ describe("publishToAstro", () => {
       r2PublicBaseUrl: "https://img.easeia.com",
     });
 
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       post: samplePost,
       site: liveSite,
     });
@@ -129,7 +125,6 @@ describe("publishToAstro", () => {
       }),
     );
     expect(deps.generateHero).not.toHaveBeenCalled();
-    expect(deps.requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
   it("generates when featuredImage is an R2 URL but no hero row backs it", async () => {
@@ -138,7 +133,7 @@ describe("publishToAstro", () => {
     const blob = { upload: vi.fn() };
     const deps = makeDeps({ blob, r2PublicBaseUrl: "https://img.easeia.com" });
 
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       autogenEnabled: true,
       post: {
         ...herolessPost,
@@ -150,7 +145,6 @@ describe("publishToAstro", () => {
     expect(deps.fetchImage).not.toHaveBeenCalled();
     expect(blob.upload).not.toHaveBeenCalled();
     expect(deps.generateHero).toHaveBeenCalledOnce();
-    expect(deps.requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
   it("re-uploads a hero row whose blobUrl is not R2-hosted", async () => {
@@ -161,7 +155,7 @@ describe("publishToAstro", () => {
       r2PublicBaseUrl: "https://img.easeia.com",
     });
 
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       post: herolessPost,
       site: liveSite,
     });
@@ -183,14 +177,13 @@ describe("publishToAstro", () => {
       r2PublicBaseUrl: "https://img.easeia.com",
     });
 
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       post: samplePost,
       site: liveSite,
     });
 
     expect(deps.fetchImage).not.toHaveBeenCalled();
     expect(deps.upsertPostImage).not.toHaveBeenCalled();
-    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 
   it("changed-image case: re-uploads when the existing hero row's filename differs", async () => {
@@ -205,7 +198,7 @@ describe("publishToAstro", () => {
       r2PublicBaseUrl: "https://img.easeia.com",
     });
 
-    await makePublishToAstro(deps)({
+    await makeEnsureHero(deps)({
       post: samplePost,
       site: liveSite,
     });
@@ -219,6 +212,5 @@ describe("publishToAstro", () => {
         postId: "p1",
       }),
     );
-    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 });

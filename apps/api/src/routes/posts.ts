@@ -76,7 +76,8 @@ const lifecycleResponseSchema = z
 const okResponseSchema = z.object({ ok: z.literal(true) }).openapi("OkResponse");
 
 const listPostsRoute = createRoute({
-  description: "Cursor-paginated list of Posts. Filter by site, status, niche, or free-text query.",
+  description:
+    "Cursor-paginated list of Posts, newest first unless `sort=oldest`. Filter by site, status, one or more niches (repeat `niche`), or a query matched against title and slug.",
   method: "get",
   path: "/",
   request: { query: postListQuerySchema.openapi("PostListQuery") },
@@ -159,7 +160,8 @@ postRoutes.openapi(getPostRoute, async (c) => {
 });
 
 const updatePostRoute = createRoute({
-  description: "Patch a Post. `siteId` and `status` are immutable here; use publish/unpublish.",
+  description:
+    "Patch a Post. Omitted fields keep their values. `siteId` is immutable and `status` changes through publish/unpublish. Changing a live post redeploys its Site.",
   method: "patch",
   path: "/{id}",
   request: {
@@ -193,8 +195,7 @@ postRoutes.openapi(updatePostRoute, async (c) => {
 });
 
 const deletePostRoute = createRoute({
-  description:
-    "Hard-delete the Post row. The corresponding WordPress post is NOT touched; call /unpublish first if you also need it gone on WP.",
+  description: "Hard-delete the Post. Redeploys its Site when the post was live.",
   method: "delete",
   path: "/{id}",
   request: { params: idParamSchema },
@@ -221,7 +222,7 @@ postRoutes.openapi(deletePostRoute, async (c) => {
 
 const publishPostRoute = createRoute({
   description:
-    "Move the Post into the publish pipeline. Permitted from DRAFT, FAILED, SCHEDULED, or PUBLISHED (republish). Returns the queued job id; track via /api/jobs/:id (forthcoming).",
+    "Move the Post into the publish pipeline. Permitted from DRAFT, FAILED, or PUBLISHED (republish); a SCHEDULED post already has a publish queued. Returns the queued job id.",
   method: "post",
   path: "/{id}/publish",
   request: { params: idParamSchema },
@@ -247,8 +248,7 @@ postRoutes.openapi(publishPostRoute, async (c) => {
 });
 
 const unpublishPostRoute = createRoute({
-  description:
-    "Mark a Post as ARCHIVED. The next Astro build will omit this post. Idempotent for non-PUBLISHED states.",
+  description: "Mark a Post as ARCHIVED and redeploy its Site when the post was live.",
   method: "post",
   path: "/{id}/unpublish",
   request: { params: idParamSchema },

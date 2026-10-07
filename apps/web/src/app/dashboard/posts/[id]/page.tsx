@@ -24,6 +24,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { Banner } from "@/components/banner";
 import { RewriteTriggerButton } from "@/components/rewrite-trigger-button";
 import { SuggestedLinksPanel } from "@/components/suggested-links-panel";
 import { readIntegrations } from "@/lib/integrations";
@@ -39,8 +40,13 @@ import { MoneySiteLinksPanel, RewrittenBadge } from "./rewrite-panels";
 import { PostSearchConsoleCard } from "./search-console-card";
 import { SimilarPostsCard } from "./similar-posts";
 
-const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
+type PostPageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+};
+
+const PostPage = async ({ params, searchParams }: PostPageProps) => {
+  const [{ id }, { error }] = await Promise.all([params, searchParams]);
   const post = await Posts.detail(id);
   if (!post) {
     notFound();
@@ -139,6 +145,8 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           </DropdownMenu>
         </div>
       </header>
+
+      {error !== undefined && error !== "" ? <Banner tone="error">{error}</Banner> : null}
 
       {!hasDeployHook(post.site) && (
         <output className="text-sm">
