@@ -8,9 +8,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/ai": "workspace:*",
     "@repo/blob": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/hero": "workspace:*",
+    "@repo/posts": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
     "dotenv": "^17.4.2",

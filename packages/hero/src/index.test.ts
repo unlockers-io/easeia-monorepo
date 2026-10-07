@@ -1,3 +1,5 @@
+import { AiBudgetExceededError } from "@repo/ai";
+import { createFakeOpenAi } from "@repo/ai/testing";
 import { describe, expect, it } from "vitest";
 
 import { buildBodyImagePrompt, buildHeroPrompt, generateHero } from "./index";
@@ -109,11 +111,11 @@ describe("generateHero", () => {
   const site = { imageStyle: audioStyle };
 
   it("generates, converts, uploads, and persists the hero", async () => {
+    const fake = createFakeOpenAi();
     const calls: Record<string, unknown> = {};
     const result = await generateHero(
       { post, site },
       {
-        apiKey: "sk-test",
         blob: {
           upload: (input) => {
             calls.upload = input;
@@ -123,13 +125,7 @@ describe("generateHero", () => {
             });
           },
         },
-        generateImage: (prompt) => {
-          calls.prompt = prompt;
-          return Promise.resolve(new Uint8Array([1, 2, 3]));
-        },
-        toJpeg: () => {
-          return Promise.resolve({ bytes: new Uint8Array([4, 5]), height: 1024, width: 1536 });
-        },
+        generateImage: fake.ai.generateImage,
         writeHero: (input) => {
           calls.writeHero = input;
           return Promise.resolve();
@@ -137,29 +133,27 @@ describe("generateHero", () => {
       },
     );
 
-    expect(calls.prompt).toContain("Guia de Microfones");
-    expect(calls.prompt).toContain(audioStyle);
-    expect((calls.upload as { filename: string }).filename).toBe("guia-de-microfones.jpg");
-    expect((calls.upload as { postId: string }).postId).toBe("post_1");
+    const prompt = fake.requests[0]?.body.prompt;
+    expect(prompt).toContain("Guia de Microfones");
+    expect(prompt).toContain(audioStyle);
+    const upload = calls.upload as { bytes: Uint8Array; filename: string; postId: string };
+    expect(upload.filename).toBe("guia-de-microfones.jpg");
+    expect(upload.postId).toBe("post_1");
+    expect([...upload.bytes.subarray(0, 2)]).toEqual([0xff, 0xd8]);
     expect(calls.writeHero).toMatchObject({
       blobUrl: "https://img.easeia.com/sites/site_1/posts/post_1/abc.jpg",
-      height: 1024,
+      height: 1,
       isHero: true,
       postId: "post_1",
-      width: 1536,
+      width: 1,
     });
     expect(result.url).toContain("img.easeia.com");
   });
 
   it("propagates generation failures (caller decides what to do)", async () => {
+    const fake = createFakeOpenAi({ allowanceMicroUsd: 0 });
     await expect(
-      generateHero(
-        { post, site },
-        {
-          apiKey: "sk-test",
-          generateImage: () => Promise.reject(new Error("openai 429")),
-        },
-      ),
-    ).rejects.toThrow("openai 429");
+      generateHero({ post, site }, { generateImage: fake.ai.generateImage }),
+    ).rejects.toBeInstanceOf(AiBudgetExceededError);
   });
 });

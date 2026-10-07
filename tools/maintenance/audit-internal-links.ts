@@ -3,6 +3,7 @@ import "dotenv/config";
 import { writeFileSync } from "node:fs";
 
 import { prisma } from "@repo/db";
+import { stripHtml } from "@repo/posts";
 
 import { BROKEN_LINKS_FILE, writeBrokenLinks, type BrokenLink } from "../_shared/broken-links";
 
@@ -16,8 +17,6 @@ const MD_LINK = /\[(?<text>[^\]]+)\]\((?<href>[^)\s]+)(?:\s+"[^"]*")?\)/g;
 const HTML_LINK = /<a\s[^>]*href=["'](?<href>[^"']+)["'][^>]*>(?<text>[\s\S]*?)<\/a>/gi;
 
 const normalizeDomain = (host: string): string => host.replace(/^www\./iu, "").toLowerCase();
-
-const stripHtml = (s: string): string => s.replaceAll(/<[^>]+>/gu, "").trim();
 
 const extractLinks = (body: string): Array<{ anchor: string; href: string }> => {
   const out: Array<{ anchor: string; href: string }> = [];

@@ -1,10 +1,10 @@
-/* Dry-run unless --apply; requires DATABASE_URL and OPENAI_API_KEY. */
+/* Dry-run unless --apply. */
 import "dotenv/config";
 
-import { requireProvider, REWRITE_MODEL as ENRICH_MODEL } from "@repo/ai";
+import { generateStructured } from "@repo/ai";
 import { prisma } from "@repo/db";
 import { approveSuggestions, listSuggestions, suggestForPost } from "@repo/links";
-import { generateText } from "ai";
+import { z } from "zod";
 
 import { redeploySites } from "../_shared/redeploy";
 
@@ -27,6 +27,8 @@ const OFFSET = numArg("--offset");
 const SITE_SET = SITE !== undefined && SITE !== "";
 
 type Anchor = { anchor: string; linkId: string; url: string };
+
+const bodySchema = z.object({ body: z.string() });
 
 const proseOf = (s: string): string =>
   s
@@ -81,7 +83,7 @@ const buildPrompt = (body: string, anchors: ReadonlyArray<Anchor>): string =>
     "  Never force a link or invent text to host it.",
     "- Wrap each phrase at most once; never link inside a heading line.",
     "- Do not reword, remove, translate, reorder, or re-spell any other text.",
-    "- Output ONLY the full Markdown body — no commentary, no code fences.",
+    "- Return the full Markdown body as `body`, with no commentary and no code fences.",
     "",
     "Target URLs (suggested anchor shown for context only — link an existing phrase):",
     ...anchors.map((a) => `- ${a.url}  (about: ${a.anchor})`),
@@ -121,12 +123,11 @@ const enrichOne = async (post: {
     };
   }
 
-  const provider = requireProvider();
-  const { text } = await generateText({
-    model: provider(ENRICH_MODEL),
+  const { body } = await generateStructured({
     prompt: buildPrompt(post.body, anchors),
+    schema: bodySchema,
   });
-  const llm = text.trim();
+  const llm = body.trim();
 
   const llmClean = proseOf(llm) === proseOf(post.body);
 

@@ -298,13 +298,9 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
           setState({ kind: "error", message: result.error });
           return;
         }
-        const total = Object.values(result.queuedPerSite).reduce((sum, n) => sum + n, 0);
-        setState({
-          failed: result.failed,
-          kind: "done",
-          sitesTouched: result.sitesTouched,
-          total,
-        });
+        const { failed, queuedPerSite, sitesTouched } = result.data;
+        const total = Object.values(queuedPerSite).reduce((sum, n) => sum + n, 0);
+        setState({ failed, kind: "done", sitesTouched, total });
       } catch (error) {
         setState({
           kind: "error",

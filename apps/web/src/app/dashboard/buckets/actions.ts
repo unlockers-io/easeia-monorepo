@@ -1,6 +1,6 @@
 "use server";
 
-import { AI_NOT_CONFIGURED_MESSAGE, isAiConfigured } from "@repo/ai";
+import { assertAiConfigured } from "@repo/ai";
 import { PostStatus, prisma } from "@repo/db";
 import * as Posts from "@repo/posts";
 import {
@@ -18,8 +18,9 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
 import { log } from "@/lib/observability";
+import { withAuth } from "@/lib/server-action";
 
-import { createRefillAllNeedyBucketsAction } from "./refill-all-action";
+import { createRefillAllNeedyBuckets } from "./refill-all-action";
 
 const logRefillFailures = (siteId: string, failures: ReadonlyArray<Error | string>): void => {
   for (const failure of failures) {
@@ -27,65 +28,50 @@ const logRefillFailures = (siteId: string, failures: ReadonlyArray<Error | strin
   }
 };
 
-export type RefillBucketResult = {
+type RefillBucketResult = {
   alreadyInflight: number;
   drafts: number;
-  ok: true;
   queued: number;
 };
 
-export const refillBucketAction = async (
-  siteId: string,
-  count?: number,
-): Promise<RefillBucketResult | { error: string; ok: false }> => {
-  await requireSession();
+export const refillBucketAction = async (siteId: string, count?: number) =>
+  withAuth(async (): Promise<RefillBucketResult> => {
+    assertAiConfigured();
+    const site = await Sites.requireEnabled(siteId);
+    const supply = await countBucketSupply(siteId);
 
-  if (!isAiConfigured()) {
-    return { error: AI_NOT_CONFIGURED_MESSAGE, ok: false };
-  }
-  const site = await prisma.site.findUnique({
-    select: { bucketRefillAt: true, bucketTarget: true, id: true, isEnabled: true },
-    where: { id: siteId },
-  });
-  if (!site || !site.isEnabled) {
-    return { error: "Site missing or disabled", ok: false };
-  }
+    const computeRequested = (): number => {
+      if (count !== undefined) {
+        return Math.max(0, Math.floor(count));
+      }
+      const refillAt = site.bucketRefillAt;
+      const target = site.bucketTarget;
+      if (refillAt === null || target === null || !isValidBucketConfig({ refillAt, target })) {
+        return 0;
+      }
+      return gatedRefillCount({ refillAt, supply: supply.supply, target });
+    };
+    const requested = computeRequested();
 
-  const supply = await countBucketSupply(siteId);
-
-  const computeRequested = (): number => {
-    if (count !== undefined) {
-      return Math.max(0, Math.floor(count));
+    const toEnqueue = Math.min(requested, REFILL_PER_TICK_CEILING);
+    if (toEnqueue === 0) {
+      return { alreadyInflight: supply.inflight, drafts: supply.drafts, queued: 0 };
     }
-    const refillAt = site.bucketRefillAt;
-    const target = site.bucketTarget;
-    if (refillAt === null || target === null || !isValidBucketConfig({ refillAt, target })) {
-      return 0;
-    }
-    return gatedRefillCount({ refillAt, supply: supply.supply, target });
-  };
-  const requested = computeRequested();
 
-  const toEnqueue = Math.min(requested, REFILL_PER_TICK_CEILING);
-  if (toEnqueue === 0) {
-    return { alreadyInflight: supply.inflight, drafts: supply.drafts, ok: true, queued: 0 };
-  }
+    const { failures } = await enqueueGeneratePosts({
+      count: toEnqueue,
+      siteId,
+    });
+    logRefillFailures(siteId, failures);
+    await audit({ action: "bucket.refill", target: `site:${siteId}` });
 
-  const { failures } = await enqueueGeneratePosts({
-    count: toEnqueue,
-    siteId,
+    revalidatePath("/dashboard/buckets");
+    return {
+      alreadyInflight: supply.inflight,
+      drafts: supply.drafts,
+      queued: toEnqueue - failures.length,
+    };
   });
-  logRefillFailures(siteId, failures);
-  await audit({ action: "bucket.refill", target: `site:${siteId}` });
-
-  revalidatePath("/dashboard/buckets");
-  return {
-    alreadyInflight: supply.inflight,
-    drafts: supply.drafts,
-    ok: true,
-    queued: toEnqueue - failures.length,
-  };
-};
 
 export type ApplyNetworkDefaultsInput = {
   bucketRefillAt: number | null;
@@ -153,16 +139,18 @@ export const applyNetworkDefaultsAction = async (
   };
 };
 
-const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
-  aiConfigured: isAiConfigured,
+const refillAllNeedyBuckets = createRefillAllNeedyBuckets({
   audit,
   logFailures: logRefillFailures,
   refillBuckets: Posts.refillConfiguredBuckets,
-  requireSession: async () => {
-    await requireSession();
-  },
   revalidate: revalidatePath,
 });
+
+export const refillAllNeedyBucketsAction = async () =>
+  withAuth(async () => {
+    assertAiConfigured();
+    return refillAllNeedyBuckets();
+  });
 
 type PublishDraftResult = { ok: true } | { error: string; ok: false };
 const publishError = (cause: unknown): PublishDraftResult => ({
@@ -220,5 +208,3 @@ export const deleteDraftAction = async (postId: string): Promise<void> => {
   await audit({ action: "post.delete", target: `post:${post.id}` });
   revalidatePath("/dashboard/buckets");
 };
-
-export { refillAllNeedyBucketsAction };

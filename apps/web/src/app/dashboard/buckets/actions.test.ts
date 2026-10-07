@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRefillAllNeedyBucketsAction } from "./refill-all-action";
+import { createRefillAllNeedyBuckets } from "./refill-all-action";
 
 const refillConfiguredBuckets = vi.fn();
-const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
-  aiConfigured: () => true,
+const refillAllNeedyBuckets = createRefillAllNeedyBuckets({
   audit: () => Promise.resolve(),
   logFailures: () => {},
   refillBuckets: refillConfiguredBuckets,
-  requireSession: vi.fn().mockResolvedValue({ user: { id: "user_1" } }),
   revalidate: () => {},
 });
 
-describe("refillAllNeedyBucketsAction", () => {
+describe("refillAllNeedyBuckets", () => {
   beforeEach(() => {
     refillConfiguredBuckets.mockReset();
   });
@@ -29,11 +27,8 @@ describe("refillAllNeedyBucketsAction", () => {
       },
     ]);
 
-    const result = await refillAllNeedyBucketsAction();
+    const result = await refillAllNeedyBuckets();
 
-    if (!result.ok) {
-      throw new Error(result.error);
-    }
     expect(result.sitesTouched).toBe(0);
   });
 
@@ -49,28 +44,9 @@ describe("refillAllNeedyBucketsAction", () => {
       },
     ]);
 
-    const result = await refillAllNeedyBucketsAction();
+    const result = await refillAllNeedyBuckets();
 
     expect(refillConfiguredBuckets).toHaveBeenCalledOnce();
-    if (!result.ok) {
-      throw new Error(result.error);
-    }
     expect(result.queuedPerSite).toEqual({ site_a: 8 });
   });
-});
-
-it("does not queue when AI is unconfigured", async () => {
-  const refillBuckets = vi.fn();
-  const requireSession = vi.fn().mockResolvedValue(undefined);
-  const action = createRefillAllNeedyBucketsAction({
-    aiConfigured: () => false,
-    audit: () => Promise.resolve(),
-    logFailures: () => {},
-    refillBuckets,
-    requireSession,
-    revalidate: () => {},
-  });
-  expect(await action()).toEqual({ error: expect.stringContaining("OPENAI_API_KEY"), ok: false });
-  expect(requireSession).toHaveBeenCalledOnce();
-  expect(refillBuckets).not.toHaveBeenCalled();
 });

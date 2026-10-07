@@ -1,12 +1,17 @@
-import { requireProvider } from "@repo/ai";
 import type { Niche, SiteLanguage } from "@repo/db";
-import { generateText, Output } from "ai";
+import {
+  SEO_DESCRIPTION_MAX,
+  SEO_DESCRIPTION_MIN,
+  SEO_TITLE_MAX,
+  SEO_TITLE_MIN,
+} from "@repo/health";
+import { stripHtml } from "@repo/posts";
 import { franc } from "franc";
 import { z } from "zod";
 
+import { generateWithAnchors } from "./anchored-generation";
 import type { AnchorSpec } from "./prompt";
-import { REWRITER_MODEL, REWRITER_SYSTEM_PROMPT, SITE_LANGUAGE_HUMAN } from "./prompt-constants";
-import { findMissingAnchors } from "./rewrite";
+import { REWRITER_SYSTEM_PROMPT, SITE_LANGUAGE_HUMAN } from "./prompt-constants";
 
 const kebabCase = (raw: string): string =>
   raw
@@ -43,10 +48,10 @@ export class LanguageMismatchError extends Error {
 const generatedPostSchema = z.object({
   body: z.string().min(200),
   category: z.string().min(2).max(40),
-  excerpt: z.string().min(70).max(160),
+  excerpt: z.string().min(SEO_DESCRIPTION_MIN).max(SEO_DESCRIPTION_MAX),
   focusKeyword: z.string().min(2).max(80),
   tags: z.array(z.string().min(1).max(40)).min(1).max(8),
-  title: z.string().min(30).max(60),
+  title: z.string().min(SEO_TITLE_MIN).max(SEO_TITLE_MAX),
 });
 
 export type GeneratedPost = {
@@ -136,17 +141,9 @@ const buildGeneratePrompt = (input: GeneratePostInput): string => {
     `LANGUAGE: write everything (title, body, excerpt, focusKeyword, tags) in ${languageName}. Do not output any other language. Do not translate to English.`,
     "Apply ALL of the rules above (voice, anti-AI, SEO, copywriting, copy-editing).",
     "",
-    `Output structured JSON with: title (50-60 chars, in ${languageName}), body (Markdown in ${languageName}; use ## / ### headings, **bold**, _italics_, - bullet lists; put each heading, paragraph and list item on its own line separated by a blank line; the only raw HTML allowed is the inline <a href="…"> tags for the links listed above, never HTML block markup and never Gutenberg block comments), category (one Title-Case noun phrase in ${languageName} naming the post's primary section, e.g. "Iluminação" or "Edição de Vídeo"), excerpt (140-160 chars, in ${languageName}), focusKeyword (2-5 words, in ${languageName}), tags (1-8 lowercase short strings in ${languageName}).`,
+    `Output structured JSON with: title (50-${SEO_TITLE_MAX} chars, in ${languageName}), body (Markdown in ${languageName}; use ## / ### headings, **bold**, _italics_, - bullet lists; put each heading, paragraph and list item on its own line separated by a blank line; the only raw HTML allowed is the inline <a href="…"> tags for the links listed above, never HTML block markup and never Gutenberg block comments), category (one Title-Case noun phrase in ${languageName} naming the post's primary section, e.g. "Iluminação" or "Edição de Vídeo"), excerpt (140-${SEO_DESCRIPTION_MAX} chars, in ${languageName}), focusKeyword (2-5 words, in ${languageName}), tags (1-8 lowercase short strings in ${languageName}).`,
   ];
   return lines.filter((l) => l !== "").join("\n");
-};
-
-const stripHtml = (html: string): string => {
-  const text = html
-    .replaceAll(/<[^>]+>/gv, " ")
-    .replaceAll(/\s+/gv, " ")
-    .trim();
-  return text.length > 0 ? text : html;
 };
 
 type DetectedLanguage = { detected: SiteLanguage | "unknown"; francCode: string };
@@ -161,36 +158,15 @@ const detectBodyLanguage = (body: string): DetectedLanguage => {
 };
 
 export const generateNewPost = async (input: GeneratePostInput): Promise<GeneratedPost> => {
-  const provider = requireProvider();
-  const prompt = buildGeneratePrompt(input);
-  const first = await generateText({
-    model: provider(REWRITER_MODEL),
-    output: Output.object({ schema: generatedPostSchema }),
-    prompt,
+  const {
+    output: { body, category, excerpt, focusKeyword, tags, title },
+  } = await generateWithAnchors({
+    anchors: input.anchors,
+    insertInstruction:
+      'Insert each one inline at a natural spot in the body as <a href="URL">anchor</a>, leaving the rest of the body as Markdown with its blank-line paragraph breaks intact.',
+    prompt: buildGeneratePrompt(input),
+    schema: generatedPostSchema,
   });
-  let { body, category, excerpt, focusKeyword, tags, title } = first.output;
-
-  if (input.anchors.length > 0) {
-    const missing = findMissingAnchors(body, input.anchors);
-    if (missing.length > 0) {
-      const retryPrompt = `${prompt}\n\nIMPORTANT: your previous output was missing these links: ${missing
-        .map((a) => a.url)
-        .join(
-          ", ",
-        )}. Insert each one inline at a natural spot in the body as <a href="URL">anchor</a>, leaving the rest of the body as Markdown with its blank-line paragraph breaks intact.`;
-      const retry = await generateText({
-        model: provider(REWRITER_MODEL),
-        output: Output.object({ schema: generatedPostSchema }),
-        prompt: retryPrompt,
-      });
-      title = retry.output.title;
-      body = retry.output.body;
-      category = retry.output.category;
-      excerpt = retry.output.excerpt;
-      focusKeyword = retry.output.focusKeyword;
-      tags = retry.output.tags;
-    }
-  }
 
   const { detected, francCode } = detectBodyLanguage(body);
   if (detected !== input.site.language) {

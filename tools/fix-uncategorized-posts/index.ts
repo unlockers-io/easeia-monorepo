@@ -1,6 +1,6 @@
-import { requireProvider, REWRITE_MODEL as MODEL } from "@repo/ai";
+import { generateStructured } from "@repo/ai";
 import { type Niche, prisma } from "@repo/db";
-import { generateText, Output } from "ai";
+import { stripHtml } from "@repo/posts";
 import { z } from "zod";
 
 import { redeploySites } from "../_shared/redeploy";
@@ -57,13 +57,6 @@ const isEnglishCategory = (raw: string): boolean => {
 const isUsableCategory = (raw: string): boolean =>
   !raw.includes("&") && raw.trim().length >= 3 && raw.trim().length <= 40;
 
-const stripHtml = (html: string): string =>
-  html
-    .replaceAll(/<!--[\s\S]*?-->/gv, "")
-    .replaceAll(/<[^>]+>/gv, " ")
-    .replaceAll(/\s+/gv, " ")
-    .trim();
-
 type Candidate = { count: number; name: string };
 
 const singularKey = (s: string): string =>
@@ -106,7 +99,6 @@ const pickCategory = async (
   post: { body: string; niches: Array<Niche>; title: string },
   candidates: ReadonlyArray<Candidate>,
 ): Promise<string> => {
-  const provider = requireProvider();
   const names = candidates.map((c) => c.name);
   const firstName = names.at(0);
   if (firstName === undefined) {
@@ -127,12 +119,8 @@ const pickCategory = async (
     list,
   ].join("\n");
 
-  const { output } = await generateText({
-    model: provider(MODEL),
-    output: Output.object({ schema }),
-    prompt,
-  });
-  return output.category;
+  const { category } = await generateStructured({ prompt, schema });
+  return category;
 };
 
 const main = async () => {

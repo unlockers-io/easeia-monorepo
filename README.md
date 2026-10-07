@@ -123,9 +123,8 @@ The four required application values are `DATABASE_URL`, `REDIS_URL`, `BETTER_AU
 | Search Console                     | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`                                       |
 | Verification and password recovery | `RESEND_API_KEY`, `FROM_EMAIL`                                                               |
 | Registration                       | `SIGNUP_MODE=first-user` (default), `closed`, or `open`                                      |
-| Text/image model selection         | `OPENAI_GENERATION_MODEL`, `OPENAI_REWRITE_MODEL`, `OPENAI_IMAGE_MODEL`                      |
 
-See [.env.example](.env.example) for the full set. The dashboard’s **Settings → Integrations** identifies missing variables without showing their values. Embeddings remain fixed at 1536 dimensions; changing that requires a schema change and re-embedding.
+See [.env.example](.env.example) for the full set. The dashboard’s **Settings → Integrations** identifies missing variables without showing their values. Models and their prices are fixed in `packages/ai/src/models.ts`. Embeddings use 1536 dimensions; changing that requires a schema change and re-embedding.
 
 ## Connect an Astro site
 

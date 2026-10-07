@@ -1,8 +1,10 @@
+import { AI_ENV_VARS } from "@repo/ai";
+
 const PROVIDERS = {
   dataforseo: ["DATAFORSEO_LOGIN", "DATAFORSEO_PASSWORD"],
   google: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"],
   mail: ["RESEND_API_KEY", "FROM_EMAIL"],
-  openai: ["OPENAI_API_KEY"],
+  openai: AI_ENV_VARS,
   r2: [
     "R2_ENDPOINT",
     "R2_ACCESS_KEY_ID",

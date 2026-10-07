@@ -1,6 +1,6 @@
 import "server-only";
 
-import { AiNotConfiguredError } from "@repo/ai";
+import { AiUnavailableError } from "@repo/ai";
 import { Prisma } from "@repo/db";
 import { DomainError } from "@repo/sites";
 import { z } from "zod";
@@ -14,7 +14,7 @@ export const withAuth = async <T>(operation: () => Promise<T>): Promise<ActionRe
   try {
     return { data: await operation(), ok: true };
   } catch (error) {
-    if (error instanceof DomainError || error instanceof AiNotConfiguredError) {
+    if (error instanceof DomainError || error instanceof AiUnavailableError) {
       return { error: error.message, ok: false };
     }
     if (error instanceof z.ZodError) {

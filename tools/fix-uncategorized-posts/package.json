@@ -11,7 +11,7 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/db": "workspace:*",
-    "ai": "^7.0.58",
+    "@repo/posts": "workspace:*",
     "tsx": "^4.23.11",
     "zod": "^4.6.5"
   },

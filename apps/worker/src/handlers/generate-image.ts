@@ -1,4 +1,3 @@
-import { AiNotConfiguredError } from "@repo/ai";
 import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
 import type { ConsumerContext } from "@repo/jobs";
@@ -66,28 +65,17 @@ export const makeHandleGenerateImage =
       log.emit();
       return;
     }
-    try {
-      await generateHero({
-        post: {
-          categories: post.categories,
-          id: post.id,
-          siteId: post.siteId,
-          slug: post.slug,
-          tags: post.tags,
-          title: post.title,
-        },
-        site: post.site,
-      });
-    } catch (error) {
-      // Parity with embed and classify: an unconfigured worker skips rather than
-      // burning the whole retry ladder on a condition retrying cannot fix.
-      if (error instanceof AiNotConfiguredError) {
-        log.warn("generate-image: OPENAI_API_KEY not set, skip");
-        log.emit();
-        return;
-      }
-      throw error;
-    }
+    await generateHero({
+      post: {
+        categories: post.categories,
+        id: post.id,
+        siteId: post.siteId,
+        slug: post.slug,
+        tags: post.tags,
+        title: post.title,
+      },
+      site: post.site,
+    });
     await requestRedeploy(post.siteId);
     log.info("generate-image: done");
     log.emit();

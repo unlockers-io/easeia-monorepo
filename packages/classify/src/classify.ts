@@ -1,5 +1,6 @@
 import { generateStructured } from "@repo/ai";
 import { Niche, prisma } from "@repo/db";
+import { stripHtml } from "@repo/posts";
 import { z } from "zod";
 
 import { buildClassifyPrompt } from "./prompt";
@@ -20,19 +21,6 @@ const schema = z.object({
     .min(3)
     .max(8),
 });
-
-const stripHtml = (html: string): string =>
-  html
-    .replaceAll(/<!--[\s\S]*?-->/gv, "")
-    .replaceAll(/<[^>]+>/gv, " ")
-    .replaceAll("&nbsp;", " ")
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll(/\s+/gv, " ")
-    .trim();
 
 export const normalizeTag = (raw: string): string => raw.toLowerCase().trim();
 

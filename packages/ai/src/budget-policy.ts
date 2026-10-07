@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { MODELS } from "./models";
+
 const MICRO_USD = 1_000_000;
 const MAX_OUTPUT_TOKENS = 16_384;
 
@@ -74,14 +76,16 @@ const usageCost = (inputRate: number, outputRate: number) => (response: ApiRespo
 
 const textPlan = (request: z.infer<typeof requestSchema>): AiRequestPlan => {
   if (
-    request.model !== "gpt-5.6-luna" ||
+    request.model !== MODELS.text.name ||
     request.stream === true ||
     request.previous_response_id !== undefined ||
     request.conversation !== undefined ||
     request.prompt !== undefined ||
     !textInputSchema.safeParse(request.input).success
   ) {
-    throw new Error("The AI budget supports stateless, non-streaming gpt-5.6-luna text requests.");
+    throw new Error(
+      `The AI budget supports stateless, non-streaming ${MODELS.text.name} text requests.`,
+    );
   }
   const tools = z.array(z.object({ type: z.literal("function") })).optional();
   if (!tools.safeParse(request.tools).success) {
@@ -90,21 +94,27 @@ const textPlan = (request: z.infer<typeof requestSchema>): AiRequestPlan => {
   const requestedLimit = z.number().int().positive().optional().parse(request.max_output_tokens);
   const limit = Math.min(requestedLimit ?? MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS);
   const body = JSON.stringify({ ...request, max_output_tokens: limit, service_tier: "default" });
+  const { microUsdPerInputToken, microUsdPerOutputToken } = MODELS.text;
   return {
     body,
-    costOf: usageCost(0.4, 1.8),
-    reservedMicroUsd: tokenCost(Buffer.byteLength(body) + 1024, limit, 0.4, 1.8),
+    costOf: usageCost(microUsdPerInputToken, microUsdPerOutputToken),
+    reservedMicroUsd: tokenCost(
+      Buffer.byteLength(body) + 1024,
+      limit,
+      microUsdPerInputToken,
+      microUsdPerOutputToken,
+    ),
   };
 };
 
 const imagePlan = (request: z.infer<typeof requestSchema>): AiRequestPlan => {
   const input = z
     .object({
-      model: z.literal("gpt-image-2"),
+      model: z.literal(MODELS.image.name),
       n: z.literal(1),
       prompt: z.string(),
       quality: z.enum(["low", "medium", "high"]),
-      size: z.literal("1536x1024"),
+      size: z.literal(MODELS.image.size),
     })
     .parse(request);
   if (request.stream === true || request.partial_images !== undefined) {
@@ -112,16 +122,23 @@ const imagePlan = (request: z.infer<typeof requestSchema>): AiRequestPlan => {
   }
   const outputBounds = { high: 12_288, low: 512, medium: 3072 };
   const body = JSON.stringify(request);
+  const { microUsdPerInputToken, microUsdPerOutputToken } = MODELS.image;
   return {
     body,
-    costOf: usageCost(5, 30),
-    reservedMicroUsd: tokenCost(Buffer.byteLength(body) + 1024, outputBounds[input.quality], 5, 30),
+    costOf: usageCost(microUsdPerInputToken, microUsdPerOutputToken),
+    reservedMicroUsd: tokenCost(
+      Buffer.byteLength(body) + 1024,
+      outputBounds[input.quality],
+      microUsdPerInputToken,
+      microUsdPerOutputToken,
+    ),
   };
 };
 
 const embeddingPlan = (request: z.infer<typeof requestSchema>): AiRequestPlan => {
-  if (request.model !== "text-embedding-3-small") {
-    throw new Error("The AI budget only supports text-embedding-3-small embeddings.");
+  const { microUsdPerInputToken, name } = MODELS.embedding;
+  if (request.model !== name) {
+    throw new Error(`The AI budget only supports ${name} embeddings.`);
   }
   z.union([z.string(), z.array(z.string())]).parse(request.input);
   const body = JSON.stringify(request);
@@ -133,9 +150,11 @@ const embeddingPlan = (request: z.infer<typeof requestSchema>): AiRequestPlan =>
         return undefined;
       }
       const usage = embeddingUsageSchema.safeParse(envelope.data.usage);
-      return usage.success ? Math.ceil(usage.data.prompt_tokens * 0.02) : undefined;
+      return usage.success
+        ? Math.ceil(usage.data.prompt_tokens * microUsdPerInputToken)
+        : undefined;
     },
-    reservedMicroUsd: Math.ceil((Buffer.byteLength(body) + 1024) * 0.02),
+    reservedMicroUsd: Math.ceil((Buffer.byteLength(body) + 1024) * microUsdPerInputToken),
   };
 };
 

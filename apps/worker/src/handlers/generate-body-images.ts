@@ -1,4 +1,3 @@
-import { AiNotConfiguredError } from "@repo/ai";
 import { type PostStatus, prisma, type SiteLanguage } from "@repo/db";
 import { generatePostImage as realGeneratePostImage, buildBodyImagePrompt } from "@repo/hero";
 import type { ConsumerContext } from "@repo/jobs";
@@ -117,56 +116,43 @@ export const makeHandleGenerateBodyImages =
       return;
     }
 
-    let inserted: ReadonlyArray<BodyImage>;
-    try {
-      const plan = await planBodyImages({
-        body: post.body,
-        post: { tags: post.tags, title: post.title },
-        site: { language: post.site.language },
-      });
-      if (plan.length === 0) {
-        log.info("generate-body-images: planner found no spots; skipping");
-        log.emit();
-        return;
-      }
-      log.set({ plannedImages: plan.length });
+    const plan = await planBodyImages({
+      body: post.body,
+      post: { tags: post.tags, title: post.title },
+      site: { language: post.site.language },
+    });
+    if (plan.length === 0) {
+      log.info("generate-body-images: planner found no spots; skipping");
+      log.emit();
+      return;
+    }
+    log.set({ plannedImages: plan.length });
 
-      const images: Array<BodyImage> = [];
-      for (const [i, planned] of plan.entries()) {
-        const filename = `${post.slug}-${i + 1}.jpg`;
-        // Serial on purpose: parallel image calls trip OpenAI's rate limit long
-        // before they save meaningful wall-clock on a 2-4 image post.
-        const image = await generatePostImage({
-          filename,
-          post: { id: post.id, siteId: post.siteId },
-          prompt: buildBodyImagePrompt({
-            index: i + 1,
-            slug: post.slug,
-            style: post.site.imageStyle,
-            subject: planned.prompt,
-          }),
-        });
-        await upsertImage({
-          alt: planned.alt,
-          blobKey: image.key,
-          blobUrl: image.url,
-          filename,
-          height: image.height,
-          postId: post.id,
-          width: image.width,
-        });
-        images.push({ alt: planned.alt, line: planned.line, url: image.url });
-      }
-      inserted = images;
-    } catch (error) {
-      // Parity with the hero job: an unconfigured worker skips rather than
-      // burning the whole retry ladder on a condition retrying cannot fix.
-      if (error instanceof AiNotConfiguredError) {
-        log.warn("generate-body-images: OPENAI_API_KEY not set, skip");
-        log.emit();
-        return;
-      }
-      throw error;
+    const inserted: Array<BodyImage> = [];
+    for (const [i, planned] of plan.entries()) {
+      const filename = `${post.slug}-${i + 1}.jpg`;
+      // Serial on purpose: parallel image calls trip OpenAI's rate limit long
+      // before they save meaningful wall-clock on a 2-4 image post.
+      const image = await generatePostImage({
+        filename,
+        post: { id: post.id, siteId: post.siteId },
+        prompt: buildBodyImagePrompt({
+          index: i + 1,
+          slug: post.slug,
+          style: post.site.imageStyle,
+          subject: planned.prompt,
+        }),
+      });
+      await upsertImage({
+        alt: planned.alt,
+        blobKey: image.key,
+        blobUrl: image.url,
+        filename,
+        height: image.height,
+        postId: post.id,
+        width: image.width,
+      });
+      inserted.push({ alt: planned.alt, line: planned.line, url: image.url });
     }
 
     // The plan's line numbers only mean anything against the body they were

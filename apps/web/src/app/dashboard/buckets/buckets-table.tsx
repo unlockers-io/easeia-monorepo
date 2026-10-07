@@ -132,10 +132,9 @@ const RowActions = ({
           setMessage(result.error);
           return;
         }
+        const { queued } = result.data;
         setMessage(
-          result.queued > 0
-            ? `+${result.queued} draft${result.queued === 1 ? "" : "s"} queued`
-            : "Already at target",
+          queued > 0 ? `+${queued} draft${queued === 1 ? "" : "s"} queued` : "Already at target",
         );
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Refill failed");

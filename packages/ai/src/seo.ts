@@ -1,52 +1,44 @@
+import {
+  SEO_DESCRIPTION_MAX,
+  SEO_DESCRIPTION_MIN,
+  SEO_TITLE_MAX,
+  SEO_TITLE_MIN,
+} from "@repo/health";
 import { z } from "zod";
 
-import { generateStructured } from "./generate";
+import { generateStructured } from "./client";
 
-// Keep in sync with @repo/health SEO_* (Ahrefs Site Audit character bars).
 const seoSuggestionSchema = z.object({
-  description: z.string().min(70).max(160),
+  description: z.string().min(SEO_DESCRIPTION_MIN).max(SEO_DESCRIPTION_MAX),
   focusKeyword: z.string().min(2).max(80),
   rationale: z.string().min(20).max(400),
-  title: z.string().min(30).max(60),
+  title: z.string().min(SEO_TITLE_MIN).max(SEO_TITLE_MAX),
 });
 
 export type SeoSuggestion = z.infer<typeof seoSuggestionSchema>;
 
 export type SeoSuggestionInput = {
+  bodyText: string;
   currentDescription?: string;
   currentFocusKeyword?: string;
   currentTitle?: string;
   excerpt?: string;
-  htmlContent: string;
   locale?: string;
   postTitle: string;
   siteDomain: string;
 };
 
-const stripHtml = (html: string): string =>
-  html
-    .replaceAll(/<!--[\s\S]*?-->/gv, "")
-    .replaceAll(/<[^>]+>/gv, " ")
-    .replaceAll("&nbsp;", " ")
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll(/\s+/gv, " ")
-    .trim();
-
 const MAX_BODY_CHARS = 6000;
 
 const buildPrompt = (input: SeoSuggestionInput): string => {
-  const body = stripHtml(input.htmlContent).slice(0, MAX_BODY_CHARS);
+  const body = input.bodyText.slice(0, MAX_BODY_CHARS);
   const lines = [
     `You are an SEO copywriter. Rewrite the SEO metadata for a blog post on ${input.siteDomain}.`,
     `Locale: ${input.locale ?? "auto-detect from content"}.`,
     "",
     "Constraints:",
-    "- SEO title: 50-60 characters, include focus keyword near the start, no quotes.",
-    "- Meta description: 140-160 characters, active voice, ends with a verb-driven hook.",
+    `- SEO title: 50-${SEO_TITLE_MAX} characters, include focus keyword near the start, no quotes.`,
+    `- Meta description: 140-${SEO_DESCRIPTION_MAX} characters, active voice, ends with a verb-driven hook.`,
     "- Focus keyword: 2-5 words, the search term you'd target.",
     "- Match the language of the post.",
     "- No emojis. No marketing fluff. No 'discover', 'unlock', 'unleash'.",

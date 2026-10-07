@@ -1,9 +1,8 @@
-import { requireProvider } from "@repo/ai";
+import { generateStructured } from "@repo/ai";
 import type { SiteLanguage } from "@repo/db";
-import { generateText, Output } from "ai";
 import { z } from "zod";
 
-import { REWRITER_MODEL, SITE_LANGUAGE_HUMAN } from "./prompt-constants";
+import { SITE_LANGUAGE_HUMAN } from "./prompt-constants";
 
 export const MAX_BODY_IMAGES = 4;
 
@@ -112,11 +111,9 @@ export const sanitizeBodyImagePlan = (
 export const planBodyImages = async (
   input: PlanBodyImagesInput,
 ): Promise<ReadonlyArray<PlannedBodyImage>> => {
-  const provider = requireProvider();
-  const result = await generateText({
-    model: provider(REWRITER_MODEL),
-    output: Output.object({ schema: plannedBodyImagesSchema }),
+  const { images } = await generateStructured({
     prompt: buildBodyImagePlanPrompt(input),
+    schema: plannedBodyImagesSchema,
   });
-  return sanitizeBodyImagePlan(input.body, result.output.images);
+  return sanitizeBodyImagePlan(input.body, images);
 };

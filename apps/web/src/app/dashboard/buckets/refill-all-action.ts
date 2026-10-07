@@ -1,4 +1,3 @@
-import { AI_NOT_CONFIGURED_MESSAGE } from "@repo/ai";
 import type { AuditEntry } from "@repo/policy";
 
 type RefillResult = {
@@ -8,28 +7,20 @@ type RefillResult = {
 };
 
 type RefillAllDependencies = {
-  aiConfigured: () => boolean;
   audit: (entry: AuditEntry) => Promise<void>;
   logFailures: (siteId: string, failures: ReadonlyArray<Error | string>) => void;
   refillBuckets: () => Promise<ReadonlyArray<RefillResult>>;
-  requireSession: () => Promise<void>;
   revalidate: (path: string) => void;
 };
 
 type RefillAllResult = {
   failed: number;
-  ok: true;
   queuedPerSite: Record<string, number>;
   sitesTouched: number;
 };
 
-const createRefillAllNeedyBucketsAction =
-  (dependencies: RefillAllDependencies) =>
-  async (): Promise<RefillAllResult | { error: string; ok: false }> => {
-    await dependencies.requireSession();
-    if (!dependencies.aiConfigured()) {
-      return { error: AI_NOT_CONFIGURED_MESSAGE, ok: false };
-    }
+const createRefillAllNeedyBuckets =
+  (dependencies: RefillAllDependencies) => async (): Promise<RefillAllResult> => {
     const results = await dependencies.refillBuckets();
     const queuedPerSite: Record<string, number> = {};
     for (const result of results) {
@@ -43,11 +34,10 @@ const createRefillAllNeedyBucketsAction =
     dependencies.revalidate("/dashboard/buckets");
     return {
       failed: results.reduce((total, result) => total + result.failures.length, 0),
-      ok: true,
       queuedPerSite,
       sitesTouched: Object.keys(queuedPerSite).length,
     };
   };
 
-export { createRefillAllNeedyBucketsAction };
+export { createRefillAllNeedyBuckets };
 export type { RefillAllDependencies, RefillResult };

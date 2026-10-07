@@ -22,6 +22,7 @@ import { handleRewritePost } from "./handlers/rewrite-post";
 import { handleSnapshotSite } from "./handlers/snapshot-site";
 import { handleSuggestLinks } from "./handlers/suggest-links";
 import { handleTriggerDeploy } from "./handlers/trigger-deploy";
+import { isRetryable, skipOptionalAiWhenUnconfigured } from "./lib/ai-unavailable";
 import { env } from "./lib/env";
 import { backfillHeroes } from "./lib/hero-backfill-fanout";
 import { log } from "./lib/logger";
@@ -37,7 +38,13 @@ const startConsumer = <K extends JobKind>(
   kind: K,
   handler: (ctx: ConsumerContext<K>) => Promise<void>,
   concurrency: number = env.WORKER_CONCURRENCY,
-): Worker => consume({ concurrency, handler, kind });
+): Worker =>
+  consume({
+    concurrency,
+    handler: skipOptionalAiWhenUnconfigured(kind, handler),
+    isRetryable,
+    kind,
+  });
 
 type ConsumersContract = Record<JobKind, () => Worker>;
 

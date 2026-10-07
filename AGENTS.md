@@ -54,10 +54,10 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/sites`                                                  | Site aggregate: sole writer, enabled/publishable gates, public projection, coalesced redeploy.    |
 | `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; BullMQ on `REDIS_URL` behind one interface.    |
 | `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks, status.                             |
-| `@repo/posts`                                                  | Post intake: state machine + queue handoff. Used by admin + public API.                           |
+| `@repo/posts`                                                  | Post intake: state machine + queue handoff, body text (`stripHtml`). Used by admin + public API.  |
 | `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.    |
 | `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                             |
-| `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | LLM clients + image/niche/rewrite pipelines.                                                      |
+| `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | AI interface (structured text, image, embedding; owns models + budget) and pipelines on it.       |
 | `@repo/dataforseo`                                             | DataForSEO client: Site market per language, request timeout, on-page check meanings.             |
 | `@repo/links`                                                  | Link lifecycle: crawl, suggest, approve-and-apply, prune; the live-link rule and its reads.       |
 | `@repo/money-sites`                                            | Money-site registry (host, niche, deploy hook).                                                   |
@@ -170,6 +170,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **API structure:** Hono app, routes under `/api/*` (sites, posts, api-keys), health at `/healthz` and `/readyz`.
 - **Access:** `@repo/policy` owns both Channels' access rules. `authenticate` turns `Authorization: Bearer <key>` into an Actor (sha256 lookup, revoked keys rejected); `can(actor, action, siteId?)` is the only authorization verb, and the api guard passes a route's `:siteId` so Site-bound keys stay on their Site; `createApiKey` returns the plaintext once, `listApiKeys`/`revokeApiKey` serve the api routes and the admin page; `recordAudit` writes AuditLog rows for API actors and for admin actions (session user as actor) through `apps/web/src/lib/access.ts`.
 - **Publish pipeline:** `api` enqueues `Job(kind=PUBLISH)` via `@repo/jobs` → `worker` pulls from BullMQ → uploads images to R2 (`@repo/blob`) → writes Markdown body to DB → `Sites.requestRedeploy` enqueues a coalesced `TRIGGER_DEPLOY` Job whose handler POSTs the deploy hook through `Sites.deploy`. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`.
+- **AI:** `@repo/ai` is the only module that calls OpenAI: `generateStructured` (one retry on a schema failure), `generateImage`, `embedText`, all through the budgeted transport priced from `packages/ai/src/models.ts`. `AiNotConfiguredError` and `AiBudgetExceededError` (both `AiUnavailableError`) end a Job FAILED without retry; when AI is unconfigured, CLASSIFY, EMBED, GENERATE_IMAGE and GENERATE_BODY_IMAGES complete instead (`apps/worker/src/lib/ai-unavailable.ts`). Tests drive the real interface through `createFakeOpenAi` from `@repo/ai/testing`.
 - **Build order:** Turbo `^build` and `build.dependsOn` includes `db:generate` so Prisma client is generated before dependents build.
 
 ## Conventions & gotchas
