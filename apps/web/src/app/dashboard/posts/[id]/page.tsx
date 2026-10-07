@@ -245,7 +245,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <div className="mt-2 flex flex-col gap-1">
             <h2 className="text-lg font-semibold tracking-tight">SEO insights</h2>
             <p className="text-sm text-muted-foreground">
-              Live data from DataForSEO. Each card hits a metered live endpoint on render.
+              Data from DataForSEO&rsquo;s metered endpoints, cached between visits.
             </p>
           </div>
 
@@ -255,6 +255,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
                 <SerpRankCard
                   focusKeyword={post.focusKeyword}
                   siteDomain={post.site.domain}
+                  siteLanguage={post.site.language}
                   url={publicPageUrl}
                 />
               </Suspense>

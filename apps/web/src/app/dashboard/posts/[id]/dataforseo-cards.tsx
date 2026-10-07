@@ -1,4 +1,4 @@
-import { auditPage, DataForSeoError, serpOrganic } from "@repo/dataforseo";
+import type { SiteLanguage } from "@repo/db";
 import { Badge } from "@repo/ui/components/badge";
 import {
   Card,
@@ -9,54 +9,23 @@ import {
 } from "@repo/ui/components/card";
 import { CheckCircle2, Gauge, Search, Target, XCircle } from "lucide-react";
 
+import { auditPage, serpOrganic } from "@/app/dashboard/lib/dataforseo";
 import { ProviderErrorCard } from "@/app/dashboard/lib/provider-card";
-import { tryProvider } from "@/app/dashboard/lib/provider-result";
-import { onPageCheckPassed } from "@/app/dashboard/sites/[id]/audit-check-filter";
 
 const DATAFORSEO_DESCRIPTION = "DataForSEO unavailable.";
-
-type HumanContract = Record<string, string>;
-
-const HUMAN = {
-  canonical: "Canonical link",
-  duplicate_description: "Duplicate meta description",
-  duplicate_meta_tags: "Duplicate meta tags",
-  duplicate_title_tag: "Duplicate title",
-  high_loading_time: "Slow page load",
-  irrelevant_description: "Description doesn't match content",
-  irrelevant_meta_keywords: "Meta keywords irrelevant",
-  irrelevant_title: "Title doesn't match content",
-  is_4xx_code: "4xx response",
-  is_5xx_code: "5xx response",
-  is_broken: "Broken page",
-  is_https: "HTTPS",
-  is_redirect: "Redirect",
-  no_content_encoding: "Missing content encoding",
-  no_description: "Missing meta description",
-  no_doctype: "Missing doctype",
-  no_favicon: "Missing favicon",
-  no_h1_tag: "Missing H1",
-  no_image_alt: "Images missing alt",
-  no_image_title: "Images missing title",
-  no_title: "Missing title",
-  seo_friendly_url: "SEO-unfriendly URL",
-  small_page_size: "Page too small",
-  title_too_long: "Title too long",
-  title_too_short: "Title too short",
-} satisfies HumanContract;
-
-const humanByCheck = new Map<string, string>(Object.entries(HUMAN));
 
 export const SerpRankCard = async ({
   focusKeyword,
   siteDomain,
+  siteLanguage,
   url,
 }: {
   focusKeyword: string;
   siteDomain: string;
+  siteLanguage: SiteLanguage;
   url: string;
 }) => {
-  const outcome = await tryProvider(() => serpOrganic(focusKeyword, siteDomain), [DataForSeoError]);
+  const outcome = await serpOrganic(siteDomain, siteLanguage, focusKeyword);
   if (!outcome.ok) {
     return (
       <ProviderErrorCard
@@ -76,9 +45,9 @@ export const SerpRankCard = async ({
           SERP rank
         </CardTitle>
         <CardDescription>
-          Live Google position for{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">{focusKeyword}</code> (US,
-          English).
+          Google position for{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{focusKeyword}</code> (
+          {result.market}).
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -122,7 +91,7 @@ export const SerpRankCard = async ({
 };
 
 export const PostAuditCard = async ({ url }: { url: string }) => {
-  const outcome = await tryProvider(() => auditPage(url), [DataForSeoError]);
+  const outcome = await auditPage(url);
   if (!outcome.ok) {
     return (
       <ProviderErrorCard
@@ -147,9 +116,7 @@ export const PostAuditCard = async ({ url }: { url: string }) => {
     );
   }
 
-  const checkEntries = Object.entries(audit.checks);
-  const failing = checkEntries.filter(([name, value]) => !onPageCheckPassed(name, value));
-  const passing = checkEntries.length - failing.length;
+  const { failed, passed } = audit.checks;
 
   return (
     <Card>
@@ -170,21 +137,21 @@ export const PostAuditCard = async ({ url }: { url: string }) => {
         <div className="flex items-center gap-3 text-xs">
           <span className="inline-flex items-center gap-1 text-primary">
             <CheckCircle2 className="size-3.5" />
-            {passing} passing
+            {passed} passing
           </span>
           <span className="inline-flex items-center gap-1 text-destructive">
             <XCircle className="size-3.5" />
-            {failing.length} failing
+            {failed.length} failing
           </span>
         </div>
-        {failing.length === 0 ? (
+        {failed.length === 0 ? (
           <p className="text-sm text-muted-foreground">No optimization issues detected.</p>
         ) : (
           <ul className="flex flex-col gap-1 text-sm">
-            {failing.map(([key]) => (
-              <li className="flex items-baseline gap-2" key={key}>
+            {failed.map((check) => (
+              <li className="flex items-baseline gap-2" key={check.name}>
                 <XCircle className="size-3.5 h-lh shrink-0 text-destructive" />
-                <span>{humanByCheck.get(key) ?? key}</span>
+                <span>{check.label}</span>
               </li>
             ))}
           </ul>

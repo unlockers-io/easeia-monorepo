@@ -193,7 +193,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <div className="mt-2 flex flex-col gap-1">
             <h2 className="text-lg font-semibold">SEO insights</h2>
             <p className="text-sm text-muted-foreground">
-              Live data from DataForSEO. Each section hits a metered live endpoint on render.
+              Data from DataForSEO&rsquo;s metered endpoints, cached between visits.
             </p>
           </div>
 
@@ -203,13 +203,13 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
             the panel. Nesting keeps the fetches parallel but settles the panel top-down. */}
             <SeoPanel>
               <Suspense fallback={<SectionSkeleton title="Domain rank" />}>
-                <DomainRankCard domain={site.domain} />
+                <DomainRankCard domain={site.domain} language={site.language} />
                 <Suspense fallback={<SectionSkeleton title="Backlinks" />}>
                   <BacklinksCard siteId={site.id} />
                   <Suspense fallback={<SectionSkeleton title="Homepage audit" />}>
                     <OnPageAuditCard siteId={site.id} url={`https://${site.domain}`} />
                     <Suspense fallback={<SectionSkeleton title="Top organic keywords" />}>
-                      <TopKeywordsCard domain={site.domain} />
+                      <TopKeywordsCard domain={site.domain} language={site.language} />
                     </Suspense>
                   </Suspense>
                 </Suspense>

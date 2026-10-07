@@ -1,4 +1,4 @@
-import { backlinkSummary, domainRankOverview } from "@repo/dataforseo";
+import { dataForSeo } from "@repo/dataforseo";
 import { prisma, type Prisma } from "@repo/db";
 import { computeHealthScore } from "@repo/health";
 import type { ConsumerContext } from "@repo/jobs";
@@ -135,8 +135,8 @@ const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promis
   const [reachable, publishing, dfsRank, dfsBacklinks, gsc] = await Promise.all([
     checkReachability(siteId),
     fetchPublishingStats(siteId),
-    tryFetch("dataforseo.domainRank", () => domainRankOverview(site.domain)),
-    tryFetch("dataforseo.backlinks", () => backlinkSummary(site.domain)),
+    tryFetch("dataforseo.domainRank", () => dataForSeo.domainRankOverview(site)),
+    tryFetch("dataforseo.backlinks", () => dataForSeo.backlinkSummary(site.domain)),
     tryFetch("gsc.totals", () => fetchGsc(site.domain)),
   ]);
 
