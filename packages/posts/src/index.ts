@@ -134,6 +134,7 @@ export const detail = (postId: string) =>
           domain: true,
           id: true,
           isEnabled: true,
+          language: true,
           moneySite: { select: { domain: true } },
           niches: true,
           updatedAt: true,

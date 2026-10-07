@@ -57,7 +57,7 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.    |
 | `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                             |
 | `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | LLM clients + image/niche/rewrite pipelines.                                                      |
-| `@repo/dataforseo`                                             | DataForSEO client wrapper (keyword research, SERP).                                               |
+| `@repo/dataforseo`                                             | DataForSEO client: Site market per language, request timeout, on-page check meanings.             |
 | `@repo/links` / `@repo/suggest-links`                          | Cross-site internal-link graph + per-post link suggestions.                                       |
 | `@repo/money-sites`                                            | Money-site registry (host, niche, deploy hook).                                                   |
 | `@repo/search-console`                                         | Search Console per Site (`forSite(domain)`): connection, property, token refresh, OAuth connect.  |

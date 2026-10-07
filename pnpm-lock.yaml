@@ -681,6 +681,9 @@ importers:
 
   packages/dataforseo:
     dependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
       zod:
         specifier: ^4.6.5
         version: 4.6.5
