@@ -17,6 +17,7 @@ import { PostValidationError } from "./validation-error";
 
 export { applyBodyImages, type BodyImage } from "./apply-body-images";
 export { normalizeBody } from "./normalize-body";
+export { stripHtml } from "./strip-html";
 export {
   analyzeBody,
   dedupeBody,

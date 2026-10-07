@@ -1,7 +1,11 @@
-export { AiNotConfiguredError, requireProvider, tryProvider } from "./client";
-export { AiBudgetExceededError, budgetedOpenAiFetch } from "./budget-fetch";
-export { EMBED_MODEL, embedText } from "./embed";
-export { GENERATION_MODEL, generateStructured } from "./generate";
+export {
+  AI_ENV_VARS,
+  assertAiConfigured,
+  embedText,
+  generateImage,
+  generateStructured,
+} from "./client";
+export { AiBudgetExceededError, AiNotConfiguredError, AiUnavailableError } from "./errors";
 export { buildFixAdvicePrompt, fixAdviceSchema, generateFixAdvice } from "./fix-advice";
 export type {
   FixAdvice,
@@ -10,18 +14,5 @@ export type {
   FixAdviceSeverity,
   FixStep,
 } from "./fix-advice";
-export {
-  buildHomepageDescriptionPrompt,
-  buildHomepageTitlePrompt,
-  generateHomepageSeoDescription,
-  generateHomepageSeoTitle,
-  homepageDescriptionSchema,
-  homepageTitleSchema,
-} from "./homepage-seo";
-export type { HomepageSeoDescription, HomepageSeoInput, HomepageSeoTitle } from "./homepage-seo";
 export { generateSeoSuggestions, seoSuggestionSchema } from "./seo";
 export type { SeoSuggestion, SeoSuggestionInput } from "./seo";
-
-export { isAiConfigured, AI_NOT_CONFIGURED_MESSAGE } from "./client";
-
-export { REWRITE_MODEL, IMAGE_MODEL } from "./models";

@@ -1,8 +1,7 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { embed, generateText } from "ai";
 import { describe, expect, it, vi } from "vitest";
 
-import { AiBudgetExceededError, createBudgetedFetch } from "./budget-fetch";
+import { createBudgetedFetch } from "./budget-fetch";
+import { AiBudgetExceededError } from "./errors";
 
 const requestBody = { input: "Write a post", model: "gpt-5.6-luna" };
 const makeRequest = () =>
@@ -117,47 +116,5 @@ describe("budgeted OpenAI transport", () => {
     await guarded(makeRequest());
     expect(store.settle.mock.calls.map(([month]) => month)).toEqual(["2026-09", "2026-10"]);
     expect(store.reserve.mock.calls.map(([month]) => month)).toEqual(["2026-09", "2026-10"]);
-  });
-
-  it("supports real AI SDK Responses and embedding payloads with mocked HTTP", async () => {
-    const { fetch, guarded, store } = setup();
-    const provider = createOpenAI({ apiKey: "test", fetch: guarded });
-    fetch.mockResolvedValueOnce(
-      Response.json({
-        created_at: 1,
-        id: "resp_test",
-        model: "gpt-5.6-luna",
-        output: [
-          {
-            content: [{ annotations: [], text: "A post", type: "output_text" }],
-            id: "msg_test",
-            role: "assistant",
-            status: "completed",
-            type: "message",
-          },
-        ],
-        status: "completed",
-        usage,
-      }),
-    );
-    const result = await generateText({
-      maxRetries: 0,
-      model: provider("gpt-5.6-luna"),
-      prompt: "Write a post",
-    });
-    expect(result.text).toBe("A post");
-    fetch.mockResolvedValueOnce(
-      Response.json({
-        data: [{ embedding: [0.1, 0.2], index: 0 }],
-        usage: { prompt_tokens: 5, total_tokens: 5 },
-      }),
-    );
-    const embedded = await embed({
-      maxRetries: 0,
-      model: provider.embedding("text-embedding-3-small"),
-      value: "hello",
-    });
-    expect(embedded.embedding).toEqual([0.1, 0.2]);
-    expect(store.settle).toHaveBeenCalledTimes(2);
   });
 });

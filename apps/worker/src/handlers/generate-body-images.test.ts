@@ -8,8 +8,6 @@ vi.hoisted(() => {
   });
 });
 
-import { AiNotConfiguredError } from "@repo/ai";
-
 import { makeHandleGenerateBodyImages } from "./generate-body-images";
 
 const body = ["## Microfones", "", "Um parágrafo.", "", "Fecho."].join("\n");
@@ -149,14 +147,6 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.findPost).not.toHaveBeenCalled();
-  });
-
-  it("skips without burning retries when the AI provider is unconfigured", async () => {
-    const { deps, handle } = wire({
-      planBodyImages: vi.fn().mockRejectedValue(new AiNotConfiguredError()),
-    });
-    await expect(handle(ctx)).resolves.toBeUndefined();
-    expect(deps.writeBody).not.toHaveBeenCalled();
   });
 
   it("propagates generation failures so the retry ladder runs", async () => {

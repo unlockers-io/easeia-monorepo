@@ -1,4 +1,4 @@
-import { AiNotConfiguredError, type FixAdvice } from "@repo/ai";
+import { AiUnavailableError, type FixAdvice } from "@repo/ai";
 import { z } from "zod";
 
 const checkNameSchema = z
@@ -60,8 +60,8 @@ const createGetFixAdviceAction =
       dependencies.setCached(siteId, checkName, advice);
       return { data: advice, ok: true };
     } catch (error) {
-      if (error instanceof AiNotConfiguredError) {
-        return { error: "OPENAI_API_KEY is not configured on this server.", ok: false };
+      if (error instanceof AiUnavailableError) {
+        return { error: error.message, ok: false };
       }
       dependencies.logError({
         checkName,

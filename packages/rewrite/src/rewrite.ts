@@ -1,13 +1,17 @@
-import { requireProvider } from "@repo/ai";
 import { prisma } from "@repo/db";
+import {
+  SEO_DESCRIPTION_MAX,
+  SEO_DESCRIPTION_MIN,
+  SEO_TITLE_MAX,
+  SEO_TITLE_MIN,
+} from "@repo/health";
 import { approveSuggestions, listSuggestions } from "@repo/links";
 import { findRelevantPages } from "@repo/money-sites";
-import { generateText, Output } from "ai";
 import { z } from "zod";
 
+import { generateWithAnchors } from "./anchored-generation";
 import { assertRewriteIsSane } from "./guard";
 import { buildRewritePrompt, type AnchorSpec } from "./prompt";
-import { REWRITER_MODEL } from "./prompt-constants";
 import { pickTopByRecencyAndType } from "./select";
 
 const SUGGESTION_OVERFETCH = 10;
@@ -16,9 +20,9 @@ const TOP_MONEY_SITE = 2;
 
 const rewriteOutputSchema = z.object({
   body: z.string().min(50),
-  excerpt: z.string().min(70).max(160),
+  excerpt: z.string().min(SEO_DESCRIPTION_MIN).max(SEO_DESCRIPTION_MAX),
   focusKeyword: z.string().min(2).max(80),
-  title: z.string().min(30).max(60),
+  title: z.string().min(SEO_TITLE_MIN).max(SEO_TITLE_MAX),
 });
 
 export type RewriteOptions = {
@@ -33,11 +37,6 @@ export type RewriteResult =
       outcome: "rewritten";
       retryUsed: boolean;
     };
-
-export const findMissingAnchors = (
-  body: string,
-  anchors: ReadonlyArray<AnchorSpec>,
-): Array<AnchorSpec> => anchors.filter((a) => !body.includes(a.url));
 
 export const rewritePost = async (
   postId: string,
@@ -77,53 +76,32 @@ export const rewritePost = async (
     })),
   ];
 
-  const provider = requireProvider();
-  const prompt = buildRewritePrompt({
+  const { missing, output, retryUsed } = await generateWithAnchors({
     anchors,
-    moneySiteName: post.site.moneySite?.name ?? null,
-    post: {
-      body: post.body,
-      excerpt: post.excerpt,
-      focusKeyword: post.focusKeyword,
-      niches: post.niches,
-      tags: post.tags,
-      title: post.title,
-    },
-    siteDomain: post.site.domain,
-    siteLanguage: post.site.language,
-    siteNiches: post.site.niches,
+    insertInstruction: "Insert each one inline at a natural spot in the body.",
+    prompt: buildRewritePrompt({
+      anchors,
+      moneySiteName: post.site.moneySite?.name ?? null,
+      post: {
+        body: post.body,
+        excerpt: post.excerpt,
+        focusKeyword: post.focusKeyword,
+        niches: post.niches,
+        tags: post.tags,
+        title: post.title,
+      },
+      siteDomain: post.site.domain,
+      siteLanguage: post.site.language,
+      siteNiches: post.site.niches,
+    }),
+    schema: rewriteOutputSchema,
   });
-  const first = await generateText({
-    model: provider(REWRITER_MODEL),
-    output: Output.object({ schema: rewriteOutputSchema }),
-    prompt,
-  });
-  let { body, excerpt, focusKeyword, title } = first.output;
-
-  let retryUsed = false;
-  let anchorsForcedByFallback = 0;
-  let missing = findMissingAnchors(body, anchors);
-  if (missing.length > 0) {
-    retryUsed = true;
-    const retryPrompt = `${prompt}\n\nIMPORTANT: your previous output was missing these links: ${missing
-      .map((a) => a.url)
-      .join(", ")}. Insert each one inline at a natural spot in the body.`;
-    const retry = await generateText({
-      model: provider(REWRITER_MODEL),
-      output: Output.object({ schema: rewriteOutputSchema }),
-      prompt: retryPrompt,
-    });
-    title = retry.output.title;
-    body = retry.output.body;
-    excerpt = retry.output.excerpt;
-    focusKeyword = retry.output.focusKeyword;
-    missing = findMissingAnchors(body, anchors);
-    if (missing.length > 0) {
-      anchorsForcedByFallback = missing.length;
-      const fallbackHtml = missing.map((a) => `<a href="${a.url}">${a.anchor}</a>`).join(" · ");
-      body += `\n\n<p><strong>Veja também:</strong> ${fallbackHtml}</p>`;
-    }
-  }
+  const { excerpt, focusKeyword, title } = output;
+  const fallbackHtml = missing.map((a) => `<a href="${a.url}">${a.anchor}</a>`).join(" · ");
+  const body =
+    missing.length === 0
+      ? output.body
+      : `${output.body}\n\n<p><strong>Veja também:</strong> ${fallbackHtml}</p>`;
 
   assertRewriteIsSane({ after: body, before: post.body, postId });
 
@@ -137,7 +115,7 @@ export const rewritePost = async (
   );
 
   return {
-    anchorsForcedByFallback,
+    anchorsForcedByFallback: missing.length,
     anchorsRequested: anchors.length,
     outcome: "rewritten",
     retryUsed,

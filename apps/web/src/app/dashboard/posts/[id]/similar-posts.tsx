@@ -2,7 +2,6 @@
  * Similar-posts card: driven by `Posts.findSimilar`. The pgvector
  * cosine query lives in `@repo/posts`; this Channel only renders.
  */
-import { isAiConfigured } from "@repo/ai";
 import * as Posts from "@repo/posts";
 import { Badge } from "@repo/ui/components/badge";
 import {
@@ -23,16 +22,19 @@ import {
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
+import { readIntegrations } from "@/lib/integrations";
+
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
 
 const LIMIT = 5;
 
 export const SimilarPostsCard = async ({ postId }: { postId: string }) => {
-  if (!isAiConfigured()) {
+  const { openai } = readIntegrations();
+  if (!openai.configured) {
     return (
       <IntegrationNotConfiguredCard
         feature="Find similar posts across your network"
-        missing={["OPENAI_API_KEY"]}
+        missing={openai.missing}
         name="OpenAI"
       />
     );

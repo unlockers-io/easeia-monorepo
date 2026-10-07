@@ -1,13 +1,15 @@
 import "dotenv/config";
 
-import { requireProvider, REWRITE_MODEL as REPAIR_MODEL } from "@repo/ai";
+import { generateStructured } from "@repo/ai";
 import { prisma } from "@repo/db";
 import { normalizeBody } from "@repo/posts";
-import { generateText } from "ai";
+import { z } from "zod";
 
 import { redeploySites } from "../_shared/redeploy";
 
 const BATCH_SIZE = 5;
+
+const bodySchema = z.object({ body: z.string() });
 
 const APPLY = process.argv.includes("--apply");
 
@@ -45,7 +47,7 @@ const buildPrompt = (body: string): string =>
     "  Keep every sentence verbatim. Keep the original language (Brazilian",
     "  Portuguese).",
     "- Do not invent links, images, or headings that are not already present.",
-    "- Output ONLY the repaired Markdown body — no code fences, no commentary.",
+    "- Return the repaired Markdown body as `body`, with no code fences and no commentary.",
     "",
     "Corrupted body:",
     "<<<",
@@ -79,12 +81,8 @@ const repairOne = async (row: Row): Promise<RepairOutcome> => {
     return { after: normalized, method: "html", row, status: "ok" };
   }
 
-  const provider = requireProvider();
-  const { text } = await generateText({
-    model: provider(REPAIR_MODEL),
-    prompt: buildPrompt(row.body),
-  });
-  const after = text.trim();
+  const { body } = await generateStructured({ prompt: buildPrompt(row.body), schema: bodySchema });
+  const after = body.trim();
 
   if (after.includes(String.raw`\*`) || after.includes(String.raw`\#`)) {
     return { reason: "still contains escaped markdown", row, status: "skipped" };

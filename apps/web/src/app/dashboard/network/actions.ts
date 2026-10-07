@@ -1,6 +1,6 @@
 "use server";
 
-import { isAiConfigured, AiNotConfiguredError } from "@repo/ai";
+import { assertAiConfigured } from "@repo/ai";
 import { suggestionListQuerySchema } from "@repo/api-types";
 import { networkBackfill, rewriteBackfill } from "@repo/backfill";
 import { JobKind } from "@repo/db";
@@ -13,31 +13,25 @@ import { z } from "zod";
 import { audit } from "@/lib/access";
 import { withAuth } from "@/lib/server-action";
 
-const requireAi = (): void => {
-  if (!isAiConfigured()) {
-    throw new AiNotConfiguredError();
-  }
-};
-
 export const readBackfillStatusAction = async () => withAuth(networkBackfill.readStatus);
 export const readRewriteStatusAction = async () => withAuth(rewriteBackfill.readStatus);
 export const startBackfillAction = async () =>
   withAuth(async () => {
-    requireAi();
+    assertAiConfigured();
     const started = await networkBackfill.start();
     await audit({ action: "backfill.trigger", target: "network" });
     return started;
   });
 export const startRewriteAction = async (force: boolean) =>
   withAuth(async () => {
-    requireAi();
+    assertAiConfigured();
     const started = await rewriteBackfill.start({ force: z.boolean().parse(force) });
     await audit({ action: "rewrite.trigger", target: "network" });
     return started;
   });
 export const rewritePostAction = async (postId: string) =>
   withAuth(async () => {
-    requireAi();
+    assertAiConfigured();
     const post = await getPost(z.string().min(1).parse(postId));
     await requirePublishable(post.siteId);
     const job = await enqueue({

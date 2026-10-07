@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
   },
   "scripts": {
     "lint": "oxlint src",
@@ -16,6 +17,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^4.0.36",
     "@repo/db": "workspace:*",
+    "@repo/health": "workspace:*",
     "ai": "^7.0.58",
     "zod": "^4.6.5"
   },

@@ -1,7 +1,5 @@
 import type { SiteLanguage } from "@repo/db";
 
-export { REWRITE_MODEL as REWRITER_MODEL } from "@repo/ai";
-
 type SiteLanguageHumanContract = Record<SiteLanguage, string>;
 
 export const SITE_LANGUAGE_HUMAN = {

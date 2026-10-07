@@ -11,7 +11,6 @@ const envSchema = z.object({
     .default("true")
     .transform((v) => v === "true"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  OPENAI_API_KEY: z.string().optional(),
   REDIS_URL: z.string().min(1),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
   WP_ENCRYPTION_KEY: z.string().min(1),

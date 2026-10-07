@@ -1,13 +1,7 @@
 import { monthlyBudgetMicroUsd, monthlyBudgetStartMonth, planAiRequest } from "./budget-policy";
 import { budgetStore } from "./budget-store";
 import type { AiBudgetStore } from "./budget-store";
-
-class AiBudgetExceededError extends Error {
-  constructor(month: string) {
-    super(`The AI allowance for ${month} is exhausted. New AI requests resume next month.`);
-    this.name = "AiBudgetExceededError";
-  }
-}
+import { AiBudgetExceededError } from "./errors";
 
 type BudgetFetchDependencies = {
   fetch: typeof globalThis.fetch;
@@ -72,4 +66,4 @@ const budgetedOpenAiFetch = createBudgetedFetch({
   store: budgetStore,
 });
 
-export { AiBudgetExceededError, budgetedOpenAiFetch, createBudgetedFetch };
+export { budgetedOpenAiFetch, createBudgetedFetch };

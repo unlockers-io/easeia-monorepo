@@ -1,6 +1,6 @@
 "use server";
 
-import { AI_NOT_CONFIGURED_MESSAGE, AiNotConfiguredError, type FixAdvice } from "@repo/ai";
+import { AiUnavailableError, type FixAdvice } from "@repo/ai";
 import * as Sites from "@repo/sites";
 import { z } from "zod";
 
@@ -95,10 +95,8 @@ export const bulkGenerateFixAdviceAction = async (
       } else {
         const reason: unknown = settled.reason;
         const message =
-          reason instanceof AiNotConfiguredError
-            ? AI_NOT_CONFIGURED_MESSAGE
-            : "Could not generate fix advice.";
-        if (!(reason instanceof AiNotConfiguredError)) {
+          reason instanceof AiUnavailableError ? reason.message : "Could not generate fix advice.";
+        if (!(reason instanceof AiUnavailableError)) {
           log.error({
             checkName,
             error: reason instanceof Error ? reason.message : String(reason),

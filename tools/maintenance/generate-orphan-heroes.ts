@@ -3,18 +3,13 @@ import "dotenv/config";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { assertAiConfigured } from "@repo/ai";
 import { prisma } from "@repo/db";
 import { generateHero } from "@repo/hero";
 import { z } from "zod";
 
 const ORPHAN_DIR = "/tmp/easeia-images/orphans";
 const LOG_DIR = "/tmp/easeia-images/orphans-run";
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-if (OPENAI_API_KEY === undefined || OPENAI_API_KEY === "") {
-  console.error("OPENAI_API_KEY not set");
-  process.exit(1);
-}
 
 type Orphan = {
   categories: Array<string>;
@@ -48,6 +43,7 @@ const sleep = (ms: number): Promise<void> =>
   });
 
 const main = async (): Promise<void> => {
+  assertAiConfigured();
   mkdirSync(LOG_DIR, { recursive: true });
 
   const sites = await prisma.site.findMany({

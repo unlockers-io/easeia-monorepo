@@ -1,17 +1,12 @@
 import "dotenv/config";
 
-import {
-  requireProvider,
-  REWRITE_MODEL as REWRITER_MODEL,
-  GENERATION_MODEL as GRADER_MODEL,
-} from "@repo/ai";
+import { generateStructured } from "@repo/ai";
 import {
   buildRewritePrompt,
   EVAL_CASES,
   EVAL_LANGUAGE_TO_SITE,
   type EvalCase,
 } from "@repo/rewrite";
-import { generateText, Output } from "ai";
 import { z } from "zod";
 
 const argv = process.argv.slice(2);
@@ -35,7 +30,6 @@ const buildGradingSchema = (assertionCount: number) =>
 
 const runCase = async (
   evalCase: EvalCase,
-  provider: ReturnType<typeof requireProvider>,
 ): Promise<{
   caseId: string;
   failures: Array<string>;
@@ -59,11 +53,7 @@ const runCase = async (
     siteNiches: ["WEDDING"],
   });
 
-  const { output: rewrite } = await generateText({
-    model: provider(REWRITER_MODEL),
-    output: Output.object({ schema: rewriteSchema }),
-    prompt,
-  });
+  const rewrite = await generateStructured({ prompt, schema: rewriteSchema });
 
   const gradingPrompt = [
     "You are grading a blog post rewrite against a checklist.",
@@ -79,10 +69,9 @@ const runCase = async (
     ...evalCase.assertions.map((a, i) => `${i + 1}. ${a.description}`),
   ].join("\n");
 
-  const { output: grading } = await generateText({
-    model: provider(GRADER_MODEL),
-    output: Output.object({ schema: buildGradingSchema(evalCase.assertions.length) }),
+  const grading = await generateStructured({
     prompt: gradingPrompt,
+    schema: buildGradingSchema(evalCase.assertions.length),
   });
 
   const failures = grading.results
@@ -113,12 +102,11 @@ const main = async (): Promise<number> => {
     return 0;
   }
 
-  const provider = requireProvider();
   console.log(`Running ${cases.length} case${cases.length === 1 ? "" : "s"}…`);
 
   const results: Array<Awaited<ReturnType<typeof runCase>>> = [];
   for (const c of cases) {
-    const r = await runCase(c, provider);
+    const r = await runCase(c);
     results.push(r);
     const status = r.passed === r.total ? "PASS" : "FAIL";
     console.log(`[${r.lang.toUpperCase()}] ${r.caseId}: ${status} (${r.passed}/${r.total})`);

@@ -12,9 +12,9 @@
     "@repo/ai": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/links": "workspace:*",
-    "ai": "^7.0.58",
     "dotenv": "^17.4.2",
-    "tsx": "^4.23.11"
+    "tsx": "^4.23.11",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

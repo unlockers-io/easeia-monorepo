@@ -1,4 +1,3 @@
-import { isAiConfigured } from "@repo/ai";
 import { PostStatus, prisma } from "@repo/db";
 import { countBucketSupplyBySite, needsRefill, type BucketSupply } from "@repo/posts";
 import {
@@ -10,6 +9,8 @@ import {
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { Suspense } from "react";
+
+import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../lib/provider-card";
 
@@ -122,13 +123,14 @@ const BucketsContent = async () => {
     return { text: "All buckets above their refill threshold." };
   };
   const attention = buildAttentionLine();
+  const { openai } = readIntegrations();
 
   return (
     <>
-      {!isAiConfigured() && (
+      {!openai.configured && (
         <IntegrationNotConfiguredCard
           feature="Generate drafts for your buckets"
-          missing={["OPENAI_API_KEY"]}
+          missing={openai.missing}
           name="OpenAI"
         />
       )}
@@ -146,10 +148,10 @@ const BucketsContent = async () => {
               <span className={attention.className}>{attention.text}</span>
             </CardDescription>
           </div>
-          <BucketsHeaderActions aiConfigured={isAiConfigured()} />
+          <BucketsHeaderActions aiConfigured={openai.configured} />
         </CardHeader>
         <CardContent>
-          <BucketsTable aiConfigured={isAiConfigured()} nowMs={nowMs} rows={rows} />
+          <BucketsTable aiConfigured={openai.configured} nowMs={nowMs} rows={rows} />
         </CardContent>
       </Card>
     </>

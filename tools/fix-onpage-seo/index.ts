@@ -8,6 +8,7 @@ import { generateSeoSuggestions } from "@repo/ai";
 import { PostStatus, prisma } from "@repo/db";
 import { classifyDescriptionLength, classifyTitleLength, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
+import { stripHtml } from "@repo/posts";
 
 import { redeploySites } from "../_shared/redeploy";
 
@@ -68,10 +69,10 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
   }
 
   const suggestion = await generateSeoSuggestions({
+    bodyText: stripHtml(row.body),
     currentDescription: row.excerpt ?? undefined,
     currentFocusKeyword: row.focusKeyword ?? undefined,
     currentTitle: row.title,
-    htmlContent: row.body,
     locale: row.site.language,
     postTitle: row.title,
     siteDomain: row.site.domain,
