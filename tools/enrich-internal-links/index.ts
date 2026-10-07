@@ -3,13 +3,14 @@ import "dotenv/config";
 
 import { requireProvider, REWRITE_MODEL as ENRICH_MODEL } from "@repo/ai";
 import { prisma } from "@repo/db";
-import { suggestForPost } from "@repo/suggest-links";
+import { approveSuggestions, listSuggestions, suggestForPost } from "@repo/links";
 import { generateText } from "ai";
 
 import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
 
 const BATCH_SIZE = 5;
 const LINKS_PER_POST = 4;
+const SUGGESTIONS_PER_POST = 20;
 
 const APPLY = process.argv.includes("--apply");
 const argValue = (flag: string): string | undefined => {
@@ -26,9 +27,6 @@ const OFFSET = numArg("--offset");
 const SITE_SET = SITE !== undefined && SITE !== "";
 
 type Anchor = { anchor: string; linkId: string; url: string };
-
-const missingAnchors = (body: string, anchors: ReadonlyArray<Anchor>): Array<Anchor> =>
-  anchors.filter((a) => !body.includes(a.url));
 
 const proseOf = (s: string): string =>
   s
@@ -52,11 +50,7 @@ const selectPosts = (): Promise<
   });
 
 const fetchTopSuggestions = async (postId: string, body: string): Promise<Array<Anchor>> => {
-  const links = await prisma.link.findMany({
-    orderBy: { suggestedAt: "desc" },
-    select: { anchorText: true, id: true, toPostId: true, toUrl: true, type: true },
-    where: { approved: null, fromPostId: postId, source: "SUGGESTED", toPostId: { not: null } },
-  });
+  const links = await listSuggestions({ fromPostId: postId, limit: SUGGESTIONS_PER_POST });
   const seen = new Set<string>();
   const out: Array<Anchor> = [];
   for (const l of links) {
@@ -98,9 +92,6 @@ const buildPrompt = (body: string, anchors: ReadonlyArray<Anchor>): string =>
     ">>>",
   ].join("\n");
 
-const leiaTambemBlock = (anchors: ReadonlyArray<Anchor>): string =>
-  ["", "", "## Leia também", "", ...anchors.map((a) => `- [${a.anchor}](${a.url})`)].join("\n");
-
 type Outcome = {
   after?: string;
   id: string;
@@ -139,19 +130,11 @@ const enrichOne = async (post: {
 
   const llmClean = proseOf(llm) === proseOf(post.body);
 
-  let after = llmClean ? llm : post.body;
-  const method: "fallback" | "inline" = llmClean ? "inline" : "fallback";
-
-  const missing = missingAnchors(after, anchors);
-  if (missing.length > 0) {
-    after += leiaTambemBlock(missing);
-  }
-
   return {
-    after,
+    after: llmClean ? llm : post.body,
     id: post.id,
     linkIds: anchors.map((a) => a.linkId),
-    method,
+    method: llmClean ? "inline" : "fallback",
     siteId: post.siteId,
     slug: post.slug,
     status: "enriched",
@@ -215,10 +198,7 @@ const main = async (): Promise<number> => {
 
   const affected = new Set<string>();
   for (const o of enriched) {
-    await prisma.$transaction([
-      prisma.post.update({ data: { body: o.after }, where: { id: o.id } }),
-      prisma.link.updateMany({ data: { approved: true }, where: { id: { in: o.linkIds ?? [] } } }),
-    ]);
+    await approveSuggestions(o.id, o.linkIds ?? [], o.after);
     affected.add(o.siteId);
   }
 

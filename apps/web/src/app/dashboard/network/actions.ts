@@ -4,9 +4,9 @@ import { isAiConfigured, AiNotConfiguredError } from "@repo/ai";
 import { suggestionListQuerySchema } from "@repo/api-types";
 import { JobKind } from "@repo/db";
 import { enqueue, readBackfillNetworkStatus, readBackfillRewriteStatus } from "@repo/jobs";
+import { approveSuggestion, listSuggestions, rejectSuggestion } from "@repo/links";
 import { get as getPost } from "@repo/posts";
 import { requirePublishable } from "@repo/sites";
-import { listSuggestions, updateSuggestion } from "@repo/suggest-links";
 import { z } from "zod";
 
 import { audit } from "@/lib/access";
@@ -73,9 +73,8 @@ export const listSuggestionsAction = async (input: z.input<typeof suggestionList
 export const decideSuggestionAction = async (id: string, action: "approve" | "reject") =>
   withAuth(async () => {
     const decision = z.enum(["approve", "reject"]).parse(action);
-    const suggestion = await updateSuggestion(z.string().min(1).parse(id), {
-      approved: decision === "approve",
-    });
+    const decide = decision === "approve" ? approveSuggestion : rejectSuggestion;
+    const suggestion = await decide(z.string().min(1).parse(id));
     await audit({ action: `link.${decision}`, target: `link:${id}` });
     return suggestion;
   });

@@ -32,7 +32,6 @@
     "@repo/rewrite": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
-    "@repo/suggest-links": "workspace:*",
     "bullmq": "^6.0.9",
     "dotenv": "^17.4.2",
     "zod": "^4.6.5"

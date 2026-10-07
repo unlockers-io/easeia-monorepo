@@ -2,9 +2,9 @@
  * Server-side helpers that fetch live and local data for a Site.
  * Returns plain JSON-friendly shapes for async server components.
  */
-import { LinkType, PostStatus, prisma } from "@repo/db";
+import { PostStatus, prisma } from "@repo/db";
 import { type OnPageCounts, summarizeOnPage } from "@repo/health";
-import { liveLinkWhere } from "@repo/links";
+import { countInternalInboundLinks } from "@repo/links";
 import { postPublicUrl } from "@repo/sites";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -97,24 +97,7 @@ export const fetchOnPageSeo = async (siteId: string): Promise<OnPageSeoReport> =
     where: { siteId, status: PostStatus.PUBLISHED },
   });
 
-  const inboundCount = new Map<string, number>();
-  if (posts.length > 0) {
-    const inbound = await prisma.link.groupBy({
-      _count: { toPostId: true },
-      by: ["toPostId"],
-      where: {
-        ...liveLinkWhere,
-        fromPost: { siteId, status: PostStatus.PUBLISHED },
-        toPostId: { in: posts.map((p) => p.id) },
-        type: LinkType.INTERNAL,
-      },
-    });
-    for (const row of inbound) {
-      if (row.toPostId !== null) {
-        inboundCount.set(row.toPostId, row._count.toPostId);
-      }
-    }
-  }
+  const inboundCount = await countInternalInboundLinks(posts.map((p) => p.id));
 
   const summary = summarizeOnPage(
     posts.map((p) => ({

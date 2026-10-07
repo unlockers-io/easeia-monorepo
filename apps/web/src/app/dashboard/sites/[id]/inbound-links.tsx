@@ -1,4 +1,4 @@
-import * as Sites from "@repo/sites";
+import { recentPbnBacklinks } from "@repo/links";
 import {
   Card,
   CardContent,
@@ -19,7 +19,7 @@ import Link from "next/link";
 const LIMIT = 50;
 
 export const InboundLinksCard = async ({ siteId }: { siteId: string }) => {
-  const links = await Sites.inboundLinks(siteId, LIMIT);
+  const links = await recentPbnBacklinks(siteId, LIMIT);
 
   return (
     <Card>

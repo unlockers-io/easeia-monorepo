@@ -1,14 +1,6 @@
-import {
-  JobKind,
-  JobStatus,
-  LinkType,
-  prisma,
-  type MoneySite,
-  type Site,
-  type SiteSnapshot,
-} from "@repo/db";
+import { JobKind, JobStatus, prisma, type MoneySite, type Site, type SiteSnapshot } from "@repo/db";
 import { buildRecommendations } from "@repo/health";
-import { liveLinkWhere } from "@repo/links";
+import { countPbnBacklinks } from "@repo/links";
 import { Button } from "@repo/ui/components/button";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import {
@@ -76,13 +68,7 @@ const DashboardContent = async () => {
     prisma.job.count({
       where: { kind: JobKind.REWRITE_POST, status: JobStatus.DONE },
     }),
-    prisma.link.count({
-      where: {
-        ...liveLinkWhere,
-        toPostId: { not: null },
-        type: LinkType.PBN,
-      },
-    }),
+    countPbnBacklinks(),
   ]);
 
   const cards = sites.map((site) => buildSiteCardModel(site));

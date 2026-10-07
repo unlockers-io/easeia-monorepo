@@ -14,7 +14,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/sites": "workspace:*",
     "linkedom": "^0.18.13"
   },
   "devDependencies": {

@@ -32,7 +32,6 @@
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
     "@repo/social-image": "workspace:*",
-    "@repo/suggest-links": "workspace:*",
     "@repo/transactional": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-form": "^1.33.4",
