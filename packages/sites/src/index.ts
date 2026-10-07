@@ -109,49 +109,6 @@ export const update = (siteId: string, patch: SiteUpdatePatch): Promise<Site> =>
     where: { id: siteId },
   });
 
-/**
- * Cross-site (PBN) inbound Links. Returns the most recent N Links whose
- * target Post lives on the given Site. The Channel only renders.
- */
-export type InboundLink = {
-  anchorText: string;
-  fromPost: {
-    id: string;
-    site: { domain: string; id: string };
-    title: string;
-  };
-  id: string;
-  toPost: { id: string; slug: string; title: string } | null;
-};
-
-export const inboundLinks = async (siteId: string, limit: number): Promise<Array<InboundLink>> => {
-  const rows = await prisma.link.findMany({
-    include: {
-      fromPost: {
-        select: {
-          id: true,
-          site: { select: { domain: true, id: true } },
-          title: true,
-        },
-      },
-      toPost: { select: { id: true, slug: true, title: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    where: {
-      status: "ACTIVE",
-      toPost: { siteId },
-      type: "PBN",
-    },
-  });
-  return rows.map((r) => ({
-    anchorText: r.anchorText,
-    fromPost: r.fromPost,
-    id: r.id,
-    toPost: r.toPost,
-  }));
-};
-
 export const aggregateSiteNiches = async (siteId: string): Promise<Site["niches"]> => {
   const posts = await prisma.post.findMany({
     select: { niches: true },

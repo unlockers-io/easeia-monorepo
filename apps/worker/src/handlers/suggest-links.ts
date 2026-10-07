@@ -1,5 +1,5 @@
 import type { ConsumerContext } from "@repo/jobs";
-import { suggestForPost } from "@repo/suggest-links";
+import { suggestForPost } from "@repo/links";
 
 import { createJobLogger } from "../lib/logger";
 

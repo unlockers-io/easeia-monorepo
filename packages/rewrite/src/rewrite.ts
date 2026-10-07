@@ -1,5 +1,6 @@
 import { requireProvider } from "@repo/ai";
-import { LinkSource, prisma } from "@repo/db";
+import { prisma } from "@repo/db";
+import { approveSuggestions, listSuggestions } from "@repo/links";
 import { findRelevantPages } from "@repo/money-sites";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -53,16 +54,9 @@ export const rewritePost = async (
     return { outcome: "skipped", reason: "already_rewritten" };
   }
 
-  const candidateLinks = await prisma.link.findMany({
-    include: { toPost: { select: { id: true, slug: true, title: true } } },
-    orderBy: { suggestedAt: "desc" },
-    take: SUGGESTION_OVERFETCH,
-    where: {
-      approved: null,
-      fromPostId: postId,
-      source: LinkSource.SUGGESTED,
-      toPostId: { not: null },
-    },
+  const candidateLinks = await listSuggestions({
+    fromPostId: postId,
+    limit: SUGGESTION_OVERFETCH,
   });
   const topInternalPbn = pickTopByRecencyAndType(candidateLinks, TOP_INTERNAL_PBN);
   const moneyPages =
@@ -133,16 +127,14 @@ export const rewritePost = async (
 
   assertRewriteIsSane({ after: body, before: post.body, postId });
 
-  await prisma.$transaction([
-    prisma.post.update({
-      data: { body, excerpt, focusKeyword, rewrittenAt: new Date(), title },
-      where: { id: postId },
-    }),
-    prisma.link.updateMany({
-      data: { approved: true },
-      where: { id: { in: topInternalPbn.map((l) => l.id) } },
-    }),
-  ]);
+  await prisma.post.update({
+    data: { body, excerpt, focusKeyword, rewrittenAt: new Date(), title },
+    where: { id: postId },
+  });
+  await approveSuggestions(
+    postId,
+    topInternalPbn.map((l) => l.id),
+  );
 
   return {
     anchorsForcedByFallback,

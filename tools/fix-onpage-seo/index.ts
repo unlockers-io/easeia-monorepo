@@ -5,9 +5,9 @@
 import "dotenv/config";
 
 import { generateSeoSuggestions } from "@repo/ai";
-import { LinkType, PostStatus, prisma } from "@repo/db";
+import { PostStatus, prisma } from "@repo/db";
 import { classifyDescriptionLength, classifyTitleLength, summarizeOnPage } from "@repo/health";
-import { liveLinkWhere } from "@repo/links";
+import { countInternalInboundLinks } from "@repo/links";
 
 import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
 
@@ -40,29 +40,6 @@ const selectPosts = async (siteId: string | undefined): Promise<Array<ListedPost
       status: PostStatus.PUBLISHED,
     },
   });
-
-const inboundCounts = async (posts: ReadonlyArray<ListedPost>): Promise<Map<string, number>> => {
-  const counts = new Map<string, number>();
-  if (posts.length === 0) {
-    return counts;
-  }
-  const inbound = await prisma.link.groupBy({
-    _count: { toPostId: true },
-    by: ["toPostId"],
-    where: {
-      ...liveLinkWhere,
-      fromPost: { status: PostStatus.PUBLISHED },
-      toPostId: { in: posts.map((p) => p.id) },
-      type: LinkType.INTERNAL,
-    },
-  });
-  for (const row of inbound) {
-    if (row.toPostId !== null) {
-      counts.set(row.toPostId, row._count.toPostId);
-    }
-  }
-  return counts;
-};
 
 type MetaTarget = ListedPost & { fixDescription: boolean; fixTitle: boolean };
 
@@ -150,9 +127,8 @@ const runInboundPass = async (
   if (!APPLY) {
     return;
   }
-  const postsById = new Map(posts.map((p) => [p.id, p]));
   for (const fix of planned) {
-    await applyInboundFix(fix, postsById);
+    await applyInboundFix(fix);
     affected.add(fix.siteId);
   }
   console.log(`  wrote ${planned.length} inbound links`);
@@ -230,7 +206,7 @@ const main = async (): Promise<number> => {
   }
 
   const posts = await selectPosts(site?.id);
-  const inbound = await inboundCounts(posts);
+  const inbound = await countInternalInboundLinks(posts.map((p) => p.id));
   printSummary(
     `On-page SEO ${site === null ? "network-wide" : `on ${site.domain}`} (${APPLY ? "APPLY" : "dry run"})`,
     summarizeOnPage(

@@ -1,5 +1,5 @@
-import { LinkType, prisma, type SiteLanguage } from "@repo/db";
-import { liveLinkWhere } from "@repo/links";
+import { prisma, type SiteLanguage } from "@repo/db";
+import { pbnBacklinkSummary } from "@repo/links";
 import { isConnected } from "@repo/search-console";
 import { Badge } from "@repo/ui/components/badge";
 import {
@@ -224,44 +224,26 @@ export const TopKeywordsCard = async ({ domain, language }: MarketProps) => {
 };
 
 export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
-  const realLinkFilter = {
-    ...liveLinkWhere,
-    toPost: { siteId },
-    toPostId: { not: null },
-    type: LinkType.PBN,
-  };
-
-  // tsgo (TypeScript 7.0.2) widens a five-element Promise.all over Prisma delegates to any[],
-  // which turns every downstream callback parameter into an implicit any. Two smaller groups
-  // stay within its tuple inference and keep the five queries running in parallel.
-  const [[backlinks, rows], [externalRows, googleConnected, gscReferringSamples]] =
-    await Promise.all([
-      Promise.all([
-        prisma.link.count({ where: realLinkFilter }),
-        prisma.link.findMany({
-          include: { fromPost: { select: { siteId: true } } },
-          where: realLinkFilter,
-        }),
-      ]),
-      Promise.all([
-        prisma.externalBacklink.findMany({
-          orderBy: { linkingPages: "desc" },
-          select: { importedAt: true, linkingPages: true, source: true, sourceDomain: true },
-          where: { siteId },
-        }),
-        isConnected(),
-        prisma.gscReferringUrl.findMany({
-          orderBy: { observedAt: "desc" },
-          select: { observedAt: true, referringUrl: true },
-          take: 10,
-          where: { siteId },
-        }),
-      ]),
-    ]);
-  const referringDomains = new Set(
-    rows.flatMap((r) => (r.fromPost.siteId ? [r.fromPost.siteId] : [])),
-  ).size;
-  const referringPages = new Set(rows.map((r) => r.fromPostId)).size;
+  const [
+    { backlinks, referringPosts, referringSites },
+    externalRows,
+    googleConnected,
+    gscReferringSamples,
+  ] = await Promise.all([
+    pbnBacklinkSummary(siteId),
+    prisma.externalBacklink.findMany({
+      orderBy: { linkingPages: "desc" },
+      select: { importedAt: true, linkingPages: true, source: true, sourceDomain: true },
+      where: { siteId },
+    }),
+    isConnected(),
+    prisma.gscReferringUrl.findMany({
+      orderBy: { observedAt: "desc" },
+      select: { observedAt: true, referringUrl: true },
+      take: 10,
+      where: { siteId },
+    }),
+  ]);
 
   const externalReferringDomains = externalRows.length;
   const externalLinkingPages = externalRows.reduce((sum, row) => sum + row.linkingPages, 0);
@@ -279,8 +261,8 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
           <h4 className="text-xs font-medium text-muted-foreground">Internal (PBN)</h4>
           <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
             <Stat label="Backlinks" value={backlinks.toLocaleString()} />
-            <Stat label="Referring sites" value={referringDomains.toLocaleString()} />
-            <Stat label="Referring posts" value={referringPages.toLocaleString()} />
+            <Stat label="Referring sites" value={referringSites.toLocaleString()} />
+            <Stat label="Referring posts" value={referringPosts.toLocaleString()} />
           </dl>
         </div>
 

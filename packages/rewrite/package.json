@@ -16,6 +16,7 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/links": "workspace:*",
     "@repo/money-sites": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",

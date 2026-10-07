@@ -119,6 +119,9 @@ importers:
       '@repo/jobs':
         specifier: workspace:*
         version: link:../../packages/jobs
+      '@repo/links':
+        specifier: workspace:*
+        version: link:../../packages/links
       '@repo/money-sites':
         specifier: workspace:*
         version: link:../../packages/money-sites
@@ -134,9 +137,6 @@ importers:
       '@repo/sites':
         specifier: workspace:*
         version: link:../../packages/sites
-      '@repo/suggest-links':
-        specifier: workspace:*
-        version: link:../../packages/suggest-links
       '@repo/transactional':
         specifier: workspace:*
         version: link:../../packages/transactional
@@ -307,9 +307,6 @@ importers:
       '@repo/social-image':
         specifier: workspace:*
         version: link:../../packages/social-image
-      '@repo/suggest-links':
-        specifier: workspace:*
-        version: link:../../packages/suggest-links
       '@repo/transactional':
         specifier: workspace:*
         version: link:../../packages/transactional
@@ -434,9 +431,6 @@ importers:
       '@repo/sites':
         specifier: workspace:*
         version: link:../../packages/sites
-      '@repo/suggest-links':
-        specifier: workspace:*
-        version: link:../../packages/suggest-links
       bullmq:
         specifier: ^6.0.9
         version: 6.0.9(ioredis@6.0.0)(pg@8.23.0)
@@ -830,9 +824,15 @@ importers:
 
   packages/links:
     dependencies:
+      '@repo/api-types':
+        specifier: workspace:*
+        version: link:../api-types
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:../sites
       linkedom:
         specifier: ^0.18.13
         version: 0.18.13
@@ -1012,6 +1012,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/links':
+        specifier: workspace:*
+        version: link:../links
       '@repo/money-sites':
         specifier: workspace:*
         version: link:../money-sites
@@ -1127,34 +1130,6 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
-
-  packages/suggest-links:
-    dependencies:
-      '@repo/api-types':
-        specifier: workspace:*
-        version: link:../api-types
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../db
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../sites
-    devDependencies:
-      '@repo/config-vitest':
-        specifier: workspace:*
-        version: link:../config-vitest
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1461,9 +1436,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@repo/suggest-links':
+      '@repo/links':
         specifier: workspace:*
-        version: link:../../packages/suggest-links
+        version: link:../../packages/links
       ai:
         specifier: ^7.0.58
         version: 7.0.58(zod@4.6.5)
@@ -1520,9 +1495,6 @@ importers:
       '@repo/links':
         specifier: workspace:*
         version: link:../../packages/links
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../../packages/sites
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
