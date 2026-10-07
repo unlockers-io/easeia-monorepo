@@ -3,15 +3,24 @@ import type { APIRequestContext } from "@playwright/test";
 import { webUrl } from "../../../playwright.config";
 import { expect, test } from "../fixtures/auth.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { extractLink, waitForEmail } from "../helpers/resend";
 
 const PASSWORD = "TestPassword123!";
 
+const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
+
 const createIsolatedUser = async (request: APIRequestContext): Promise<string> => {
-  const email = recordCleanup("user", `logout-test-${crypto.randomUUID()}@easeia.localhost`);
+  const email = recordCleanup("user", `delivered+logout-${crypto.randomUUID()}@resend.dev`);
+  const since = Date.now();
   const response = await request.post(`${webUrl}/api/auth/sign-up/email`, {
     data: { email, name: "Logout Test User", password: PASSWORD },
   });
   expect([200, 201]).toContain(response.status());
+  if (emailVerificationRequired) {
+    const mail = await waitForEmail({ sinceMs: since, subject: /verify/i, to: email });
+    const verified = await request.get(extractLink(mail, /\/api\/auth\/verify-email\?token=/));
+    expect(verified.ok()).toBe(true);
+  }
   return email;
 };
 
