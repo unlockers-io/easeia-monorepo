@@ -1,6 +1,6 @@
 /**
  * Dry-run by default. --apply writes title/excerpt (LLM) and inbound "see also"
- * links. Redeploy via tools/maintenance/redeploy-affected-sites.ts after apply.
+ * links, then requests a redeploy of every Site it touched.
  */
 import "dotenv/config";
 
@@ -9,7 +9,7 @@ import { PostStatus, prisma } from "@repo/db";
 import { classifyDescriptionLength, classifyTitleLength, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
 
-import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 
 import { applyInboundFix, type ListedPost, planInboundFixes } from "./inbound";
 
@@ -227,11 +227,7 @@ const main = async (): Promise<number> => {
   }
 
   if (APPLY) {
-    if (affected.size > 0) {
-      recordAffectedSites([...affected]);
-      console.log(`\n${affected.size} affected site ids → ${AFFECTED_SITES_FILE}`);
-      console.log("Next: `tsx tools/maintenance/redeploy-affected-sites.ts` to trigger rebuilds.");
-    }
+    await redeploySites(affected);
   } else {
     console.log("\nDry run — no writes. Re-run with --apply to persist.");
   }

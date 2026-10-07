@@ -2,8 +2,8 @@ import "dotenv/config";
 
 import { prisma } from "@repo/db";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
 import { readBrokenLinks, type BrokenLink } from "../_shared/broken-links";
+import { redeploySites } from "../_shared/redeploy";
 
 type BrokenHit = BrokenLink;
 
@@ -113,8 +113,9 @@ const main = async () => {
   console.log(`links removed:   ${stats.linksRemoved}`);
   console.log(`sites affected:  ${affectedSiteIds.size}`);
 
-  recordAffectedSites([...affectedSiteIds]);
-  console.log(`\nwrote /tmp/easeia-affected-site-ids.json`);
+  if (APPLY) {
+    await redeploySites(affectedSiteIds);
+  }
 
   await prisma.$disconnect();
 };

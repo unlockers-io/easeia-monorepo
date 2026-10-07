@@ -1,6 +1,6 @@
 # ADR-0006: Jobs owns its transport and every Job read; backfills are a domain module
 
-**Status:** accepted (2026-10-07); amends the interface in ADR-0002
+**Status:** accepted (2026-10-07); amends the interface in ADR-0002; deploy dedupe amended by [ADR-0009](./0009-site-module-owns-redeploy.md)
 
 ## Context
 

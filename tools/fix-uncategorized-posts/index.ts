@@ -1,9 +1,9 @@
-import { writeFileSync } from "node:fs";
-
 import { requireProvider, REWRITE_MODEL as MODEL } from "@repo/ai";
 import { type Niche, prisma } from "@repo/db";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+
+import { redeploySites } from "../_shared/redeploy";
 
 const CONCURRENCY = 6;
 const MAX_BODY_CHARS = 2500;
@@ -210,14 +210,8 @@ const main = async () => {
       });
       updated += 1;
     }
-    writeFileSync(
-      "/tmp/easeia-affected-site-ids.json",
-      JSON.stringify([...affectedSiteIds], null, 2),
-    );
     console.log(`\nAPPLIED: ${updated} posts updated.`);
-    console.log(
-      `Affected site ids written to /tmp/easeia-affected-site-ids.json (${affectedSiteIds.size} sites).`,
-    );
+    await redeploySites(affectedSiteIds);
   } else {
     console.log("\nDry-run only. Re-run with --apply to write.");
   }

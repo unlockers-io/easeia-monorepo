@@ -1,9 +1,10 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import * as Sites from "@repo/sites";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
 import { readBrokenLinks } from "../_shared/broken-links";
+import { redeploySites } from "../_shared/redeploy";
 
 const APPLY = process.argv.includes("--apply");
 const CONCURRENCY = 12;
@@ -311,16 +312,15 @@ const main = async () => {
   }
 
   for (const [siteId, map] of finalCatMap) {
-    await prisma.site.update({ data: { categorySlugMap: map }, where: { id: siteId } });
+    await Sites.update(siteId, { categorySlugMap: map });
   }
 
-  recordAffectedSites([...affectedSiteIds]);
   console.log(`\n=== APPLIED ===`);
   console.log(`Link rows deleted: ${deleteLinkIds.length}`);
   console.log(`Link rows rewritten: ${rewriteUpdates.length}`);
   console.log(`Sites with body changes (republish): ${affectedSiteIds.size}`);
   console.log(`categorySlugMap populated on ${finalCatMap.size} sites`);
-  console.log(`affected site ids → /tmp/easeia-affected-site-ids.json`);
+  await redeploySites([...affectedSiteIds, ...finalCatMap.keys()]);
 
   await prisma.$disconnect();
 };

@@ -4,7 +4,7 @@ import { remove } from "@repo/blob";
 import { prisma } from "@repo/db";
 import { generateHero } from "@repo/hero";
 
-import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 
 const DEFAULT_SINCE_DAYS = 45;
 const USD_PER_IMAGE = 0.041;
@@ -136,14 +136,11 @@ const main = async (): Promise<number> => {
     await sleep(PAUSE_MS);
   }
 
-  recordAffectedSites([...affectedSiteIds]);
-  console.log(
-    `\nRegenerated ${done}, failed ${failures.length}. ${affectedSiteIds.size} affected site ids → ${AFFECTED_SITES_FILE}`,
-  );
+  console.log(`\nRegenerated ${done}, failed ${failures.length}.`);
   for (const failure of failures) {
     console.log(`  [fail] ${failure.domain}/${failure.slug}: ${failure.error}`);
   }
-  console.log("Next: `tsx tools/maintenance/redeploy-affected-sites.ts` to trigger rebuilds.");
+  await redeploySites(affectedSiteIds);
   return failures.length > 0 ? 1 : 0;
 };
 

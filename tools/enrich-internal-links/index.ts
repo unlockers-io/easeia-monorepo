@@ -6,7 +6,7 @@ import { prisma } from "@repo/db";
 import { approveSuggestions, listSuggestions, suggestForPost } from "@repo/links";
 import { generateText } from "ai";
 
-import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 
 const BATCH_SIZE = 5;
 const LINKS_PER_POST = 4;
@@ -202,11 +202,8 @@ const main = async (): Promise<number> => {
     affected.add(o.siteId);
   }
 
-  recordAffectedSites([...affected]);
-  console.log(
-    `\nWrote ${enriched.length} bodies. ${affected.size} affected site ids → ${AFFECTED_SITES_FILE}`,
-  );
-  console.log("Next: `tsx tools/maintenance/redeploy-affected-sites.ts` to trigger rebuilds.");
+  console.log(`\nWrote ${enriched.length} bodies.`);
+  await redeploySites(affected);
   return 0;
 };
 

@@ -1,6 +1,6 @@
 import { isLiveLink } from "@repo/links";
 import * as Posts from "@repo/posts";
-import { hasUsableDeployHook, postPath, postPublicUrl } from "@repo/sites";
+import { hasDeployHook, postPath, postPublicUrl } from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -98,10 +98,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <RewriteTriggerButton aiConfigured={readIntegrations().openai.configured} postId={id} />
           <form action={publishPostAction}>
             <input name="id" type="hidden" value={post.id} />
-            <Button
-              disabled={!post.site.isEnabled || !hasUsableDeployHook(post.site.vercelDeployHookUrl)}
-              type="submit"
-            >
+            <Button disabled={!post.site.isEnabled || !hasDeployHook(post.site)} type="submit">
               <Send className="size-4" />
               Publish
             </Button>
@@ -143,7 +140,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         </div>
       </header>
 
-      {!hasUsableDeployHook(post.site.vercelDeployHookUrl) && (
+      {!hasDeployHook(post.site) && (
         <output className="text-sm">
           Publishing requires a deploy hook.{" "}
           <Link className="underline" href={`/dashboard/sites/${post.site.id}#publishing`}>

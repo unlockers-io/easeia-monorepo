@@ -7,7 +7,7 @@ import { closeJobs, enqueue } from "@repo/jobs";
 import { dedupeBody } from "@repo/posts";
 import { z } from "zod";
 
-import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 
 import { classify, type Classified } from "./classify";
 import { printReport, type Repair, type Row } from "./report";
@@ -32,7 +32,6 @@ const positiveInt = (raw: string | undefined, fallback: number, name: string): n
 
 const ACCEPT_SUPERSEDED = flag("accept-superseded");
 const APPLY = flag("apply");
-const DEPLOY = flag("deploy");
 const REEMBED = flag("reembed");
 const RESTORE_FILE = value("restore");
 const BATCH_SIZE = positiveInt(value("batch"), 20, "batch");
@@ -77,19 +76,6 @@ const backupLineSchema = z.object({
 });
 
 type BackupLine = z.infer<typeof backupLineSchema>;
-
-/** Host only, so a connection string never reaches a log or a report. */
-const dbHost = (): string => {
-  const raw = process.env.DATABASE_URL;
-  if (raw === undefined || raw === "") {
-    return "an unset DATABASE_URL";
-  }
-  try {
-    return new URL(raw).host;
-  } catch {
-    return "an unparseable DATABASE_URL";
-  }
-};
 
 const backupPath = (): string =>
   `./dedupe-bodies-backup-${new Date().toISOString().replaceAll(/[:.]/g, "-")}.jsonl`;
@@ -171,27 +157,6 @@ const restore = async (path: string): Promise<void> => {
   }
 };
 
-const triggerDeploys = async (siteIds: ReadonlySet<string>): Promise<void> => {
-  const sites = await prisma.site.findMany({
-    select: { domain: true, vercelDeployHookUrl: true },
-    where: { id: { in: [...siteIds] } },
-  });
-  console.log("\ndeploy hooks");
-  for (const site of sites) {
-    const hook = site.vercelDeployHookUrl;
-    if (hook === null || hook === "") {
-      console.log(`  [SKIP] ${site.domain.padEnd(30)} no deploy hook configured`);
-      continue;
-    }
-    try {
-      const res = await fetch(hook, { method: "POST" });
-      console.log(`  [${res.ok ? "OK" : "FAIL"}] ${site.domain.padEnd(30)} HTTP ${res.status}`);
-    } catch (error) {
-      console.log(`  [FAIL] ${site.domain.padEnd(30)} ${String(error)}`);
-    }
-  }
-};
-
 const enqueueReembeds = async (postIds: ReadonlyArray<string>): Promise<void> => {
   const settled = await Promise.allSettled(
     postIds.map((postId) => enqueue({ kind: JobKind.EMBED, payload: { postId }, postId })),
@@ -248,20 +213,12 @@ const main = async (): Promise<void> => {
     printReport(classified);
     if (APPLY) {
       const written = writtenRows(classified);
-      const affectedSiteIds = new Set(written.map((r) => r.siteId));
-      const domains = [...new Set(written.map((r) => r.site))].toSorted();
-      recordAffectedSites([...affectedSiteIds]);
       console.log(
         `\nwrote ${written.length} bodies, ${classified.acceptedSuperseded.length} of them under` +
           ` --accept-superseded. Originals: ${path}`,
       );
       console.log(`Undo with: pnpm dedupe:bodies --restore ${path}`);
-      console.log(`${affectedSiteIds.size} affected site ids -> ${AFFECTED_SITES_FILE}`);
-      console.log(`  ${domains.join(", ")}`);
-      console.log(
-        `  ids are only valid against ${dbHost()}. Redeploy before running this tool again,`,
-      );
-      console.log(`  or recover the list from the "site" field in ${path}.`);
+      await redeploySites(written.map((r) => r.siteId));
     }
   }
 
@@ -274,13 +231,6 @@ const main = async (): Promise<void> => {
     await enqueueReembeds(writtenRows(classified).map((r) => r.postId));
   } else {
     console.log("\nPost.embedding left as-is. Pass --reembed to enqueue an EMBED job per body.");
-  }
-
-  if (DEPLOY) {
-    await triggerDeploys(new Set(writtenRows(classified).map((r) => r.siteId)));
-  } else {
-    console.log("\nThe 12 Astro blogs build this copy in. Re-run with --deploy, or run");
-    console.log("`tsx tools/maintenance/redeploy-affected-sites.ts`, to publish the change.");
   }
 };
 

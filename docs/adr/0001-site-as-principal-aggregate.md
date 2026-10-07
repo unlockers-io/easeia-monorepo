@@ -1,7 +1,7 @@
 # ADR-0001: Site is the principal aggregate
 
 > Historical context: the WordPress publishing channel has been removed. Its channel-specific details are superseded by the Astro build API.
-> **Status:** accepted (2026-05-05)
+> **Status:** superseded by [ADR-0009](./0009-site-module-owns-redeploy.md) (2026-10-07)
 
 ## Context
 

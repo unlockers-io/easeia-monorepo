@@ -51,7 +51,7 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/auth`                                                   | Better Auth config. Exports `./server` (web and tools) and `./client` (web).                      |
 | `@repo/db`                                                     | Prisma client singleton + schema.                                                                 |
 | `@repo/blob`                                                   | Cloudflare R2 helpers (S3-compatible): upload, delete, URL resolution.                            |
-| `@repo/sites`                                                  | Site lifecycle: public projection, Astro deploy-hook dispatch.                                    |
+| `@repo/sites`                                                  | Site aggregate: sole writer, enabled/publishable gates, public projection, coalesced redeploy.    |
 | `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; BullMQ on `REDIS_URL` behind one interface.    |
 | `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks, status.                             |
 | `@repo/posts`                                                  | Post intake: state machine + queue handoff. Used by admin + public API.                           |
@@ -169,7 +169,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **Auth flow:** `web` uses `@repo/auth/client` → calls its own `/api/auth/*` route (`apps/web/src/app/api/auth/[...all]/route.ts`) → `@repo/auth/server` uses the Prisma adapter from `@repo/db`.
 - **API structure:** Hono app, routes under `/api/*` (sites, posts, api-keys), health at `/healthz` and `/readyz`.
 - **Access:** `@repo/policy` owns both Channels' access rules. `authenticate` turns `Authorization: Bearer <key>` into an Actor (sha256 lookup, revoked keys rejected); `can(actor, action, siteId?)` is the only authorization verb, and the api guard passes a route's `:siteId` so Site-bound keys stay on their Site; `createApiKey` returns the plaintext once, `listApiKeys`/`revokeApiKey` serve the api routes and the admin page; `recordAudit` writes AuditLog rows for API actors and for admin actions (session user as actor) through `apps/web/src/lib/access.ts`.
-- **Publish pipeline:** `api` enqueues `Job(kind=PUBLISH)` via `@repo/jobs` → `worker` pulls from BullMQ → uploads images to R2 (`@repo/blob`) → writes Markdown body to DB → POSTs the Astro site's deploy hook. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`.
+- **Publish pipeline:** `api` enqueues `Job(kind=PUBLISH)` via `@repo/jobs` → `worker` pulls from BullMQ → uploads images to R2 (`@repo/blob`) → writes Markdown body to DB → `Sites.requestRedeploy` enqueues a coalesced `TRIGGER_DEPLOY` Job whose handler POSTs the deploy hook through `Sites.deploy`. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`.
 - **Build order:** Turbo `^build` and `build.dependsOn` includes `db:generate` so Prisma client is generated before dependents build.
 
 ## Conventions & gotchas
