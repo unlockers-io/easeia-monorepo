@@ -9,7 +9,7 @@ import { cleanupDirectory } from "../helpers/cleanup-record";
 const recordSchema = z.object({ kind: z.enum(["user", "site", "waitlist"]), value: z.string() });
 // Both an exact current-run record and a reserved test namespace are required.
 const syntheticEmail =
-  /^(?:e2e[-+a-z0-9]*@(?:easeia\.localhost|example\.com)|logout-test-[a-z0-9-]+@easeia\.localhost|delivered\+(?:new-)?[a-z0-9-]+@resend\.dev)$/u;
+  /^(?:e2e[-+a-z0-9]*@(?:easeia\.localhost|example\.com)|delivered\+(?:new-)?[a-z0-9-]+@resend\.dev)$/u;
 
 const cleanup = async () => {
   const directory = cleanupDirectory();

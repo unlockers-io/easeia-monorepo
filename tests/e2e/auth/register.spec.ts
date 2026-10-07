@@ -1,8 +1,12 @@
 import { test, expect } from "../fixtures/auth.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
 
+const skipUnderResend = Boolean(process.env.RESEND_API_KEY);
+
 test.describe("Register", () => {
   test("registers with valid data", async ({ page, registerPage }) => {
+    test.skip(skipUnderResend, "Resend-enabled flow is covered by auth-email/* specs");
+
     const uniqueEmail = recordCleanup("user", `e2e-register-${crypto.randomUUID()}@example.com`);
 
     await page.context().clearCookies();
@@ -15,6 +19,8 @@ test.describe("Register", () => {
   });
 
   test("shows error for existing email", async ({ page, registerPage }) => {
+    test.skip(skipUnderResend, "Resend-enabled flow is covered by auth-email/* specs");
+
     await page.context().clearCookies();
 
     await registerPage.goto();

@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 import { recordCleanup } from "./helpers/cleanup-record";
+import { extractLink, waitForEmail } from "./helpers/resend";
+
+const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
 
 // SIGNUP_MODE=open in the isolated E2E instance permits independent runs.
 // The first-user race is separately exercised against a fresh self-host stack.
@@ -34,14 +37,20 @@ test("registration waits for interactive form handlers before accepting input", 
 });
 
 test("register, add a site, save a draft, then configure publishing", async ({ page }) => {
-  const email = recordCleanup("user", `e2e-first-${crypto.randomUUID()}@easeia.localhost`);
+  const email = recordCleanup("user", `delivered+first-${crypto.randomUUID()}@resend.dev`);
   const domain = recordCleanup("site", `e2e-${crypto.randomUUID()}.example`);
+  const since = Date.now();
   await page.goto("/register");
   await page.getByLabel("Full Name").fill("Demo Operator");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill("DemoPassword123!");
   await page.getByLabel("Confirm Password").fill("DemoPassword123!");
   await page.getByRole("button", { name: "Create account" }).click();
+  if (emailVerificationRequired) {
+    await expect(page.getByText(/check your email/i)).toBeVisible();
+    const mail = await waitForEmail({ sinceMs: since, subject: /verify/i, to: email });
+    await page.goto(extractLink(mail, /\/api\/auth\/verify-email\?token=/));
+  }
   await page.waitForURL("/dashboard");
   await page.goto("/dashboard/sites");
   await page.getByRole("button", { name: "Add site" }).first().click();
