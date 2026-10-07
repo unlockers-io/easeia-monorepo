@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const enqueue = vi.fn();
 const postGroupBy = vi.fn();
-const jobGroupBy = vi.fn();
+const countInflight = vi.fn();
 
 import {
   bucketConfigErrors,
@@ -16,7 +16,7 @@ import {
 
 const countBucketSupplyBySite = createCountBucketSupplyBySite({
   countDrafts: postGroupBy,
-  countInflight: jobGroupBy,
+  countInflight,
 });
 const enqueueGeneratePosts = createEnqueueGeneratePosts(enqueue);
 
@@ -84,10 +84,12 @@ describe("needsRefill", () => {
 describe("countBucketSupplyBySite", () => {
   it("sums drafts and in-flight generations per site, zero-filling absent groups", async () => {
     postGroupBy.mockResolvedValue([{ count: { id: 2 }, siteId: "site_a" }]);
-    jobGroupBy.mockResolvedValue([
-      { count: { id: 1 }, siteId: "site_a" },
-      { count: { id: 4 }, siteId: "site_b" },
-    ]);
+    countInflight.mockResolvedValue(
+      new Map([
+        ["site_a", 1],
+        ["site_b", 4],
+      ]),
+    );
 
     const supplies = await countBucketSupplyBySite(["site_a", "site_b", "site_c"]);
 
@@ -98,7 +100,7 @@ describe("countBucketSupplyBySite", () => {
 
   it("throws instead of returning a silent zero when a count fails", async () => {
     postGroupBy.mockRejectedValue(new Error("db down"));
-    jobGroupBy.mockResolvedValue([]);
+    countInflight.mockResolvedValue(new Map());
 
     await expect(countBucketSupplyBySite(["site_a"])).rejects.toThrow(/drafts count failed/v);
   });
@@ -107,17 +109,14 @@ describe("countBucketSupplyBySite", () => {
 describe("enqueueGeneratePosts", () => {
   it("enqueues one GENERATE_POST job per requested count", async () => {
     enqueue.mockReset();
-    await enqueueGeneratePosts({ count: 3, redisUrl: "redis://test", siteId: "site_a" });
+    await enqueueGeneratePosts({ count: 3, siteId: "site_a" });
     expect(enqueue).toHaveBeenCalledTimes(3);
-    expect(enqueue).toHaveBeenCalledWith({
-      redisUrl: "redis://test",
-      siteId: "site_a",
-    });
+    expect(enqueue).toHaveBeenCalledWith("site_a");
   });
 
   it("enqueues nothing when count is 0", async () => {
     enqueue.mockReset();
-    await enqueueGeneratePosts({ count: 0, redisUrl: "redis://test", siteId: "site_a" });
+    await enqueueGeneratePosts({ count: 0, siteId: "site_a" });
     expect(enqueue).not.toHaveBeenCalled();
   });
 });

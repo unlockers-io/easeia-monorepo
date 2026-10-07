@@ -12,7 +12,6 @@ import {
   deleteMoneySite,
 } from "@repo/money-sites";
 
-import { env } from "@/lib/env";
 import { createRouter } from "@/lib/openapi";
 import {
   commonErrors,
@@ -129,7 +128,6 @@ app.openapi(
     const job = await enqueue({
       kind: JobKind.CRAWL_MONEY_SITE,
       payload: { moneySiteId: id },
-      redisUrl: env.REDIS_URL,
     });
     await recordAudit(c, { action: "moneysite.recrawl", target: `moneysite:${id}` });
     return c.json({ jobId: job.id }, 202);

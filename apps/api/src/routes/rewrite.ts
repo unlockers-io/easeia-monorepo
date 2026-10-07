@@ -1,10 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
+import { rewriteBackfill } from "@repo/backfill";
 import { JobKind } from "@repo/db";
-import { readBackfillRewriteStatus, enqueue } from "@repo/jobs";
+import { enqueue } from "@repo/jobs";
 import type { Action } from "@repo/policy";
 import type { MiddlewareHandler } from "hono";
 
-import { env } from "@/lib/env";
 import { createRouter } from "@/lib/openapi";
 import {
   commonErrors,
@@ -23,10 +23,10 @@ type RewriteRouteDependencies = {
   apiAuth: MiddlewareHandler;
   audit: typeof recordAudit;
   enqueueJob: typeof enqueue;
-  getRedisUrl: () => string;
   rateLimit: MiddlewareHandler;
-  readStatus: typeof readBackfillRewriteStatus;
+  readStatus: typeof rewriteBackfill.readStatus;
   requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
+  start: typeof rewriteBackfill.start;
 };
 
 const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
@@ -47,18 +47,9 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
       tags: ["Network"],
     }),
     async (c) => {
-      const body = c.req.valid("json");
-      const job = await dependencies.enqueueJob({
-        kind: JobKind.BACKFILL_REWRITE,
-        payload: {
-          force: body.force ?? false,
-          phase: "CRAWL_MONEY_SITE",
-          startedAt: new Date().toISOString(),
-        },
-        redisUrl: dependencies.getRedisUrl(),
-      });
+      const { jobId } = await dependencies.start({ force: c.req.valid("json").force ?? false });
       await dependencies.audit(c, { action: "rewrite.trigger", target: "network" });
-      return c.json({ jobId: job.id }, 202);
+      return c.json({ jobId }, 202);
     },
   );
 
@@ -83,7 +74,6 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
         kind: JobKind.REWRITE_POST,
         payload: { force: body.force ?? false, postId: id },
         postId: id,
-        redisUrl: dependencies.getRedisUrl(),
       });
       await dependencies.audit(c, { action: "rewrite.trigger", target: `post:${id}` });
       return c.json({ jobId: job.id }, 202);
@@ -113,10 +103,10 @@ const rewriteRoutes = createRewriteRoutes({
   apiAuth: apiAuthMiddleware,
   audit: recordAudit,
   enqueueJob: enqueue,
-  getRedisUrl: () => env.REDIS_URL,
   rateLimit: apiRateLimit,
-  readStatus: readBackfillRewriteStatus,
+  readStatus: rewriteBackfill.readStatus,
   requirePermission: requireAction,
+  start: rewriteBackfill.start,
 });
 
 export { createRewriteRoutes, rewriteRoutes };

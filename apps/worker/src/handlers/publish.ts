@@ -56,7 +56,6 @@ export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<vo
         tags: post.tags,
         title: post.title,
       },
-      redisUrl: env.REDIS_URL,
       site: post.site,
     });
 
@@ -71,7 +70,6 @@ export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<vo
           kind,
           payload: { postId },
           postId,
-          redisUrl: env.REDIS_URL,
         }),
       ),
     );

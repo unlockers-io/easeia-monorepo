@@ -8,7 +8,6 @@ import {
 } from "@repo/jobs";
 import { forSite } from "@repo/search-console";
 
-import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
 
 import { sliceBatch } from "./slice-batch";
@@ -29,7 +28,6 @@ const reEnqueueSelf = async (payload: BackfillGscLinksPayload, delayMs: number):
     delayMs,
     kind: JobKind.BACKFILL_GSC_LINKS,
     payload,
-    redisUrl: env.REDIS_URL,
     siteId: payload.siteId,
   });
 };
@@ -108,7 +106,6 @@ export const handleBackfillGscLinks = async (
         kind: JobKind.CRAWL_GSC_LINKS,
         payload: { postId },
         postId,
-        redisUrl: env.REDIS_URL,
       }),
     ),
   );

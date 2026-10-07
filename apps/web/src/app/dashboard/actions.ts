@@ -12,7 +12,6 @@ import type { z } from "zod";
 import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
 import { sitePublishedPostsTag } from "@/lib/cache-tags";
-import { redisUrl } from "@/lib/env";
 
 const requiredId = (formData: FormData) => {
   const id = formData.get("id");
@@ -35,12 +34,12 @@ export const createPostAction = async (formData: FormData) => {
   const data = postCreateFromFormData(formData);
   let result: Posts.CreateResult;
   try {
-    result = await Posts.create(data, { redisUrl: redisUrl() });
+    result = await Posts.create(data);
   } catch (error) {
     if (!(error instanceof Sites.SiteDeployHookMissingError)) {
       throw error;
     }
-    result = await Posts.create({ ...data, publish: false }, { redisUrl: redisUrl() });
+    result = await Posts.create({ ...data, publish: false });
     await audit({ action: "post.create", target: `post:${result.post.id}` });
     revalidatePath("/dashboard/posts");
     redirect(`/dashboard/posts/${result.post.id}?error=deploy-hook`);
@@ -55,7 +54,7 @@ export const publishPostAction = async (formData: FormData) => {
   const id = requiredId(formData);
   let result: Posts.PublishResult;
   try {
-    result = await Posts.publish(id, { redisUrl: redisUrl() });
+    result = await Posts.publish(id);
   } catch (error) {
     if (error instanceof Sites.SiteDeployHookMissingError) {
       redirect(`/dashboard/posts/${id}?error=deploy-hook`);
@@ -100,7 +99,6 @@ export const refreshSnapshotsAction = async () => {
       enqueue({
         kind: JobKind.SNAPSHOT_SITE,
         payload: { siteId: site.id },
-        redisUrl: redisUrl(),
         siteId: site.id,
       }),
     ),

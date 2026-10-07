@@ -3,7 +3,6 @@ import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
 import { enqueueTriggerDeploy as realEnqueueTriggerDeploy, type ConsumerContext } from "@repo/jobs";
 
-import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
 
 type PostForHero = {
@@ -21,7 +20,6 @@ type Deps = {
   findPost?: (postId: string) => Promise<PostForHero | null>;
   generateHero?: typeof realGenerateHero;
   hasHero?: (postId: string) => Promise<boolean>;
-  redisUrl?: string;
 };
 
 const defaultFindPost = (postId: string): Promise<PostForHero | null> =>
@@ -51,7 +49,6 @@ export const makeHandleGenerateImage =
     const hasHero = deps.hasHero ?? defaultHasHero;
     const generateHero = deps.generateHero ?? realGenerateHero;
     const enqueueTriggerDeploy = deps.enqueueTriggerDeploy ?? realEnqueueTriggerDeploy;
-    const redisUrl = deps.redisUrl ?? env.REDIS_URL;
     const log = createJobLogger({ jobId, queue: "generate-image" });
     log.set({ postId });
 
@@ -90,7 +87,7 @@ export const makeHandleGenerateImage =
       }
       throw error;
     }
-    await enqueueTriggerDeploy({ redisUrl, siteId: post.siteId });
+    await enqueueTriggerDeploy(post.siteId);
     log.info("generate-image: done");
     log.emit();
   };

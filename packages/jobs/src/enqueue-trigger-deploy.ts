@@ -1,51 +1,17 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind } from "@repo/db";
 
-import { enqueue } from "./enqueue-core";
+import { enqueueUnlessInFlight } from "./queue";
 
-export type EnqueueTriggerDeployInput = {
-  redisUrl: string;
-  siteId: string;
-};
-
-export type EnqueueTriggerDeployResult = {
+type EnqueueTriggerDeployResult = {
   jobId: string | null;
   skipped: boolean;
 };
 
-type TriggerDeployDependencies = {
-  enqueueDeploy: (input: EnqueueTriggerDeployInput) => Promise<{ id: string }>;
-  findInFlight: (siteId: string) => Promise<{ id: string } | null>;
+export const enqueueTriggerDeploy = async (siteId: string): Promise<EnqueueTriggerDeployResult> => {
+  const job = await enqueueUnlessInFlight({
+    kind: JobKind.TRIGGER_DEPLOY,
+    payload: { siteId },
+    siteId,
+  });
+  return job === null ? { jobId: null, skipped: true } : { jobId: job.id, skipped: false };
 };
-
-const createEnqueueTriggerDeploy =
-  (dependencies: TriggerDeployDependencies) =>
-  async (input: EnqueueTriggerDeployInput): Promise<EnqueueTriggerDeployResult> => {
-    const existing = await dependencies.findInFlight(input.siteId);
-    if (existing) {
-      return { jobId: null, skipped: true };
-    }
-    const job = await dependencies.enqueueDeploy(input);
-    return { jobId: job.id, skipped: false };
-  };
-
-const enqueueTriggerDeploy = createEnqueueTriggerDeploy({
-  enqueueDeploy: (input) =>
-    enqueue({
-      kind: JobKind.TRIGGER_DEPLOY,
-      payload: { siteId: input.siteId },
-      redisUrl: input.redisUrl,
-      siteId: input.siteId,
-    }),
-  findInFlight: (siteId) =>
-    prisma.job.findFirst({
-      select: { id: true },
-      where: {
-        kind: JobKind.TRIGGER_DEPLOY,
-        siteId,
-        status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
-      },
-    }),
-});
-
-export { createEnqueueTriggerDeploy, enqueueTriggerDeploy };
-export type { TriggerDeployDependencies };

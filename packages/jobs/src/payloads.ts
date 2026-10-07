@@ -1,8 +1,5 @@
 import type { JobKind, Prisma } from "@repo/db";
 
-import type { BackfillNetworkPayload } from "./backfill-network";
-import type { BackfillRewritePayload } from "./backfill-rewrite";
-
 type BackfillGscLinksPayload = {
   cursor?: number;
   initialFanoutDone?: boolean;
@@ -14,8 +11,18 @@ type JobPayloadMap<T extends Record<JobKind, Prisma.InputJsonObject>> = T;
 
 type JobPayloads = JobPayloadMap<{
   BACKFILL_GSC_LINKS: BackfillGscLinksPayload;
-  BACKFILL_NETWORK: BackfillNetworkPayload;
-  BACKFILL_REWRITE: BackfillRewritePayload;
+  BACKFILL_NETWORK: {
+    initialFanoutDone?: boolean;
+    phase: "CLASSIFY_EMBED" | "SUGGEST_LINKS";
+    startedAt: string;
+  };
+  BACKFILL_REWRITE: {
+    force: boolean;
+    initialFanoutDone?: boolean;
+    initialPostsEligible: number;
+    phase: "CRAWL_MONEY_SITE" | "REWRITE_POST";
+    startedAt: string;
+  };
   CLASSIFY: { postId: string };
   CRAWL_GSC_LINKS: { postId: string };
   CRAWL_LINKS: { postId: string };
@@ -42,10 +49,5 @@ const getJobPayload = <K extends JobKind>(_kind: K, payload: Prisma.JsonValue): 
   // oxlint-disable-next-line no-unsafe-type-assertion -- Prisma types the stored JSON as JsonValue
   payload as JobPayloads[K];
 
-const getStoredJobPayload = <K extends JobKind>(
-  kind: K,
-  payload: Prisma.JsonValue,
-): Partial<JobPayloads[K]> => getJobPayload(kind, payload);
-
-export { getJobPayload, getStoredJobPayload };
+export { getJobPayload };
 export type { BackfillGscLinksPayload, JobPayloads };

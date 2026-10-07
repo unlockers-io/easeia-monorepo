@@ -10,9 +10,8 @@ type RefillResult = {
 type RefillAllDependencies = {
   aiConfigured: () => boolean;
   audit: (entry: AuditEntry) => Promise<void>;
-  getRedisUrl: () => string;
   logFailures: (siteId: string, failures: ReadonlyArray<Error | string>) => void;
-  refillBuckets: (redisUrl: string) => Promise<ReadonlyArray<RefillResult>>;
+  refillBuckets: () => Promise<ReadonlyArray<RefillResult>>;
   requireSession: () => Promise<void>;
   revalidate: (path: string) => void;
 };
@@ -31,7 +30,7 @@ const createRefillAllNeedyBucketsAction =
     if (!dependencies.aiConfigured()) {
       return { error: AI_NOT_CONFIGURED_MESSAGE, ok: false };
     }
-    const results = await dependencies.refillBuckets(dependencies.getRedisUrl());
+    const results = await dependencies.refillBuckets();
     const queuedPerSite: Record<string, number> = {};
     for (const result of results) {
       dependencies.logFailures(result.siteId, result.failures);

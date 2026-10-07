@@ -1,10 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
-import { JobKind } from "@repo/db";
-import { readBackfillNetworkStatus, enqueue } from "@repo/jobs";
+import { networkBackfill } from "@repo/backfill";
 import type { Action } from "@repo/policy";
 import type { MiddlewareHandler } from "hono";
 
-import { env } from "@/lib/env";
 import { createRouter } from "@/lib/openapi";
 import {
   commonErrors,
@@ -20,11 +18,10 @@ import { apiRateLimit } from "@/middleware/security";
 type BackfillRouteDependencies = {
   apiAuth: MiddlewareHandler;
   audit: typeof recordAudit;
-  enqueueJob: typeof enqueue;
-  getRedisUrl: () => string;
   rateLimit: MiddlewareHandler;
-  readStatus: typeof readBackfillNetworkStatus;
+  readStatus: typeof networkBackfill.readStatus;
   requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
+  start: typeof networkBackfill.start;
 };
 
 const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {
@@ -45,13 +42,9 @@ const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {
       tags: ["Network"],
     }),
     async (c) => {
-      const job = await dependencies.enqueueJob({
-        kind: JobKind.BACKFILL_NETWORK,
-        payload: { phase: "CLASSIFY_EMBED", startedAt: new Date().toISOString() },
-        redisUrl: dependencies.getRedisUrl(),
-      });
+      const { jobId } = await dependencies.start();
       await dependencies.audit(c, { action: "backfill.trigger", target: "network" });
-      return c.json({ jobId: job.id }, 202);
+      return c.json({ jobId }, 202);
     },
   );
 
@@ -77,11 +70,10 @@ const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {
 const backfillRoutes = createBackfillRoutes({
   apiAuth: apiAuthMiddleware,
   audit: recordAudit,
-  enqueueJob: enqueue,
-  getRedisUrl: () => env.REDIS_URL,
   rateLimit: apiRateLimit,
-  readStatus: readBackfillNetworkStatus,
+  readStatus: networkBackfill.readStatus,
   requirePermission: requireAction,
+  start: networkBackfill.start,
 });
 
 export { backfillRoutes, createBackfillRoutes };

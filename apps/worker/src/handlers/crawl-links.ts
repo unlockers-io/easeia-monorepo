@@ -7,7 +7,6 @@ import { prisma } from "@repo/db";
 import { enqueueTriggerDeploy, type ConsumerContext } from "@repo/jobs";
 import { crawlPost } from "@repo/links";
 
-import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
 
 export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Promise<void> => {
@@ -28,7 +27,7 @@ export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Pro
   const siteIds = targets.map((t) => t.toPost?.siteId).filter((s): s is string => s !== undefined);
   const uniqueSiteIds = [...new Set(siteIds)];
   const deployResults = await Promise.allSettled(
-    uniqueSiteIds.map((siteId) => enqueueTriggerDeploy({ redisUrl: env.REDIS_URL, siteId })),
+    uniqueSiteIds.map((siteId) => enqueueTriggerDeploy(siteId)),
   );
   const deploysEnqueued = deployResults.filter(
     (r) => r.status === "fulfilled" && !r.value.skipped,

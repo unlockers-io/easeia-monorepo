@@ -39,11 +39,9 @@ describe("publishDueFromBuckets", () => {
     ]);
     publishNextBucketDraft.mockResolvedValue({ postId: "post_oldest" });
 
-    await publishDueFromBuckets("redis://test");
+    await publishDueFromBuckets();
 
-    expect(publishNextBucketDraft).toHaveBeenCalledWith("site_alpha", {
-      redisUrl: "redis://test",
-    });
+    expect(publishNextBucketDraft).toHaveBeenCalledWith("site_alpha");
   });
 
   it("skips an empty bucket", async () => {
@@ -57,7 +55,7 @@ describe("publishDueFromBuckets", () => {
     ]);
     publishNextBucketDraft.mockResolvedValue(null);
 
-    await publishDueFromBuckets("redis://test");
+    await publishDueFromBuckets();
 
     expect(publishNextBucketDraft).toHaveBeenCalledOnce();
   });
@@ -73,11 +71,9 @@ describe("publishDueFromBuckets", () => {
     ]);
     publishNextBucketDraft.mockRejectedValue(new PostStateError("claim lost"));
 
-    await publishDueFromBuckets("redis://test");
+    await publishDueFromBuckets();
 
-    expect(publishNextBucketDraft).toHaveBeenCalledWith("site_alpha", {
-      redisUrl: "redis://test",
-    });
+    expect(publishNextBucketDraft).toHaveBeenCalledWith("site_alpha");
   });
 
   it("isolates a site publish failure", async () => {
@@ -91,7 +87,7 @@ describe("publishDueFromBuckets", () => {
     ]);
     publishNextBucketDraft.mockRejectedValue(new Error("redis down"));
 
-    await expect(publishDueFromBuckets("redis://test")).resolves.toBeUndefined();
+    await expect(publishDueFromBuckets()).resolves.toBeUndefined();
   });
 
   it("does nothing when no site is due", async () => {
@@ -104,7 +100,7 @@ describe("publishDueFromBuckets", () => {
       },
     ]);
 
-    await publishDueFromBuckets("redis://test");
+    await publishDueFromBuckets();
 
     expect(publishNextBucketDraft).not.toHaveBeenCalled();
   });
@@ -127,17 +123,17 @@ describe("refillLowBuckets", () => {
       },
     ]);
 
-    await refillLowBuckets("redis://test");
+    await refillLowBuckets();
 
-    expect(refillConfiguredBuckets).toHaveBeenCalledWith("redis://test");
+    expect(refillConfiguredBuckets).toHaveBeenCalledWith();
   });
 
   it("accepts an already full bucket", async () => {
     refillConfiguredBuckets.mockResolvedValue([]);
 
-    await refillLowBuckets("redis://test");
+    await refillLowBuckets();
 
-    expect(refillConfiguredBuckets).toHaveBeenCalledWith("redis://test");
+    expect(refillConfiguredBuckets).toHaveBeenCalledWith();
   });
 
   it("reports partial enqueue failures without rejecting the tick", async () => {
@@ -152,7 +148,7 @@ describe("refillLowBuckets", () => {
       },
     ]);
 
-    await expect(refillLowBuckets("redis://test")).resolves.toBeUndefined();
+    await expect(refillLowBuckets()).resolves.toBeUndefined();
   });
 
   it("skips invalid bucket configuration", async () => {
@@ -167,14 +163,14 @@ describe("refillLowBuckets", () => {
       },
     ]);
 
-    await refillLowBuckets("redis://test");
+    await refillLowBuckets();
 
-    expect(refillConfiguredBuckets).toHaveBeenCalledWith("redis://test");
+    expect(refillConfiguredBuckets).toHaveBeenCalledWith();
   });
 
   it("isolates supply count failures", async () => {
     refillConfiguredBuckets.mockRejectedValue(new Error("database down"));
 
-    await expect(refillLowBuckets("redis://test")).resolves.toBeUndefined();
+    await expect(refillLowBuckets()).resolves.toBeUndefined();
   });
 });

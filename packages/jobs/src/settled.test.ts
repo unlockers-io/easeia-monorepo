@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { settleFanout, type FanoutTask } from "./settle-fanout";
+import { settleFanout, type FanoutTask } from "./settled";
 
 const makeLog = () => ({ emit: vi.fn(), error: vi.fn() });
 

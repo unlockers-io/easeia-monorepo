@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobListQuerySchema } from "@repo/api-types";
-import { JobKind, JobStatus, prisma, type Prisma } from "@repo/db";
+import { JobKind, JobStatus } from "@repo/db";
+import { getJob, listJobs } from "@repo/jobs";
 import { HTTPException } from "hono/http-exception";
 
 import { createRouter } from "@/lib/openapi";
@@ -60,31 +61,20 @@ const listJobsRoute = createRoute({
   tags: ["Jobs"],
 });
 
+const present = (value: string | undefined): string | undefined =>
+  value === "" ? undefined : value;
+
 jobRoutes.openapi(listJobsRoute, async (c) => {
   const { cursor, kind, limit, postId, siteId, status } = c.req.valid("query");
-  const where: Prisma.JobWhereInput = {};
-  if (kind) {
-    where.kind = kind;
-  }
-  if (status) {
-    where.status = status;
-  }
-  if (postId !== undefined && postId !== "") {
-    where.postId = postId;
-  }
-  if (siteId !== undefined && siteId !== "") {
-    where.siteId = siteId;
-  }
-  const hasCursor = cursor !== undefined && cursor !== "";
-  const rows = await prisma.job.findMany({
-    cursor: hasCursor ? { id: cursor } : undefined,
-    orderBy: { createdAt: "desc" },
-    skip: hasCursor ? 1 : 0,
-    take: limit + 1,
-    where,
+  const { data, nextCursor } = await listJobs({
+    cursor: present(cursor),
+    kinds: kind === undefined ? undefined : [kind],
+    limit,
+    postId: present(postId),
+    siteId: present(siteId),
+    status,
   });
-  const nextCursor = rows.length > limit ? rows[limit]?.id : undefined;
-  return c.json({ data: rows.slice(0, limit), meta: { nextCursor } }, 200);
+  return c.json({ data, meta: { nextCursor } }, 200);
 });
 
 const getJobRoute = createRoute({
@@ -107,9 +97,7 @@ const getJobRoute = createRoute({
 });
 
 jobRoutes.openapi(getJobRoute, async (c) => {
-  const job = await prisma.job.findUnique({
-    where: { id: c.req.valid("param").id },
-  });
+  const job = await getJob(c.req.valid("param").id);
   if (!job) {
     throw new HTTPException(404, { message: "Job not found" });
   }

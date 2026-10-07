@@ -1,6 +1,7 @@
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
+import { JobKind, prisma } from "@repo/db";
+import { recordCompletedJob } from "@repo/jobs";
 
 import { seedAdmin } from "./admin";
 
@@ -121,21 +122,13 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
     };
     await prisma.post.upsert({ create: { id, ...post }, update: post, where: { id } });
     if (published) {
-      const job = {
-        attempts: 1,
-        createdAt: ago(n + 1),
+      await recordCompletedJob({
         finishedAt: ago(n + 1),
-        kind: n === 1 ? ("REWRITE_POST" as const) : ("PUBLISH" as const),
-        payload: { demo: true },
+        id: `demo-job-${index}-${n}`,
+        kind: n === 1 ? JobKind.REWRITE_POST : JobKind.PUBLISH,
+        payload: { postId: id },
         postId: id,
         siteId,
-        startedAt: ago(n + 1),
-        status: "DONE" as const,
-      };
-      await prisma.job.upsert({
-        create: { id: `demo-job-${index}-${n}`, ...job },
-        update: job,
-        where: { id: `demo-job-${index}-${n}` },
       });
     }
   }

@@ -17,7 +17,6 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
-import { redisUrl } from "@/lib/env";
 import { log } from "@/lib/observability";
 
 import { createRefillAllNeedyBucketsAction } from "./refill-all-action";
@@ -74,7 +73,6 @@ export const refillBucketAction = async (
 
   const { failures } = await enqueueGeneratePosts({
     count: toEnqueue,
-    redisUrl: redisUrl(),
     siteId,
   });
   logRefillFailures(siteId, failures);
@@ -178,7 +176,6 @@ export const applyNetworkDefaultsAction = async (
 const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
   aiConfigured: isAiConfigured,
   audit,
-  getRedisUrl: redisUrl,
   logFailures: logRefillFailures,
   refillBuckets: Posts.refillConfiguredBuckets,
   requireSession: async () => {
@@ -199,7 +196,7 @@ const publishError = (cause: unknown): PublishDraftResult => ({
 export const publishNextFromBucketAction = async (siteId: string): Promise<PublishDraftResult> => {
   await requireSession();
   try {
-    const published = await Posts.publishNextBucketDraft(siteId, { redisUrl: redisUrl() });
+    const published = await Posts.publishNextBucketDraft(siteId);
     if (!published) {
       return { error: "Bucket is empty", ok: false };
     }
@@ -221,7 +218,7 @@ export const publishDraftAction = async (postId: string): Promise<PublishDraftRe
     return { error: "Post is not a draft", ok: false };
   }
   try {
-    await Posts.publishBucketDraft(post.id, post.siteId, { redisUrl: redisUrl() });
+    await Posts.publishBucketDraft(post.id, post.siteId);
     await audit({ action: "post.publish", target: `post:${post.id}` });
     revalidatePath("/dashboard/buckets");
     return { ok: true };

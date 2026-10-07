@@ -1,4 +1,5 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
+import { countJobs } from "@repo/jobs";
 import { hasUsableDeployHook } from "@repo/sites";
 import * as Sites from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
@@ -235,9 +236,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
 const SiteStatGrid = async ({ siteId }: { siteId: string }) => {
   const [stats, rewriteCount] = await Promise.all([
     fetchSiteStats(siteId),
-    prisma.job.count({
-      where: { kind: JobKind.REWRITE_POST, post: { siteId }, status: JobStatus.DONE },
-    }),
+    countJobs({ kinds: [JobKind.REWRITE_POST], siteId, status: JobStatus.DONE }),
   ]);
   const items: ReadonlyArray<StatItem> = [
     { label: "Published posts", value: stats.postsTotal.toLocaleString() },

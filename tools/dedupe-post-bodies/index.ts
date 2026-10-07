@@ -193,14 +193,8 @@ const triggerDeploys = async (siteIds: ReadonlySet<string>): Promise<void> => {
 };
 
 const enqueueReembeds = async (postIds: ReadonlyArray<string>): Promise<void> => {
-  const redisUrl = process.env.REDIS_URL;
-  if (redisUrl === undefined || redisUrl === "") {
-    throw new Error("--reembed needs REDIS_URL to enqueue EMBED jobs");
-  }
   const settled = await Promise.allSettled(
-    postIds.map((postId) =>
-      enqueue({ kind: JobKind.EMBED, payload: { postId }, postId, redisUrl }),
-    ),
+    postIds.map((postId) => enqueue({ kind: JobKind.EMBED, payload: { postId }, postId })),
   );
   const failed = settled.filter((s) => s.status === "rejected").length;
   console.log(`\nenqueued ${settled.length - failed} EMBED jobs, ${failed} failed`);

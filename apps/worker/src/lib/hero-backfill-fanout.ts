@@ -22,7 +22,7 @@ const defaultFindHeroless = (): Promise<Array<HerolessPost>> =>
 
 export const makeBackfillHeroes =
   ({ enqueueJob, findHeroless }: Deps) =>
-  async (redisUrl: string): Promise<{ enqueued: number }> => {
+  async (): Promise<{ enqueued: number }> => {
     const posts = await findHeroless();
     if (posts.length === 0) {
       return { enqueued: 0 };
@@ -33,7 +33,6 @@ export const makeBackfillHeroes =
           kind: JobKind.GENERATE_IMAGE,
           payload: { postId: p.id },
           postId: p.id,
-          redisUrl,
           siteId: p.siteId,
         }),
       ),

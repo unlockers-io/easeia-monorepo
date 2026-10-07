@@ -1,5 +1,6 @@
 import { JobKind, JobStatus, prisma, type MoneySite, type Site, type SiteSnapshot } from "@repo/db";
 import { buildRecommendations } from "@repo/health";
+import { countJobs, listJobs } from "@repo/jobs";
 import { countPbnBacklinks } from "@repo/links";
 import { Button } from "@repo/ui/components/button";
 import { Skeleton } from "@repo/ui/components/skeleton";
@@ -48,28 +49,23 @@ const DashboardContent = async () => {
     redirect("/login");
   }
 
-  const [sites, recentJobs, moneySiteCount, rewriteCount, pbnBacklinksTotal] = await Promise.all([
-    prisma.site.findMany({
-      include: {
-        moneySite: { select: { domain: true, id: true, name: true } },
-        snapshots: { orderBy: { date: "desc" }, take: 14 },
-      },
-      orderBy: { domain: "asc" },
-      where: { isEnabled: true },
-    }),
-    prisma.job.findMany({
-      include: { post: { select: { slug: true, title: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    }),
-    prisma.moneySite.count({
-      where: { pbnSites: { some: {} } },
-    }),
-    prisma.job.count({
-      where: { kind: JobKind.REWRITE_POST, status: JobStatus.DONE },
-    }),
-    countPbnBacklinks(),
-  ]);
+  const [sites, { data: recentJobs }, moneySiteCount, rewriteCount, pbnBacklinksTotal] =
+    await Promise.all([
+      prisma.site.findMany({
+        include: {
+          moneySite: { select: { domain: true, id: true, name: true } },
+          snapshots: { orderBy: { date: "desc" }, take: 14 },
+        },
+        orderBy: { domain: "asc" },
+        where: { isEnabled: true },
+      }),
+      listJobs({ limit: 6 }),
+      prisma.moneySite.count({
+        where: { pbnSites: { some: {} } },
+      }),
+      countJobs({ kinds: [JobKind.REWRITE_POST], status: JobStatus.DONE }),
+      countPbnBacklinks(),
+    ]);
 
   const cards = sites.map((site) => buildSiteCardModel(site));
   cards.sort(scoreAscFirst);
