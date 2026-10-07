@@ -1,4 +1,7 @@
-import { Niche, PostStatus, prisma, type Prisma } from "@repo/db";
+import { Niche, PostStatus, prisma } from "@repo/db";
+import { findLatestJobByPost } from "@repo/jobs";
+import * as Posts from "@repo/posts";
+import * as Sites from "@repo/sites";
 import {
   Card,
   CardContent,
@@ -43,60 +46,41 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
   const q = params.q?.trim() ?? "";
   const niches = toArray(params.niche).filter((n): n is Niche => NICHE_VALUES.has(n));
   const siteId = params.siteId?.trim() ?? "";
-  const sortDirection: "asc" | "desc" = params.sort === "oldest" ? "asc" : "desc";
 
-  const where: Prisma.PostWhereInput = {};
-  if (filter.status) {
-    where.status = filter.status;
-  }
-  if (q) {
-    where.title = { contains: q, mode: "insensitive" };
-  }
-  if (niches.length > 0) {
-    where.niches = { hasSome: niches };
-  }
-  if (siteId) {
-    where.siteId = siteId;
-  }
-
-  const [posts, totalsByStatus, sites] = await Promise.all([
-    prisma.post.findMany({
-      include: {
-        jobs: {
-          orderBy: { createdAt: "desc" },
-          select: { attempts: true, lastError: true, status: true },
-          take: 1,
-        },
-        site: { select: { domain: true, id: true } },
-      },
-      orderBy: { createdAt: sortDirection },
-      take: 100,
-      where,
+  const [{ data: posts }, total, sites] = await Promise.all([
+    Posts.list({
+      limit: 100,
+      niche: niches,
+      q,
+      siteId,
+      sort: params.sort === "oldest" ? "oldest" : "newest",
+      status: filter.status,
     }),
-    prisma.post.groupBy({ _count: true, by: ["status"] }),
-    prisma.site.findMany({
-      orderBy: { domain: "asc" },
-      select: { domain: true, id: true },
-    }),
+    prisma.post.count(),
+    Sites.list(),
   ]);
+  const latestJobs = await findLatestJobByPost(posts.map((p) => p.id));
+  const domainOf = new Map(sites.map((site) => [site.id, site.domain]));
 
-  const total = totalsByStatus.reduce((sum, g) => sum + g._count, 0);
   // Captured once per request so every relative-time string in the table
   // formats against a single reference instant.
   // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
 
-  const rows: Array<PostRow> = posts.map((p) => ({
-    activityAt: (p.publishedAt ?? p.scheduledAt ?? p.updatedAt).toISOString(),
-    id: p.id,
-    job: p.jobs[0] ?? null,
-    niches: p.niches,
-    publishedAt: p.publishedAt?.toISOString() ?? null,
-    scheduledAt: p.scheduledAt?.toISOString() ?? null,
-    site: { domain: p.site.domain, id: p.site.id },
-    status: p.status,
-    title: p.title,
-  }));
+  const rows: Array<PostRow> = posts.map((p) => {
+    const job = latestJobs.get(p.id);
+    return {
+      activityAt: (p.publishedAt ?? p.scheduledAt ?? p.updatedAt).toISOString(),
+      id: p.id,
+      job: job ? { attempts: job.attempts, lastError: job.lastError, status: job.status } : null,
+      niches: p.niches,
+      publishedAt: p.publishedAt?.toISOString() ?? null,
+      scheduledAt: p.scheduledAt?.toISOString() ?? null,
+      site: { domain: domainOf.get(p.siteId) ?? "", id: p.siteId },
+      status: p.status,
+      title: p.title,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,7 +125,7 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
               initialFilters={{ niches, q, siteId }}
               nowMs={nowMs}
               rows={rows}
-              sites={sites}
+              sites={sites.map((site) => ({ domain: site.domain, id: site.id }))}
             />
           </Suspense>
         </CardContent>

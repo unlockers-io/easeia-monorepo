@@ -1,7 +1,6 @@
 "use server";
 
 import { assertAiConfigured } from "@repo/ai";
-import { PostStatus, prisma } from "@repo/db";
 import * as Posts from "@repo/posts";
 import {
   bucketConfigErrors,
@@ -9,7 +8,6 @@ import {
   enqueueGeneratePosts,
   gatedRefillCount,
   isValidBucketConfig,
-  PostStateError,
   REFILL_PER_TICK_CEILING,
 } from "@repo/posts";
 import * as Sites from "@repo/sites";
@@ -152,16 +150,9 @@ export const refillAllNeedyBucketsAction = async () =>
     return refillAllNeedyBuckets();
   });
 
-type PublishDraftResult = { ok: true } | { error: string; ok: false };
-const publishError = (cause: unknown): PublishDraftResult => ({
-  error:
-    cause instanceof Sites.DomainError || cause instanceof PostStateError
-      ? cause.message
-      : "Could not queue publishing. Try again.",
-  ok: false,
-});
+type PublishNextResult = { ok: true } | { error: string; ok: false };
 
-export const publishNextFromBucketAction = async (siteId: string): Promise<PublishDraftResult> => {
+export const publishNextFromBucketAction = async (siteId: string): Promise<PublishNextResult> => {
   await requireSession();
   try {
     const published = await Posts.publishNextBucketDraft(siteId);
@@ -172,39 +163,26 @@ export const publishNextFromBucketAction = async (siteId: string): Promise<Publi
     revalidatePath("/dashboard/buckets");
     return { ok: true };
   } catch (error) {
-    return publishError(error);
+    return {
+      error:
+        error instanceof Sites.DomainError
+          ? error.message
+          : "Could not queue publishing. Try again.",
+      ok: false,
+    };
   }
 };
 
-export const publishDraftAction = async (postId: string): Promise<PublishDraftResult> => {
-  await requireSession();
-  const post = await prisma.post.findUnique({
-    select: { id: true, siteId: true, status: true },
-    where: { id: postId },
-  });
-  if (!post || post.status !== PostStatus.DRAFT) {
-    return { error: "Post is not a draft", ok: false };
-  }
-  try {
-    await Posts.publishBucketDraft(post.id, post.siteId);
-    await audit({ action: "post.publish", target: `post:${post.id}` });
+export const publishDraftAction = async (postId: string) =>
+  withAuth(async () => {
+    await Posts.publishBucketDraft(postId);
+    await audit({ action: "post.publish", target: `post:${postId}` });
     revalidatePath("/dashboard/buckets");
-    return { ok: true };
-  } catch (error) {
-    return publishError(error);
-  }
-};
-
-export const deleteDraftAction = async (postId: string): Promise<void> => {
-  await requireSession();
-  const post = await prisma.post.findUnique({
-    select: { id: true, status: true },
-    where: { id: postId },
   });
-  if (!post || post.status !== PostStatus.DRAFT) {
-    throw new Error("Only drafts can be deleted from the bucket");
-  }
-  await Posts.remove(post.id);
-  await audit({ action: "post.delete", target: `post:${post.id}` });
-  revalidatePath("/dashboard/buckets");
-};
+
+export const deleteDraftAction = async (postId: string) =>
+  withAuth(async () => {
+    await Posts.removeBucketDraft(postId);
+    await audit({ action: "post.delete", target: `post:${postId}` });
+    revalidatePath("/dashboard/buckets");
+  });

@@ -10,6 +10,7 @@ import {
 } from "@repo/ui/components/card";
 import { CheckCircle2, ExternalLink, Plug, Unplug } from "lucide-react";
 
+import { Banner } from "@/components/banner";
 import { getSession } from "@/lib/auth-helpers";
 
 import { IntegrationsCard } from "./integrations";
@@ -145,16 +146,6 @@ const SettingsPage = async ({
     </div>
   );
 };
-
-const TONES = {
-  error: "border-destructive/40 bg-destructive/5 text-destructive",
-  info: "border-border bg-muted text-foreground",
-  success: "border-primary/40 bg-primary/5 text-primary",
-} as const;
-
-const Banner = ({ children, tone }: { children: React.ReactNode; tone: keyof typeof TONES }) => (
-  <div className={`rounded-md border px-4 py-2 text-sm ${TONES[tone]}`}>{children}</div>
-);
 
 const Term = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <>

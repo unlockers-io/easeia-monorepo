@@ -113,6 +113,9 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.9)(zod@4.6.5)
+      '@repo/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@repo/api-types':
         specifier: workspace:*
         version: link:../../packages/api-types
@@ -1018,6 +1021,9 @@ importers:
 
   packages/posts:
     dependencies:
+      '@repo/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@repo/api-types':
         specifier: workspace:*
         version: link:../api-types

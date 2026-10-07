@@ -1,12 +1,5 @@
-/**
- * CRAWL_LINKS adapter at the Job seam. All Link extraction,
- * classification, and persistence lives in `@repo/links`. This handler
- * just translates the job payload into a module call.
- */
-import { prisma } from "@repo/db";
 import type { ConsumerContext } from "@repo/jobs";
 import { crawlPost } from "@repo/links";
-import { requestRedeploy } from "@repo/sites";
 
 import { createJobLogger } from "../lib/logger";
 
@@ -15,26 +8,9 @@ export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Pro
   const log = createJobLogger({ jobId, queue: "crawl-links" });
   log.set({ postId: payload.postId });
   const summary = await crawlPost(payload.postId);
-  if (!summary) {
-    log.info("crawl-links: nothing to crawl");
-    log.emit();
-    return;
+  if (summary) {
+    log.set(summary);
   }
-
-  const targets = await prisma.link.findMany({
-    select: { toPost: { select: { siteId: true } } },
-    where: { fromPostId: payload.postId, toPost: { isNot: null } },
-  });
-  const siteIds = targets.map((t) => t.toPost?.siteId).filter((s): s is string => s !== undefined);
-  const uniqueSiteIds = [...new Set(siteIds)];
-  const deployResults = await Promise.allSettled(
-    uniqueSiteIds.map((siteId) => requestRedeploy(siteId)),
-  );
-  const deploysEnqueued = deployResults.filter(
-    (r) => r.status === "fulfilled" && r.value === "queued",
-  ).length;
-
-  log.set({ deploysEnqueued, ...summary });
-  log.info("crawl-links: done");
+  log.info(summary ? "crawl-links: done" : "crawl-links: nothing to crawl");
   log.emit();
 };

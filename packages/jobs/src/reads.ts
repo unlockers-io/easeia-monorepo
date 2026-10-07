@@ -77,6 +77,17 @@ export const countInFlightBySite = async (
   );
 };
 
+export const findLatestJobByPost = async (
+  postIds: ReadonlyArray<string>,
+): Promise<Map<string, Job>> => {
+  const rows = await prisma.job.findMany({
+    distinct: ["postId"],
+    orderBy: [{ postId: "asc" }, { createdAt: "desc" }],
+    where: { postId: { in: [...postIds] } },
+  });
+  return new Map(rows.flatMap((row) => (row.postId === null ? [] : [[row.postId, row] as const])));
+};
+
 export const findLatestJob = async <K extends JobKind>(kind: K): Promise<LatestJob<K> | null> => {
   const job = await prisma.job.findFirst({ orderBy: { createdAt: "desc" }, where: { kind } });
   return job === null ? null : { ...job, payload: getJobPayload(kind, job.payload) };

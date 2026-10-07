@@ -1,7 +1,6 @@
 import * as Blob from "@repo/blob";
 import { prisma } from "@repo/db";
 import { generateHero as defaultGenerateHero } from "@repo/hero";
-import { requestRedeploy } from "@repo/sites";
 
 import { type HeroRow, planHero } from "./hero-plan";
 import { log } from "./logger";
@@ -36,17 +35,16 @@ const inferMime = (filename: string): string => {
  * made the production wiring invisible: a caller that forgot one, or a test
  * that misspelled a field, silently ran the real Prisma/R2/OpenAI path.
  */
-export type PublishToAstroDeps = {
+export type EnsureHeroDeps = {
   blob: BlobLike;
   fetchImage: (url: string) => Promise<Uint8Array>;
   findHeroImage: (postId: string) => Promise<HeroRow | null>;
   generateHero: typeof defaultGenerateHero;
   r2PublicBaseUrl: string | undefined;
-  requestRedeploy: typeof requestRedeploy;
   upsertPostImage: (input: PostImageUpsert) => Promise<void>;
 };
 
-type PublishToAstroInput = {
+type EnsureHeroInput = {
   autogenEnabled?: boolean;
   post: {
     categories: ReadonlyArray<string>;
@@ -57,9 +55,6 @@ type PublishToAstroInput = {
     tags: ReadonlyArray<string>;
     title: string;
   };
-  // No deploy-hook field: `publish.ts` is the sole caller and has already
-  // rejected an unusable hook, so carrying a nullable copy here only fed a
-  // branch no production path could reach.
   site: { imageStyle: string | null };
 };
 
@@ -85,9 +80,9 @@ const defaultFindHeroImage = (postId: string): Promise<HeroRow | null> =>
     where: { isHero: true, postId },
   });
 
-export const makePublishToAstro =
-  (deps: PublishToAstroDeps) =>
-  async (input: PublishToAstroInput): Promise<void> => {
+export const makeEnsureHero =
+  (deps: EnsureHeroDeps) =>
+  async (input: EnsureHeroInput): Promise<void> => {
     const plan = planHero({
       autogenEnabled: input.autogenEnabled !== false,
       featuredImage: input.post.featuredImage,
@@ -139,16 +134,13 @@ export const makePublishToAstro =
         postId: input.post.id,
       });
     }
-
-    await deps.requestRedeploy(input.post.siteId);
   };
 
-export const publishToAstro = makePublishToAstro({
+export const ensureHero = makeEnsureHero({
   blob: Blob,
   fetchImage: defaultFetchImage,
   findHeroImage: defaultFindHeroImage,
   generateHero: defaultGenerateHero,
   r2PublicBaseUrl: process.env.R2_PUBLIC_BASE_URL,
-  requestRedeploy,
   upsertPostImage: defaultUpsertPostImage,
 });

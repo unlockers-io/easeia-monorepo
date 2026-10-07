@@ -13,7 +13,14 @@ export type { ConsumerContext } from "./consume";
 
 export { reapStuckJobs } from "./reap";
 
-export { countInFlightBySite, countJobs, findLatestJob, getJob, listJobs } from "./reads";
+export {
+  countInFlightBySite,
+  countJobs,
+  findLatestJob,
+  findLatestJobByPost,
+  getJob,
+  listJobs,
+} from "./reads";
 
 export type { BackfillGscLinksPayload, JobPayloads } from "./payloads";
 

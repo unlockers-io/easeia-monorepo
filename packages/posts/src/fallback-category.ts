@@ -1,4 +1,4 @@
-import { type Niche, prisma } from "@repo/db";
+import { type Niche, type Post, prisma } from "@repo/db";
 
 const NICHE_PT = {
   ARCHITECTURE: "Arquitetura",
@@ -36,7 +36,7 @@ const argmax = (counts: Map<string, number>): string | null => {
   return best;
 };
 
-export const pickExistingCategory = (
+const pickExistingCategory = (
   sitePosts: ReadonlyArray<SitePost>,
   postNiches: ReadonlyArray<Niche>,
 ): string | null => {
@@ -55,18 +55,15 @@ export const pickExistingCategory = (
   return argmax(nicheMatched) ?? argmax(overall);
 };
 
-export const resolveCategory = async (
-  siteId: string,
-  postNiches: ReadonlyArray<Niche>,
-): Promise<string> => {
+export const fallbackCategory = async (post: Pick<Post, "niches" | "siteId">): Promise<string> => {
   const sitePosts = await prisma.post.findMany({
     select: { categories: true, niches: true },
-    where: { categories: { isEmpty: false }, siteId },
+    where: { categories: { isEmpty: false }, siteId: post.siteId },
   });
-  const existing = pickExistingCategory(sitePosts, postNiches);
+  const existing = pickExistingCategory(sitePosts, post.niches);
   if (existing !== null && existing !== "") {
     return existing;
   }
-  const firstNiche = postNiches.at(0);
+  const firstNiche = post.niches.at(0);
   return firstNiche ? NICHE_PT[firstNiche] : FALLBACK_CATEGORY;
 };
