@@ -1,10 +1,8 @@
 import { JobKind, prisma } from "@repo/db";
-import { enqueue, type ConsumerContext } from "@repo/jobs";
+import { enqueue, settleFanout, type ConsumerContext } from "@repo/jobs";
 import { crawlSitemap } from "@repo/money-sites";
 
-import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
-import { settleFanout } from "../lib/settle-fanout";
 
 export const handleCrawlMoneySite = async (
   ctx: ConsumerContext<"CRAWL_MONEY_SITE">,
@@ -29,7 +27,6 @@ export const handleCrawlMoneySite = async (
         await enqueue({
           kind: JobKind.CRAWL_MONEY_SITE_PAGE,
           payload: { moneySitePageId: p.id },
-          redisUrl: env.REDIS_URL,
         });
       },
     })),

@@ -8,7 +8,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { audit } from "@/lib/access";
-import { redisUrl } from "@/lib/env";
 import { withAuth } from "@/lib/server-action";
 
 export const listMoneySitesAction = async () => withAuth(listMoneySites);
@@ -24,7 +23,6 @@ export const recrawlMoneySiteAction = async (id: string) =>
     const job = await enqueue({
       kind: JobKind.CRAWL_MONEY_SITE,
       payload: { moneySiteId: z.string().min(1).parse(id) },
-      redisUrl: redisUrl(),
     });
     await audit({ action: "moneysite.recrawl", target: `moneysite:${id}` });
     return job;

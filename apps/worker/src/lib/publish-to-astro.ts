@@ -38,7 +38,7 @@ const inferMime = (filename: string): string => {
  */
 export type PublishToAstroDeps = {
   blob: BlobLike;
-  enqueueDeploy: (input: { redisUrl: string; siteId: string }) => Promise<{ skipped: boolean }>;
+  enqueueDeploy: (siteId: string) => Promise<{ skipped: boolean }>;
   fetchImage: (url: string) => Promise<Uint8Array>;
   findHeroImage: (postId: string) => Promise<HeroRow | null>;
   generateHero: typeof defaultGenerateHero;
@@ -57,7 +57,6 @@ type PublishToAstroInput = {
     tags: ReadonlyArray<string>;
     title: string;
   };
-  redisUrl: string;
   // No deploy-hook field: `publish.ts` is the sole caller and has already
   // rejected an unusable hook, so carrying a nullable copy here only fed a
   // branch no production path could reach.
@@ -141,12 +140,12 @@ export const makePublishToAstro =
       });
     }
 
-    await deps.enqueueDeploy({ redisUrl: input.redisUrl, siteId: input.post.siteId });
+    await deps.enqueueDeploy(input.post.siteId);
   };
 
 export const publishToAstro = makePublishToAstro({
   blob: Blob,
-  enqueueDeploy: (input) => enqueueTriggerDeploy(input),
+  enqueueDeploy: enqueueTriggerDeploy,
   fetchImage: defaultFetchImage,
   findHeroImage: defaultFindHeroImage,
   generateHero: defaultGenerateHero,

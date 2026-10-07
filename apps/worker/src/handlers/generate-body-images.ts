@@ -36,7 +36,6 @@ type Deps = {
   generatePostImage?: typeof realGeneratePostImage;
   planBodyImages?: typeof realPlanBodyImages;
   readBody?: (postId: string) => Promise<string | null>;
-  redisUrl?: string;
   upsertImage?: (input: UpsertBodyImageInput) => Promise<void>;
   writeBody?: (input: { body: string; postId: string }) => Promise<void>;
 };
@@ -94,7 +93,6 @@ export const makeHandleGenerateBodyImages =
     const readBody = deps.readBody ?? defaultReadBody;
     const writeBody = deps.writeBody ?? defaultWriteBody;
     const enqueueTriggerDeploy = deps.enqueueTriggerDeploy ?? realEnqueueTriggerDeploy;
-    const redisUrl = deps.redisUrl ?? env.REDIS_URL;
     const log = createJobLogger({ jobId, queue: "generate-body-images" });
     log.set({ postId });
 
@@ -183,7 +181,7 @@ export const makeHandleGenerateBodyImages =
     await writeBody({ body: applyBodyImages(post.body, inserted), postId: post.id });
     // A draft has nothing live to rebuild; the publish-time deploy ships it.
     if (post.status === "PUBLISHED") {
-      await enqueueTriggerDeploy({ redisUrl, siteId: post.siteId });
+      await enqueueTriggerDeploy(post.siteId);
     }
     log.set({ insertedImages: inserted.length });
     log.info("generate-body-images: done");

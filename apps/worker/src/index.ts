@@ -1,14 +1,13 @@
 import "zod/compile";
 import "dotenv/config";
 
+import { networkBackfill, rewriteBackfill } from "@repo/backfill";
 import { prisma } from "@repo/db";
 import { consume, type ConsumerContext, JobKind, reapStuckJobs } from "@repo/jobs";
 import { initWorkerLogger } from "@repo/observability/worker";
 import type { Worker } from "bullmq";
 
 import { handleBackfillGscLinks } from "./handlers/backfill-gsc-links";
-import { handleBackfillNetwork } from "./handlers/backfill-network";
-import { handleBackfillRewrite } from "./handlers/backfill-rewrite";
 import { handleClassify } from "./handlers/classify";
 import { handleCrawlGscLinks } from "./handlers/crawl-gsc-links";
 import { handleCrawlLinks } from "./handlers/crawl-links";
@@ -38,7 +37,7 @@ const startConsumer = <K extends JobKind>(
   kind: K,
   handler: (ctx: ConsumerContext<K>) => Promise<void>,
   concurrency: number = env.WORKER_CONCURRENCY,
-): Worker => consume({ concurrency, handler, kind, redisUrl: env.REDIS_URL });
+): Worker => consume({ concurrency, handler, kind });
 
 type ConsumersContract = Record<JobKind, () => Worker>;
 
@@ -46,9 +45,9 @@ const CONSUMERS = {
   [JobKind.BACKFILL_GSC_LINKS]: () =>
     startConsumer(JobKind.BACKFILL_GSC_LINKS, handleBackfillGscLinks, SERIAL),
   [JobKind.BACKFILL_NETWORK]: () =>
-    startConsumer(JobKind.BACKFILL_NETWORK, handleBackfillNetwork, SERIAL),
+    startConsumer(JobKind.BACKFILL_NETWORK, networkBackfill.tick, SERIAL),
   [JobKind.BACKFILL_REWRITE]: () =>
-    startConsumer(JobKind.BACKFILL_REWRITE, handleBackfillRewrite, SERIAL),
+    startConsumer(JobKind.BACKFILL_REWRITE, rewriteBackfill.tick, SERIAL),
   [JobKind.CLASSIFY]: () => startConsumer(JobKind.CLASSIFY, handleClassify),
   [JobKind.CRAWL_GSC_LINKS]: () =>
     startConsumer(JobKind.CRAWL_GSC_LINKS, handleCrawlGscLinks, SERIAL),
@@ -129,7 +128,7 @@ const SCHEDULED_TASKS: ReadonlyArray<ScheduledTask> = [
       {
         onError: "snapshot-fanout: failed",
         run: async () => {
-          await enqueueSnapshots(env.REDIS_URL);
+          await enqueueSnapshots();
         },
       },
     ],
@@ -141,13 +140,13 @@ const SCHEDULED_TASKS: ReadonlyArray<ScheduledTask> = [
       {
         onError: "scheduler: publish-from-bucket failed",
         run: async () => {
-          await publishDueFromBuckets(env.REDIS_URL);
+          await publishDueFromBuckets();
         },
       },
       {
         onError: "scheduler: refill failed",
         run: async () => {
-          await refillLowBuckets(env.REDIS_URL);
+          await refillLowBuckets();
         },
       },
     ],
@@ -160,7 +159,7 @@ const SCHEDULED_TASKS: ReadonlyArray<ScheduledTask> = [
       {
         onError: "hero-backfill: failed",
         run: async () => {
-          await backfillHeroes(env.REDIS_URL);
+          await backfillHeroes();
         },
       },
     ],

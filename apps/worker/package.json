@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@repo/ai": "workspace:*",
+    "@repo/backfill": "workspace:*",
     "@repo/blob": "workspace:*",
     "@repo/classify": "workspace:*",
     "@repo/dataforseo": "workspace:*",

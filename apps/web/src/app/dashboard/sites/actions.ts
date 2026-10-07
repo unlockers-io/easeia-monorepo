@@ -7,7 +7,6 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
 import { getSession } from "@/lib/auth-helpers";
-import { redisUrl } from "@/lib/env";
 import { log } from "@/lib/observability";
 
 export type BackfillAllResult =
@@ -38,7 +37,6 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
       enqueue({
         kind: JobKind.BACKFILL_GSC_LINKS,
         payload: { siteId: site.id },
-        redisUrl: redisUrl(),
         siteId: site.id,
       }),
     ),

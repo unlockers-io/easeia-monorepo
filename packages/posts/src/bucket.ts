@@ -1,5 +1,5 @@
-import { JobKind, JobStatus, PostStatus, prisma } from "@repo/db";
-import { asLoggableError, enqueue, fanoutRejections } from "@repo/jobs";
+import { JobKind, PostStatus, prisma } from "@repo/db";
+import { asLoggableError, countInFlightBySite, enqueue, fanoutRejections } from "@repo/jobs";
 
 export const REFILL_PER_TICK_CEILING = 20;
 
@@ -57,7 +57,7 @@ const EMPTY_SUPPLY: BucketSupply = { drafts: 0, inflight: 0, supply: 0 };
 type SupplyGroup = { count: { id: number }; siteId: string | null };
 type BucketSupplyDependencies = {
   countDrafts: (siteIds: ReadonlyArray<string>) => Promise<ReadonlyArray<SupplyGroup>>;
-  countInflight: (siteIds: ReadonlyArray<string>) => Promise<ReadonlyArray<SupplyGroup>>;
+  countInflight: (siteIds: ReadonlyArray<string>) => Promise<ReadonlyMap<string, number>>;
 };
 
 const createCountBucketSupplyBySite =
@@ -93,10 +93,8 @@ const createCountBucketSupplyBySite =
         entry(row.siteId).drafts = row.count.id;
       }
     }
-    for (const row of inflightResult.value) {
-      if (row.siteId !== null) {
-        entry(row.siteId).inflight = row.count.id;
-      }
+    for (const [siteId, inflight] of inflightResult.value) {
+      entry(siteId).inflight = inflight;
     }
     for (const supply of supplies.values()) {
       supply.supply = supply.drafts + supply.inflight;
@@ -116,21 +114,7 @@ const countBucketSupplyBySite = createCountBucketSupplyBySite({
       return { count, siteId };
     });
   },
-  countInflight: async (siteIds) => {
-    const rows = await prisma.job.groupBy({
-      _count: { id: true },
-      by: ["siteId"],
-      where: {
-        kind: JobKind.GENERATE_POST,
-        siteId: { in: [...siteIds] },
-        status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
-      },
-    });
-    return rows.map((row) => {
-      const { _count: count, siteId } = row;
-      return { count, siteId };
-    });
-  },
+  countInflight: (siteIds) => countInFlightBySite(JobKind.GENERATE_POST, siteIds),
 });
 
 export const countBucketSupply = async (siteId: string): Promise<BucketSupply> => {
@@ -180,7 +164,6 @@ export const findRefillableSites = async (): Promise<Array<RefillableSite>> => {
 
 export type EnqueueGeneratePostsInput = {
   count: number;
-  redisUrl: string;
   siteId: string;
 };
 
@@ -189,7 +172,7 @@ export type EnqueueGeneratePostsResult = {
   failures: ReadonlyArray<Error | string>;
 };
 
-type EnqueueGeneratePost = (input: { redisUrl: string; siteId: string }) => Promise<void>;
+type EnqueueGeneratePost = (siteId: string) => Promise<void>;
 
 export type BucketRefillResult = {
   configErrors: Array<string>;
@@ -202,13 +185,9 @@ export type BucketRefillResult = {
 
 const createEnqueueGeneratePosts =
   (enqueuePost: EnqueueGeneratePost) =>
-  async ({
-    count,
-    redisUrl,
-    siteId,
-  }: EnqueueGeneratePostsInput): Promise<EnqueueGeneratePostsResult> => {
+  async ({ count, siteId }: EnqueueGeneratePostsInput): Promise<EnqueueGeneratePostsResult> => {
     const results = await Promise.allSettled(
-      Array.from({ length: count }, () => enqueuePost({ redisUrl, siteId })),
+      Array.from({ length: count }, () => enqueuePost(siteId)),
     );
     const failures = fanoutRejections(results).map((rejection) =>
       asLoggableError(rejection.reason),
@@ -216,18 +195,11 @@ const createEnqueueGeneratePosts =
     return { enqueued: results.length - failures.length, failures };
   };
 
-const enqueueGeneratePosts = createEnqueueGeneratePosts(async ({ redisUrl, siteId }) => {
-  await enqueue({
-    kind: JobKind.GENERATE_POST,
-    payload: { siteId },
-    redisUrl,
-    siteId,
-  });
+const enqueueGeneratePosts = createEnqueueGeneratePosts(async (siteId) => {
+  await enqueue({ kind: JobKind.GENERATE_POST, payload: { siteId }, siteId });
 });
 
-export const refillConfiguredBuckets = async (
-  redisUrl: string,
-): Promise<Array<BucketRefillResult>> => {
+export const refillConfiguredBuckets = async (): Promise<Array<BucketRefillResult>> => {
   const sites = await findRefillableSites();
   const supplyBySite = await countBucketSupplyBySite(sites.map((site) => site.id));
 
@@ -258,7 +230,7 @@ export const refillConfiguredBuckets = async (
       const enqueueResult: EnqueueGeneratePostsResult =
         count === 0
           ? { enqueued: 0, failures: [] }
-          : await enqueueGeneratePosts({ count, redisUrl, siteId: site.id });
+          : await enqueueGeneratePosts({ count, siteId: site.id });
 
       return {
         configErrors,

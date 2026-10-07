@@ -66,7 +66,7 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
   };
   return {
     deps,
-    handle: makeHandleGenerateBodyImages({ ...deps, enabled, redisUrl: "redis://x" }),
+    handle: makeHandleGenerateBodyImages({ ...deps, enabled }),
   };
 };
 
@@ -78,10 +78,7 @@ describe("handleGenerateBodyImages", () => {
     expect(deps.generatePostImage).toHaveBeenCalledTimes(2);
     expect(deps.upsertImage).toHaveBeenCalledTimes(2);
     expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.enqueueTriggerDeploy).toHaveBeenCalledExactlyOnceWith({
-      redisUrl: "redis://x",
-      siteId: "s1",
-    });
+    expect(deps.enqueueTriggerDeploy).toHaveBeenCalledExactlyOnceWith("s1");
 
     const written = deps.writeBody.mock.calls[0]?.[0].body;
     expect(written).toContain("![Um microfone](https://img.easeia.com/1.jpg)");

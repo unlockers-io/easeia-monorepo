@@ -3,17 +3,7 @@ import "dotenv/config";
 import { JobKind, prisma } from "@repo/db";
 import { closeJobs, enqueue } from "@repo/jobs";
 
-const requireEnv = (key: string): string => {
-  const value = process.env[key];
-  if (value === undefined || value === "") {
-    throw new Error(`Missing env var: ${key}`);
-  }
-  return value;
-};
-
 const main = async (): Promise<number> => {
-  const redisUrl = requireEnv("REDIS_URL");
-
   const posts = await prisma.post.findMany({
     orderBy: { rewrittenAt: "asc" },
     select: { id: true, siteId: true, slug: true },
@@ -35,7 +25,6 @@ const main = async (): Promise<number> => {
         kind: JobKind.CRAWL_LINKS,
         payload: { postId: post.id },
         postId: post.id,
-        redisUrl,
         siteId: post.siteId,
       });
       enqueued++;

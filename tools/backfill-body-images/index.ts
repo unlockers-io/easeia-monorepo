@@ -7,14 +7,6 @@ import { closeJobs, enqueue } from "@repo/jobs";
 
 const COST_PER_POST_USD = 0.17;
 
-const requireEnv = (key: string): string => {
-  const value = process.env[key];
-  if (value === undefined || value === "") {
-    throw new Error(`Missing env var: ${key}`);
-  }
-  return value;
-};
-
 type Args = {
   all: boolean;
   dryRun: boolean;
@@ -42,7 +34,6 @@ const parseArgs = (argv: ReadonlyArray<string>): Args => {
 
 const main = async (): Promise<number> => {
   const args = parseArgs(process.argv.slice(2));
-  const redisUrl = args.dryRun ? "" : requireEnv("REDIS_URL");
   // The worker rechecks this predicate before modifying a post.
   const where: Prisma.PostWhereInput = {
     body: { not: { contains: "![" } },
@@ -86,7 +77,6 @@ const main = async (): Promise<number> => {
         kind: JobKind.GENERATE_BODY_IMAGES,
         payload: { postId: post.id },
         postId: post.id,
-        redisUrl,
         siteId: post.siteId,
       });
       enqueued++;

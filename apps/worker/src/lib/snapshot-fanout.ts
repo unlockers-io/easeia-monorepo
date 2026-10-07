@@ -9,7 +9,7 @@ const startOfUtcDay = (d: Date): Date => {
   return out;
 };
 
-export const enqueueSnapshots = async (redisUrl: string): Promise<{ enqueued: number }> => {
+export const enqueueSnapshots = async (): Promise<{ enqueued: number }> => {
   const today = startOfUtcDay(new Date());
 
   const sites = await prisma.site.findMany({
@@ -27,7 +27,6 @@ export const enqueueSnapshots = async (redisUrl: string): Promise<{ enqueued: nu
       enqueue({
         kind: JobKind.SNAPSHOT_SITE,
         payload: { siteId: site.id },
-        redisUrl,
         siteId: site.id,
       }),
     ),

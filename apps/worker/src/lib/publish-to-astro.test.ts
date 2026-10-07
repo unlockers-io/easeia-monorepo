@@ -50,7 +50,6 @@ describe("publishToAstro", () => {
 
     await makePublishToAstro(deps)({
       post: samplePost,
-      redisUrl: "redis://test",
       site: liveSite,
     });
 
@@ -61,7 +60,7 @@ describe("publishToAstro", () => {
         postId: "p1",
       }),
     );
-    expect(deps.enqueueDeploy).toHaveBeenCalledWith({ redisUrl: "redis://test", siteId: "s1" });
+    expect(deps.enqueueDeploy).toHaveBeenCalledWith("s1");
   });
 
   it("generates a hero when none exists and autogen is enabled, then deploys", async () => {
@@ -69,7 +68,6 @@ describe("publishToAstro", () => {
     await makePublishToAstro(deps)({
       autogenEnabled: true,
       post: { ...herolessPost, tags: ["t"] },
-      redisUrl: "redis://x",
       site: liveSite,
     });
     expect(deps.generateHero).toHaveBeenCalledExactlyOnceWith({
@@ -86,7 +84,6 @@ describe("publishToAstro", () => {
     await makePublishToAstro(deps)({
       autogenEnabled: true,
       post: herolessPost,
-      redisUrl: "redis://x",
       site: liveSite,
     });
     expect(deps.generateHero).toHaveBeenCalledOnce();
@@ -106,7 +103,6 @@ describe("publishToAstro", () => {
     await makePublishToAstro(deps)({
       autogenEnabled: true,
       post: herolessPost,
-      redisUrl: "redis://x",
       site: liveSite,
     });
     expect(deps.generateHero).not.toHaveBeenCalled();
@@ -120,7 +116,6 @@ describe("publishToAstro", () => {
 
     await makePublishToAstro(deps)({
       post: samplePost,
-      redisUrl: "redis://test",
       site: liveSite,
     });
 
@@ -134,7 +129,7 @@ describe("publishToAstro", () => {
       }),
     );
     expect(deps.generateHero).not.toHaveBeenCalled();
-    expect(deps.enqueueDeploy).toHaveBeenCalledWith({ redisUrl: "redis://test", siteId: "s1" });
+    expect(deps.enqueueDeploy).toHaveBeenCalledWith("s1");
   });
 
   it("generates when featuredImage is an R2 URL but no hero row backs it", async () => {
@@ -149,14 +144,13 @@ describe("publishToAstro", () => {
         ...herolessPost,
         featuredImage: "https://img.easeia.com/sites/s1/posts/p1/abc.jpg",
       },
-      redisUrl: "redis://x",
       site: liveSite,
     });
 
     expect(deps.fetchImage).not.toHaveBeenCalled();
     expect(blob.upload).not.toHaveBeenCalled();
     expect(deps.generateHero).toHaveBeenCalledOnce();
-    expect(deps.enqueueDeploy).toHaveBeenCalledWith({ redisUrl: "redis://x", siteId: "s1" });
+    expect(deps.enqueueDeploy).toHaveBeenCalledWith("s1");
   });
 
   it("re-uploads a hero row whose blobUrl is not R2-hosted", async () => {
@@ -169,7 +163,6 @@ describe("publishToAstro", () => {
 
     await makePublishToAstro(deps)({
       post: herolessPost,
-      redisUrl: "redis://x",
       site: liveSite,
     });
 
@@ -192,7 +185,6 @@ describe("publishToAstro", () => {
 
     await makePublishToAstro(deps)({
       post: samplePost,
-      redisUrl: "redis://test",
       site: liveSite,
     });
 
@@ -215,7 +207,6 @@ describe("publishToAstro", () => {
 
     await makePublishToAstro(deps)({
       post: samplePost,
-      redisUrl: "redis://test",
       site: liveSite,
     });
 

@@ -1,4 +1,5 @@
-import { JobStatus, prisma } from "@repo/db";
+import { JobStatus } from "@repo/db";
+import { getJob } from "@repo/jobs";
 import { Badge } from "@repo/ui/components/badge";
 import { buttonVariants } from "@repo/ui/components/button";
 import {
@@ -15,13 +16,7 @@ import { notFound } from "next/navigation";
 
 const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const job = await prisma.job.findUnique({
-    include: {
-      post: { select: { id: true, slug: true, title: true } },
-      site: { select: { domain: true, id: true } },
-    },
-    where: { id },
-  });
+  const job = await getJob(id);
   if (!job) {
     notFound();
   }

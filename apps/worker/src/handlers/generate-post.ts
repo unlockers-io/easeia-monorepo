@@ -39,7 +39,6 @@ type GeneratePostDependencies = {
   findSite: (siteId: string) => Promise<SiteForGeneration | null>;
   generatePost: typeof generateNewPost;
   proposeTopic: typeof proposeTopic;
-  redisUrl: string;
   selectAnchors: typeof selectAnchorsForNewPost;
 };
 
@@ -110,21 +109,18 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
       topicHints,
     });
 
-    const { post } = await dependencies.createPost(
-      {
-        body: generated.body,
-        categories: [generated.category],
-        excerpt: generated.excerpt,
-        focusKeyword: generated.focusKeyword,
-        niches: site.niches,
-        publish: false,
-        siteId,
-        slug: generated.slug,
-        tags: [...generated.tags],
-        title: generated.title,
-      },
-      { redisUrl: dependencies.redisUrl },
-    );
+    const { post } = await dependencies.createPost({
+      body: generated.body,
+      categories: [generated.category],
+      excerpt: generated.excerpt,
+      focusKeyword: generated.focusKeyword,
+      niches: site.niches,
+      publish: false,
+      siteId,
+      slug: generated.slug,
+      tags: [...generated.tags],
+      title: generated.title,
+    });
 
     if (dependencies.bodyImagesEnabled) {
       // Retrying GENERATE_POST would create a second draft; publish retries this fanout.
@@ -133,7 +129,6 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
           kind: JobKind.GENERATE_BODY_IMAGES,
           payload: { postId: post.id },
           postId: post.id,
-          redisUrl: dependencies.redisUrl,
         });
       } catch (error) {
         workerLog.warn({ err: error, message: "body-image enqueue failed", postId: post.id });
@@ -168,7 +163,6 @@ const handleGeneratePost = createHandleGeneratePost({
     }),
   generatePost: generateNewPost,
   proposeTopic,
-  redisUrl: env.REDIS_URL,
   selectAnchors: selectAnchorsForNewPost,
 });
 

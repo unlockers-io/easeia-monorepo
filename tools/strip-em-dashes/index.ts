@@ -189,11 +189,9 @@ const triggerDeploys = async (siteDomains: Set<string>): Promise<void> => {
   }
 };
 
-const enqueueReembeds = async (postIds: Array<string>, redisUrl: string): Promise<void> => {
+const enqueueReembeds = async (postIds: Array<string>): Promise<void> => {
   const settled = await Promise.allSettled(
-    postIds.map((postId) =>
-      enqueue({ kind: JobKind.EMBED, payload: { postId }, postId, redisUrl }),
-    ),
+    postIds.map((postId) => enqueue({ kind: JobKind.EMBED, payload: { postId }, postId })),
   );
   const failed = settled.filter((r) => r.status === "rejected").length;
   console.log(`\nenqueued ${settled.length - failed} EMBED jobs, ${failed} failed`);
@@ -247,14 +245,9 @@ const main = async (): Promise<void> => {
   console.log(`Undo with: pnpm strip:em-dashes --restore ${path}`);
 
   if (REEMBED) {
-    const redisUrl = process.env.REDIS_URL;
-    if (redisUrl === undefined || redisUrl === "") {
-      throw new Error("--reembed needs REDIS_URL to enqueue EMBED jobs");
-    }
-    await enqueueReembeds(
-      [...new Set(all.flatMap((change) => (change.field === "body" ? [change.postId] : [])))],
-      redisUrl,
-    );
+    await enqueueReembeds([
+      ...new Set(all.flatMap((change) => (change.field === "body" ? [change.postId] : []))),
+    ]);
   } else {
     console.log("\nPost.embedding left as-is: punctuation does not move a vector meaningfully.");
     console.log("Pass --reembed to enqueue an EMBED job per touched body.");

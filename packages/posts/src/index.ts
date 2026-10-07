@@ -157,11 +157,7 @@ export type CreateResult = {
   post: Post;
 };
 
-export type CreateOptions = {
-  redisUrl: string;
-};
-
-export const create = async (raw: ParserInput, opts: CreateOptions): Promise<CreateResult> => {
+export const create = async (raw: ParserInput): Promise<CreateResult> => {
   const data = parseOrThrow<PostCreate>(postCreateSchema, raw);
   await (data.publish ? Sites.requirePublishable(data.siteId) : Sites.requireEnabled(data.siteId));
 
@@ -187,7 +183,6 @@ export const create = async (raw: ParserInput, opts: CreateOptions): Promise<Cre
       kind: JobKind.PUBLISH,
       payload: { postId: post.id },
       postId: post.id,
-      redisUrl: opts.redisUrl,
     });
     return { job: { id: job.id }, post };
   }
@@ -215,11 +210,7 @@ export type PublishResult = {
   post: Post;
 };
 
-export type PublishOptions = {
-  redisUrl: string;
-};
-
-export const publish = async (id: string, opts: PublishOptions): Promise<PublishResult> => {
+export const publish = async (id: string): Promise<PublishResult> => {
   const post = await requirePost(id);
   if (!PUBLISHABLE_STATES.includes(post.status)) {
     throw new PostStateError(`Cannot publish a Post in state ${post.status}`);
@@ -238,17 +229,12 @@ export const publish = async (id: string, opts: PublishOptions): Promise<Publish
     kind: JobKind.PUBLISH,
     payload: { postId: id },
     postId: id,
-    redisUrl: opts.redisUrl,
   });
   return { job: { id: job.id }, post: updated };
 };
 
-export const publishBucketDraft = async (
-  postId: string,
-  siteId: string,
-  opts: PublishOptions,
-): Promise<void> => {
-  await publish(postId, opts);
+export const publishBucketDraft = async (postId: string, siteId: string): Promise<void> => {
+  await publish(postId);
   await prisma.site.update({
     data: { lastAutoPublishedAt: new Date() },
     where: { id: siteId },
@@ -257,7 +243,6 @@ export const publishBucketDraft = async (
 
 export const publishNextBucketDraft = async (
   siteId: string,
-  opts: PublishOptions,
 ): Promise<{ postId: string } | null> => {
   const draft = await prisma.post.findFirst({
     orderBy: { createdAt: "asc" },
@@ -268,12 +253,8 @@ export const publishNextBucketDraft = async (
     return null;
   }
 
-  await publishBucketDraft(draft.id, siteId, opts);
+  await publishBucketDraft(draft.id, siteId);
   return { postId: draft.id };
-};
-
-export type UnpublishOptions = {
-  redisUrl: string;
 };
 
 /**
@@ -281,7 +262,7 @@ export type UnpublishOptions = {
  * server-side delete step: the next Vercel deploy picks up the
  * missing post automatically.
  */
-export const unpublish = async (id: string, _opts: UnpublishOptions): Promise<{ post: Post }> => {
+export const unpublish = async (id: string): Promise<{ post: Post }> => {
   const updated = await prisma.post.update({
     data: { status: PostStatus.ARCHIVED },
     where: { id },

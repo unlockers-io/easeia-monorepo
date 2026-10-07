@@ -6,7 +6,6 @@ const refillConfiguredBuckets = vi.fn();
 const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
   aiConfigured: () => true,
   audit: () => Promise.resolve(),
-  getRedisUrl: () => "redis://test",
   logFailures: () => {},
   refillBuckets: refillConfiguredBuckets,
   requireSession: vi.fn().mockResolvedValue({ user: { id: "user_1" } }),
@@ -52,7 +51,7 @@ describe("refillAllNeedyBucketsAction", () => {
 
     const result = await refillAllNeedyBucketsAction();
 
-    expect(refillConfiguredBuckets).toHaveBeenCalledWith("redis://test");
+    expect(refillConfiguredBuckets).toHaveBeenCalledOnce();
     if (!result.ok) {
       throw new Error(result.error);
     }
@@ -60,14 +59,12 @@ describe("refillAllNeedyBucketsAction", () => {
   });
 });
 
-it("does not queue or read Redis when AI is unconfigured", async () => {
-  const getRedisUrl = vi.fn();
+it("does not queue when AI is unconfigured", async () => {
   const refillBuckets = vi.fn();
   const requireSession = vi.fn().mockResolvedValue(undefined);
   const action = createRefillAllNeedyBucketsAction({
     aiConfigured: () => false,
     audit: () => Promise.resolve(),
-    getRedisUrl,
     logFailures: () => {},
     refillBuckets,
     requireSession,
@@ -76,5 +73,4 @@ it("does not queue or read Redis when AI is unconfigured", async () => {
   expect(await action()).toEqual({ error: expect.stringContaining("OPENAI_API_KEY"), ok: false });
   expect(requireSession).toHaveBeenCalledOnce();
   expect(refillBuckets).not.toHaveBeenCalled();
-  expect(getRedisUrl).not.toHaveBeenCalled();
 });

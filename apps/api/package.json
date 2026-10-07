@@ -21,6 +21,7 @@
     "@hono/zod-openapi": "^1.6.3",
     "@repo/api-types": "workspace:*",
     "@repo/auth": "workspace:*",
+    "@repo/backfill": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/links": "workspace:*",

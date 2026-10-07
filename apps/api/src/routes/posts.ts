@@ -4,7 +4,6 @@ import { Niche, PostStatus } from "@repo/db";
 import * as Posts from "@repo/posts";
 import type { Context } from "hono";
 
-import { env } from "@/lib/env";
 import { createRouter } from "@/lib/openapi";
 import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
 import type { AuthVariables } from "@/middleware/api-auth";
@@ -130,9 +129,7 @@ const createPostRoute = createRoute({
 });
 
 postRoutes.openapi(createPostRoute, async (c) => {
-  const result = await Posts.create(c.req.valid("json"), {
-    redisUrl: env.REDIS_URL,
-  });
+  const result = await Posts.create(c.req.valid("json"));
   await recordAudit(c, { action: "post.create", target: `post:${result.post.id}` });
   return c.json({ data: result.post, job: result.job }, 201);
 });
@@ -244,9 +241,7 @@ const publishPostRoute = createRoute({
 });
 
 postRoutes.openapi(publishPostRoute, async (c) => {
-  const result = await Posts.publish(c.req.valid("param").id, {
-    redisUrl: env.REDIS_URL,
-  });
+  const result = await Posts.publish(c.req.valid("param").id);
   await recordAudit(c, { action: "post.publish", target: `post:${result.post.id}` });
   return c.json({ data: { jobId: result.job.id, postId: result.post.id } }, 202);
 });
@@ -273,9 +268,7 @@ const unpublishPostRoute = createRoute({
 
 postRoutes.openapi(unpublishPostRoute, async (c) => {
   const id = c.req.valid("param").id;
-  await Posts.unpublish(id, {
-    redisUrl: env.REDIS_URL,
-  });
+  await Posts.unpublish(id);
   await recordAudit(c, { action: "post.unpublish", target: `post:${id}` });
   return c.json({ ok: true as const }, 200);
 });

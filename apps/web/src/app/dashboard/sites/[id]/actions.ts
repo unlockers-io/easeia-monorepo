@@ -12,7 +12,6 @@ import type { z } from "zod";
 
 import { audit } from "@/lib/access";
 import { requireSession } from "@/lib/auth-helpers";
-import { redisUrl } from "@/lib/env";
 
 export const assignMoneySiteAction = async (
   siteId: string,
@@ -234,7 +233,6 @@ export const startGscBacklinkBackfillAction = async (
   await enqueue({
     kind: JobKind.BACKFILL_GSC_LINKS,
     payload: { siteId: site.id },
-    redisUrl: redisUrl(),
     siteId: site.id,
   });
   await audit({ action: "backlinks.backfill", target: `site:${siteId}` });

@@ -23,7 +23,7 @@ type RefillLowDependencies = {
 };
 
 const createPublishDueFromBuckets = (dependencies: PublishDueDependencies) =>
-  async function publishDueFromBuckets(redisUrl: string): Promise<void> {
+  async function publishDueFromBuckets(): Promise<void> {
     const candidates = await dependencies.findSites();
 
     const now = Date.now();
@@ -51,7 +51,7 @@ const createPublishDueFromBuckets = (dependencies: PublishDueDependencies) =>
       due.map(async (site) => {
         let published: { postId: string } | null;
         try {
-          published = await dependencies.publishNextBucketDraft(site.id, { redisUrl });
+          published = await dependencies.publishNextBucketDraft(site.id);
         } catch (error) {
           if (error instanceof PostStateError) {
             log.info({
@@ -88,10 +88,10 @@ const createPublishDueFromBuckets = (dependencies: PublishDueDependencies) =>
   };
 
 const createRefillLowBuckets = (dependencies: RefillLowDependencies) =>
-  async function refillLowBuckets(redisUrl: string): Promise<void> {
+  async function refillLowBuckets(): Promise<void> {
     let results: Awaited<ReturnType<typeof Posts.refillConfiguredBuckets>>;
     try {
-      results = await dependencies.refillConfiguredBuckets(redisUrl);
+      results = await dependencies.refillConfiguredBuckets();
     } catch (error) {
       log.error({
         err: error,

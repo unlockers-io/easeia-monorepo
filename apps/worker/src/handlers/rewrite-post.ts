@@ -2,7 +2,6 @@ import { JobKind } from "@repo/db";
 import { enqueue, type ConsumerContext } from "@repo/jobs";
 import { rewritePost } from "@repo/rewrite";
 
-import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
 
 export const handleRewritePost = async (ctx: ConsumerContext<"REWRITE_POST">): Promise<void> => {
@@ -24,6 +23,5 @@ export const handleRewritePost = async (ctx: ConsumerContext<"REWRITE_POST">): P
     kind: JobKind.CRAWL_LINKS,
     payload: { postId: payload.postId },
     postId: payload.postId,
-    redisUrl: env.REDIS_URL,
   });
 };

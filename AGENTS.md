@@ -52,7 +52,8 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/db`                                                     | Prisma client singleton + schema.                                                                 |
 | `@repo/blob`                                                   | Cloudflare R2 helpers (S3-compatible): upload, delete, URL resolution.                            |
 | `@repo/sites`                                                  | Site lifecycle: public projection, Astro deploy-hook dispatch.                                    |
-| `@repo/jobs`                                                   | Durable Job (Prisma `Job` row + BullMQ behind one interface).                                     |
+| `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; BullMQ on `REDIS_URL` behind one interface.    |
+| `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks, status.                             |
 | `@repo/posts`                                                  | Post intake: state machine + queue handoff. Used by admin + public API.                           |
 | `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.    |
 | `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                             |
