@@ -4,8 +4,9 @@
  * just translates the job payload into a module call.
  */
 import { prisma } from "@repo/db";
-import { enqueueTriggerDeploy, type ConsumerContext } from "@repo/jobs";
+import type { ConsumerContext } from "@repo/jobs";
 import { crawlPost } from "@repo/links";
+import { requestRedeploy } from "@repo/sites";
 
 import { createJobLogger } from "../lib/logger";
 
@@ -27,10 +28,10 @@ export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Pro
   const siteIds = targets.map((t) => t.toPost?.siteId).filter((s): s is string => s !== undefined);
   const uniqueSiteIds = [...new Set(siteIds)];
   const deployResults = await Promise.allSettled(
-    uniqueSiteIds.map((siteId) => enqueueTriggerDeploy(siteId)),
+    uniqueSiteIds.map((siteId) => requestRedeploy(siteId)),
   );
   const deploysEnqueued = deployResults.filter(
-    (r) => r.status === "fulfilled" && !r.value.skipped,
+    (r) => r.status === "fulfilled" && r.value === "queued",
   ).length;
 
   log.set({ deploysEnqueued, ...summary });

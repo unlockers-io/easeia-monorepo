@@ -3,7 +3,7 @@ import { JobKind, prisma } from "@repo/db";
 import { asLoggableError, enqueue, fanoutRejections, type ConsumerContext } from "@repo/jobs";
 import { pruneFabricatedLinks } from "@repo/links";
 import * as Posts from "@repo/posts";
-import { parseDeployHook } from "@repo/sites";
+import { requirePublishable } from "@repo/sites";
 
 import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
@@ -18,17 +18,10 @@ export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<vo
 
   try {
     const post = await prisma.post.findUniqueOrThrow({
-      include: { site: { select: { imageStyle: true, vercelDeployHookUrl: true } } },
+      include: { site: { select: { imageStyle: true } } },
       where: { id: postId },
     });
-
-    // Same predicate the deploy job uses, so a Post cannot reach PUBLISHED via a
-    // hook the deploy step will later refuse to POST.
-    if (parseDeployHook(post.site.vercelDeployHookUrl) === null) {
-      throw new Error(
-        `Site ${post.siteId} has no usable vercelDeployHookUrl; cannot publish via Astro pipeline`,
-      );
-    }
+    await requirePublishable(post.siteId);
 
     let categories = post.categories;
     if (categories.length === 0) {

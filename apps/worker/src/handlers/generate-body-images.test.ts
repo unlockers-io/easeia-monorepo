@@ -40,11 +40,11 @@ const image = (n: number) => ({
 });
 
 type Mocks = {
-  enqueueTriggerDeploy: Mock;
   findPost: Mock;
   generatePostImage: Mock;
   planBodyImages: Mock;
   readBody: Mock;
+  requestRedeploy: Mock;
   upsertImage: Mock;
   writeBody: Mock;
 };
@@ -52,7 +52,6 @@ type Mocks = {
 const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boolean } = {}) => {
   let generated = 0;
   const deps: Mocks = {
-    enqueueTriggerDeploy: vi.fn().mockResolvedValue({ skipped: false }),
     findPost: vi.fn().mockResolvedValue(post),
     generatePostImage: vi.fn().mockImplementation(() => {
       generated += 1;
@@ -60,6 +59,7 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
     }),
     planBodyImages: vi.fn().mockResolvedValue(plan),
     readBody: vi.fn().mockResolvedValue(body),
+    requestRedeploy: vi.fn().mockResolvedValue("queued"),
     upsertImage: vi.fn().mockResolvedValue(undefined),
     writeBody: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -78,7 +78,7 @@ describe("handleGenerateBodyImages", () => {
     expect(deps.generatePostImage).toHaveBeenCalledTimes(2);
     expect(deps.upsertImage).toHaveBeenCalledTimes(2);
     expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.enqueueTriggerDeploy).toHaveBeenCalledExactlyOnceWith("s1");
+    expect(deps.requestRedeploy).toHaveBeenCalledExactlyOnceWith("s1");
 
     const written = deps.writeBody.mock.calls[0]?.[0].body;
     expect(written).toContain("![Um microfone](https://img.easeia.com/1.jpg)");
@@ -92,7 +92,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.requestRedeploy).not.toHaveBeenCalled();
   });
 
   it("names files per post and index so a retry upserts instead of duplicating", async () => {
@@ -132,7 +132,7 @@ describe("handleGenerateBodyImages", () => {
 
     expect(deps.planBodyImages).not.toHaveBeenCalled();
     expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.requestRedeploy).not.toHaveBeenCalled();
   });
 
   it("skips when the planner finds no spots", async () => {
@@ -141,7 +141,7 @@ describe("handleGenerateBodyImages", () => {
 
     expect(deps.generatePostImage).not.toHaveBeenCalled();
     expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.requestRedeploy).not.toHaveBeenCalled();
   });
 
   it("skips when BODY_IMAGES_ENABLED is off", async () => {
@@ -173,6 +173,6 @@ describe("handleGenerateBodyImages", () => {
     });
     await expect(handle(ctx)).rejects.toThrow("body changed");
     expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.requestRedeploy).not.toHaveBeenCalled();
   });
 });

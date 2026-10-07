@@ -7,7 +7,7 @@ import "dotenv/config";
 
 import { prisma } from "@repo/db";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -62,8 +62,8 @@ const main = async (): Promise<void> => {
   for (const post of planned) {
     await prisma.post.update({ data: { body: post.body }, where: { id: post.id } });
   }
-  const touched = recordAffectedSites([...new Set(planned.map((post) => post.siteId))]);
-  console.log(`\nupdated ${planned.length} posts; ${touched.length} sites pending redeploy`);
+  console.log(`\nupdated ${planned.length} posts`);
+  await redeploySites(planned.map((post) => post.siteId));
 };
 
 await main();

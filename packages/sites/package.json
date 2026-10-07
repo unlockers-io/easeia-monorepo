@@ -17,6 +17,7 @@
   "dependencies": {
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

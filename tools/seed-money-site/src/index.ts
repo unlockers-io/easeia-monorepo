@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import * as Sites from "@repo/sites";
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]?.trim();
@@ -25,11 +26,12 @@ const main = async (): Promise<void> => {
   });
   console.log("MoneySite:", moneySite.id, moneySite.domain);
 
-  const result = await prisma.site.updateMany({
-    data: { moneySiteId: moneySite.id },
-    where: { isEnabled: true, moneySiteId: null },
-  });
-  console.log(`assigned moneySiteId to ${result.count} PBN sites`);
+  const sites = await Sites.list();
+  const unassigned = sites.filter((site) => site.isEnabled && site.moneySiteId === null);
+  for (const site of unassigned) {
+    await Sites.update(site.id, { moneySiteId: moneySite.id });
+  }
+  console.log(`assigned moneySiteId to ${unassigned.length} PBN sites`);
 };
 
 try {

@@ -33,11 +33,11 @@ const herolessPost = {
 
 const makeDeps = (overrides: Partial<PublishToAstroDeps> = {}): PublishToAstroDeps => ({
   blob: createFakeBlobStore(),
-  enqueueDeploy: vi.fn(() => Promise.resolve({ skipped: false })),
   fetchImage: vi.fn(() => Promise.resolve(new Uint8Array([1, 2, 3]))),
   findHeroImage: vi.fn(() => Promise.resolve(null)),
   generateHero: vi.fn(),
   r2PublicBaseUrl: undefined,
+  requestRedeploy: vi.fn(() => Promise.resolve("queued" as const)),
   upsertPostImage: vi.fn(() => Promise.resolve(undefined)),
   ...overrides,
 });
@@ -60,7 +60,7 @@ describe("publishToAstro", () => {
         postId: "p1",
       }),
     );
-    expect(deps.enqueueDeploy).toHaveBeenCalledWith("s1");
+    expect(deps.requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
   it("generates a hero when none exists and autogen is enabled, then deploys", async () => {
@@ -74,7 +74,7 @@ describe("publishToAstro", () => {
       post: expect.objectContaining({ id: "p1" }),
       site: { imageStyle: liveSite.imageStyle },
     });
-    expect(deps.enqueueDeploy).toHaveBeenCalledOnce();
+    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 
   it("still deploys (heroless) when generation throws", async () => {
@@ -87,7 +87,7 @@ describe("publishToAstro", () => {
       site: liveSite,
     });
     expect(deps.generateHero).toHaveBeenCalledOnce();
-    expect(deps.enqueueDeploy).toHaveBeenCalledOnce();
+    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 
   it("does not generate when a hero already exists", async () => {
@@ -129,7 +129,7 @@ describe("publishToAstro", () => {
       }),
     );
     expect(deps.generateHero).not.toHaveBeenCalled();
-    expect(deps.enqueueDeploy).toHaveBeenCalledWith("s1");
+    expect(deps.requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
   it("generates when featuredImage is an R2 URL but no hero row backs it", async () => {
@@ -150,7 +150,7 @@ describe("publishToAstro", () => {
     expect(deps.fetchImage).not.toHaveBeenCalled();
     expect(blob.upload).not.toHaveBeenCalled();
     expect(deps.generateHero).toHaveBeenCalledOnce();
-    expect(deps.enqueueDeploy).toHaveBeenCalledWith("s1");
+    expect(deps.requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
   it("re-uploads a hero row whose blobUrl is not R2-hosted", async () => {
@@ -190,7 +190,7 @@ describe("publishToAstro", () => {
 
     expect(deps.fetchImage).not.toHaveBeenCalled();
     expect(deps.upsertPostImage).not.toHaveBeenCalled();
-    expect(deps.enqueueDeploy).toHaveBeenCalledOnce();
+    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 
   it("changed-image case: re-uploads when the existing hero row's filename differs", async () => {
@@ -219,6 +219,6 @@ describe("publishToAstro", () => {
         postId: "p1",
       }),
     );
-    expect(deps.enqueueDeploy).toHaveBeenCalledOnce();
+    expect(deps.requestRedeploy).toHaveBeenCalledOnce();
   });
 });

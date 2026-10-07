@@ -1,6 +1,6 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
 import { countJobs } from "@repo/jobs";
-import { hasUsableDeployHook } from "@repo/sites";
+import { hasDeployHook } from "@repo/sites";
 import * as Sites from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
 import { buttonVariants } from "@repo/ui/components/button";
@@ -178,9 +178,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
         </CardContent>
       </Card>
 
-      <PublishingForm
-        site={{ ...site, hasDeployHook: hasUsableDeployHook(site.vercelDeployHookUrl) }}
-      />
+      <PublishingForm site={{ ...site, hasDeployHook: hasDeployHook(site) }} />
       <AuthorCard
         defaultBio={site.authorBio}
         defaultName={site.authorName}

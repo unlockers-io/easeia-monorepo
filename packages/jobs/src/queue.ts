@@ -129,20 +129,24 @@ export const enqueue = async <K extends JobKind>(input: EnqueueInput<K>): Promis
   return push(queue, job.id, input);
 };
 
-export const enqueueUnlessInFlight = async <K extends JobKind>(
-  input: EnqueueInput<K>,
-): Promise<EnqueuedJob | null> => {
-  const queue = queueFor(input.kind);
-  const lockKey = `${input.kind}:${input.siteId ?? ""}`;
-  const job = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-    const busy = await tx.job.count({
-      where: { ...inFlight, kind: input.kind, siteId: input.siteId },
+const enqueueUnless =
+  (blocking: Prisma.JobWhereInput) =>
+  async <K extends JobKind>(input: EnqueueInput<K>): Promise<EnqueuedJob | null> => {
+    const queue = queueFor(input.kind);
+    const lockKey = `${input.kind}:${input.siteId ?? ""}`;
+    const job = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+      const busy = await tx.job.count({
+        where: { ...blocking, kind: input.kind, siteId: input.siteId },
+      });
+      return busy > 0 ? null : tx.job.create({ data: rowFor(input) });
     });
-    return busy > 0 ? null : tx.job.create({ data: rowFor(input) });
-  });
-  return job === null ? null : push(queue, job.id, input);
-};
+    return job === null ? null : push(queue, job.id, input);
+  };
+
+export const enqueueUnlessInFlight = enqueueUnless(inFlight);
+
+export const enqueueUnlessQueued = enqueueUnless({ status: JobStatus.QUEUED });
 
 type CompletedJob<K extends JobKind> = Omit<EnqueueInput<K>, "delayMs"> & {
   finishedAt: Date;

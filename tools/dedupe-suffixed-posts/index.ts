@@ -7,8 +7,6 @@ import "dotenv/config";
 
 import { prisma } from "@repo/db";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
-
 import { groupSuffixedPosts, longestBody } from "./group";
 
 const APPLY = process.argv.includes("--apply");
@@ -71,8 +69,7 @@ const main = async (): Promise<void> => {
     console.log("\ndry run; pass --apply to write");
     return;
   }
-  const touched = recordAffectedSites([...new Set(groups.map(({ base }) => base.siteId))]);
-  console.log(`\nresolved ${groups.length} bases; ${touched.length} sites pending redeploy`);
+  console.log(`\nresolved ${groups.length} bases; ship the redirects above to publish them`);
 };
 
 await main();

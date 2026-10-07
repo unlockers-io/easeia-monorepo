@@ -1,7 +1,7 @@
 import { sitePublicSchema, type SiteUpdatePatch as ApiSiteUpdatePatch } from "@repo/api-types";
 import { prisma, type Site } from "@repo/db";
 
-import { hasUsableDeployHook } from "./deploy-hook";
+import { parseDeployHook } from "./deploy-hook";
 import { SiteDisabledError } from "./disabled-error";
 import { SiteDeployHookMissingError, SiteNotFoundError } from "./errors";
 
@@ -29,15 +29,8 @@ export type SiteUpsertInput = {
   niches?: Site["niches"];
 };
 
-const requireSite = async (siteId: string): Promise<Site> => {
-  const site = await prisma.site.findUnique({ where: { id: siteId } });
-  if (!site) {
-    throw new SiteNotFoundError(siteId);
-  }
-  return site;
-};
-
-export const load = (siteId: string): Promise<Site> => requireSite(siteId);
+export const hasDeployHook = (site: Pick<Site, "vercelDeployHookUrl">): boolean =>
+  parseDeployHook(site.vercelDeployHookUrl) !== null;
 
 type FindSite = (siteId: string) => Promise<Site | null>;
 
@@ -62,7 +55,7 @@ export const createRequirePublishable = (findSite: FindSite) => {
   const loadEnabled = createRequireEnabled(findSite);
   return async (siteId: string): Promise<Site> => {
     const site = await loadEnabled(siteId);
-    if (!hasUsableDeployHook(site.vercelDeployHookUrl)) {
+    if (!hasDeployHook(site)) {
       throw new SiteDeployHookMissingError();
     }
     return site;
@@ -95,18 +88,58 @@ export const upsert = (input: SiteUpsertInput): Promise<Site> => {
 };
 
 export type SiteUpdatePatch = ApiSiteUpdatePatch &
-  Partial<{
-    categorySlugMap: Record<string, string>;
-    defaultCategory: string;
-    isEnabled: boolean;
-    moneySiteId: string | null;
-    niches: Site["niches"];
-  }>;
+  Partial<
+    Pick<
+      Site,
+      | "authorBio"
+      | "authorName"
+      | "authorPhotoUrl"
+      | "authorUrl"
+      | "autoPublishEnabled"
+      | "bucketRefillAt"
+      | "bucketTarget"
+      | "cadenceDays"
+      | "lastAutoPublishedAt"
+      | "moneySiteId"
+      | "topicHints"
+    >
+  >;
 
 export const update = (siteId: string, patch: SiteUpdatePatch): Promise<Site> =>
   prisma.site.update({
     data: patch,
     where: { id: siteId },
+  });
+
+type NetworkDefaults = {
+  bucket: { refillAt: number; target: number } | null;
+  cadenceDays: number | null;
+  scope: "overwrite" | "unconfigured";
+};
+
+export const applyNetworkDefaults = (defaults: NetworkDefaults) =>
+  prisma.$transaction(async (tx) => {
+    const unconfigured = defaults.scope === "unconfigured";
+    const cadence =
+      defaults.cadenceDays === null
+        ? { count: 0 }
+        : await tx.site.updateMany({
+            data: { autoPublishEnabled: true, cadenceDays: defaults.cadenceDays },
+            where: unconfigured ? { cadenceDays: null, isEnabled: true } : { isEnabled: true },
+          });
+    const bucket =
+      defaults.bucket === null
+        ? { count: 0 }
+        : await tx.site.updateMany({
+            data: {
+              bucketRefillAt: defaults.bucket.refillAt,
+              bucketTarget: defaults.bucket.target,
+            },
+            where: unconfigured
+              ? { bucketRefillAt: null, bucketTarget: null, isEnabled: true }
+              : { isEnabled: true },
+          });
+    return { bucketSitesUpdated: bucket.count, cadenceSitesUpdated: cadence.count };
   });
 
 export const aggregateSiteNiches = async (siteId: string): Promise<Site["niches"]> => {
@@ -137,9 +170,10 @@ export const aggregateSiteNiches = async (siteId: string): Promise<Site["niches"
 };
 
 export { createRequireEnabled, requireEnabled };
-export { hasUsableDeployHook, parseDeployHook } from "./deploy-hook";
+export { load } from "./load";
 export { create, createSite } from "./create";
+export { deploy, requestRedeploy } from "./redeploy";
 export type { FindSite };
 
 export const toPublic = (site: Site) =>
-  sitePublicSchema.parse({ ...site, hasDeployHook: hasUsableDeployHook(site.vercelDeployHookUrl) });
+  sitePublicSchema.parse({ ...site, hasDeployHook: hasDeployHook(site) });

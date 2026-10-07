@@ -18,10 +18,7 @@ export const assignMoneySiteAction = async (
   moneySiteId: string | null,
 ): Promise<void> => {
   await requireSession();
-  await prisma.site.update({
-    data: { moneySiteId },
-    where: { id: siteId },
-  });
+  await Sites.update(siteId, { moneySiteId });
   await audit({ action: "site.update", meta: { moneySiteId }, target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
   revalidatePath("/dashboard");
@@ -143,16 +140,13 @@ export const updateAutoPublishAction = async (
     warnings.push("Auto-publish disabled because cadence is missing.");
   }
 
-  await prisma.site.update({
-    data: {
-      autoPublishEnabled: input.autoPublishEnabled && cadence !== null,
-      bucketRefillAt,
-      bucketTarget,
-      cadenceDays: cadence,
-      language: input.language,
-      topicHints: hints,
-    },
-    where: { id: siteId },
+  await Sites.update(siteId, {
+    autoPublishEnabled: input.autoPublishEnabled && cadence !== null,
+    bucketRefillAt,
+    bucketTarget,
+    cadenceDays: cadence,
+    language: input.language,
+    topicHints: hints,
   });
   await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
@@ -177,14 +171,11 @@ export const updateSiteAuthorAction = async (
   input: UpdateSiteAuthorInput,
 ): Promise<void> => {
   await requireSession();
-  await prisma.site.update({
-    data: {
-      authorBio: clean(input.bio),
-      authorName: clean(input.name),
-      authorPhotoUrl: clean(input.photoUrl),
-      authorUrl: clean(input.url),
-    },
-    where: { id: siteId },
+  await Sites.update(siteId, {
+    authorBio: clean(input.bio),
+    authorName: clean(input.name),
+    authorPhotoUrl: clean(input.photoUrl),
+    authorUrl: clean(input.url),
   });
   await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
@@ -199,12 +190,9 @@ export const updateSiteCadenceAction = async (
     cadenceDays === null || Number.isNaN(cadenceDays)
       ? null
       : Math.max(1, Math.min(365, Math.floor(cadenceDays)));
-  await prisma.site.update({
-    data: {
-      autoPublishEnabled: cadence !== null,
-      cadenceDays: cadence,
-    },
-    where: { id: siteId },
+  await Sites.update(siteId, {
+    autoPublishEnabled: cadence !== null,
+    cadenceDays: cadence,
   });
   await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath("/dashboard/sites");

@@ -56,9 +56,15 @@ importers:
       '@repo/hero':
         specifier: workspace:*
         version: link:packages/hero
+      '@repo/jobs':
+        specifier: workspace:*
+        version: link:packages/jobs
       '@repo/search-console':
         specifier: workspace:*
         version: link:packages/search-console
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:packages/sites
       '@shadcn/lint':
         specifier: 0.2.0
         version: 0.2.0(@typescript-eslint/parser@8.70.0(eslint@9.39.2(jiti@2.7.0))(typescript@7.0.2))(eslint@9.39.2(jiti@2.7.0))
@@ -1126,6 +1132,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/jobs':
+        specifier: workspace:*
+        version: link:../jobs
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -1594,6 +1603,9 @@ importers:
       '@repo/search-console':
         specifier: workspace:*
         version: link:../../packages/search-console
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:../../packages/sites
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1799,6 +1811,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:../../packages/sites
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

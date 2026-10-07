@@ -126,21 +126,7 @@ export const detail = (postId: string) =>
         include: { toPost: { select: { id: true, slug: true, title: true } } },
         orderBy: { position: "asc" },
       },
-      site: {
-        select: {
-          categorySlugMap: true,
-          createdAt: true,
-          defaultCategory: true,
-          domain: true,
-          id: true,
-          isEnabled: true,
-          language: true,
-          moneySite: { select: { domain: true } },
-          niches: true,
-          updatedAt: true,
-          vercelDeployHookUrl: true,
-        },
-      },
+      site: { include: { moneySite: { select: { domain: true } } } },
     },
     where: { id: postId },
   });
@@ -235,10 +221,7 @@ export const publish = async (id: string): Promise<PublishResult> => {
 
 export const publishBucketDraft = async (postId: string, siteId: string): Promise<void> => {
   await publish(postId);
-  await prisma.site.update({
-    data: { lastAutoPublishedAt: new Date() },
-    where: { id: siteId },
-  });
+  await Sites.update(siteId, { lastAutoPublishedAt: new Date() });
 };
 
 export const publishNextBucketDraft = async (

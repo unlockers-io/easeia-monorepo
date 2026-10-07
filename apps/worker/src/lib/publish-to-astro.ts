@@ -1,7 +1,7 @@
 import * as Blob from "@repo/blob";
 import { prisma } from "@repo/db";
 import { generateHero as defaultGenerateHero } from "@repo/hero";
-import { enqueueTriggerDeploy } from "@repo/jobs";
+import { requestRedeploy } from "@repo/sites";
 
 import { type HeroRow, planHero } from "./hero-plan";
 import { log } from "./logger";
@@ -38,11 +38,11 @@ const inferMime = (filename: string): string => {
  */
 export type PublishToAstroDeps = {
   blob: BlobLike;
-  enqueueDeploy: (siteId: string) => Promise<{ skipped: boolean }>;
   fetchImage: (url: string) => Promise<Uint8Array>;
   findHeroImage: (postId: string) => Promise<HeroRow | null>;
   generateHero: typeof defaultGenerateHero;
   r2PublicBaseUrl: string | undefined;
+  requestRedeploy: typeof requestRedeploy;
   upsertPostImage: (input: PostImageUpsert) => Promise<void>;
 };
 
@@ -140,15 +140,15 @@ export const makePublishToAstro =
       });
     }
 
-    await deps.enqueueDeploy(input.post.siteId);
+    await deps.requestRedeploy(input.post.siteId);
   };
 
 export const publishToAstro = makePublishToAstro({
   blob: Blob,
-  enqueueDeploy: enqueueTriggerDeploy,
   fetchImage: defaultFetchImage,
   findHeroImage: defaultFindHeroImage,
   generateHero: defaultGenerateHero,
   r2PublicBaseUrl: process.env.R2_PUBLIC_BASE_URL,
+  requestRedeploy,
   upsertPostImage: defaultUpsertPostImage,
 });

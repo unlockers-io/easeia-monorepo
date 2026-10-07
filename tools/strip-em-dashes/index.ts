@@ -7,6 +7,8 @@ import { enqueue } from "@repo/jobs";
 import { hasEmDash, stripEmDash, type StripKind } from "@repo/posts";
 import { z } from "zod";
 
+import { redeploySites } from "../_shared/redeploy";
+
 import { collectPreviewChanges } from "./preview";
 import { type Change, FIELDS, type Field, printReport } from "./report";
 
@@ -19,7 +21,6 @@ const value = (name: string): string | undefined => {
 
 const APPLY = flag("apply");
 const PREVIEW = flag("preview");
-const DEPLOY = flag("deploy");
 const REEMBED = flag("reembed");
 const RESTORE_FILE = value("restore");
 const BATCH_SIZE = Number(value("batch") ?? 200);
@@ -168,27 +169,6 @@ const restore = async (path: string): Promise<void> => {
   console.log(`restored ${settled.length - failed} posts, ${failed} failed`);
 };
 
-const triggerDeploys = async (siteDomains: Set<string>): Promise<void> => {
-  const sites = await prisma.site.findMany({
-    select: { domain: true, vercelDeployHookUrl: true },
-    where: { domain: { in: [...siteDomains] } },
-  });
-  console.log("\ndeploy hooks");
-  for (const site of sites) {
-    const hook = site.vercelDeployHookUrl;
-    if (hook === null || hook === "") {
-      console.log(`  [SKIP] ${site.domain.padEnd(30)} no deploy hook configured`);
-      continue;
-    }
-    try {
-      const res = await fetch(hook, { method: "POST" });
-      console.log(`  [${res.ok ? "OK" : "FAIL"}] ${site.domain.padEnd(30)} HTTP ${res.status}`);
-    } catch (error) {
-      console.log(`  [FAIL] ${site.domain.padEnd(30)} ${String(error)}`);
-    }
-  }
-};
-
 const enqueueReembeds = async (postIds: Array<string>): Promise<void> => {
   const settled = await Promise.allSettled(
     postIds.map((postId) => enqueue({ kind: JobKind.EMBED, payload: { postId }, postId })),
@@ -216,13 +196,20 @@ const main = async (): Promise<void> => {
   }
 
   const all: Array<Change> = [];
+  const touchedSiteIds = new Set<string>();
   const path = backupPath();
   if (APPLY) {
     writeFileSync(path, "", "utf8");
   }
 
   const scanned = await scanPosts(async (rows) => {
-    const batch = rows.flatMap(changesFor);
+    const batch = rows.flatMap((row) => {
+      const changes = changesFor(row);
+      if (changes.length > 0) {
+        touchedSiteIds.add(row.siteId);
+      }
+      return changes;
+    });
     if (batch.length === 0) {
       return;
     }
@@ -253,12 +240,7 @@ const main = async (): Promise<void> => {
     console.log("Pass --reembed to enqueue an EMBED job per touched body.");
   }
 
-  if (DEPLOY) {
-    await triggerDeploys(new Set(all.map((c) => c.site)));
-  } else {
-    console.log("\nThe 12 Astro blogs build this copy in. Re-run with --deploy, or POST each");
-    console.log("Site.vercelDeployHookUrl by hand, to publish the change.");
-  }
+  await redeploySites(touchedSiteIds);
 };
 
 try {

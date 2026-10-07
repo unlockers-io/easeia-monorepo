@@ -12,7 +12,7 @@ import {
   PostStateError,
   REFILL_PER_TICK_CEILING,
 } from "@repo/posts";
-import { DomainError } from "@repo/sites";
+import * as Sites from "@repo/sites";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
@@ -137,30 +137,10 @@ export const applyNetworkDefaultsAction = async (
     return { bucketSitesUpdated: 0, cadenceSitesUpdated: 0, errors };
   }
 
-  const counts = await prisma.$transaction(async (tx) => {
-    let cadenceSitesUpdated = 0;
-    let bucketSitesUpdated = 0;
-    if (cadenceProvided) {
-      const result = await tx.site.updateMany({
-        data: { autoPublishEnabled: true, cadenceDays: cadence },
-        where:
-          input.scope === "unconfigured"
-            ? { cadenceDays: null, isEnabled: true }
-            : { isEnabled: true },
-      });
-      cadenceSitesUpdated = result.count;
-    }
-    if (bucketBothProvided) {
-      const result = await tx.site.updateMany({
-        data: { bucketRefillAt: refillAt, bucketTarget: target },
-        where:
-          input.scope === "unconfigured"
-            ? { bucketRefillAt: null, bucketTarget: null, isEnabled: true }
-            : { isEnabled: true },
-      });
-      bucketSitesUpdated = result.count;
-    }
-    return { bucketSitesUpdated, cadenceSitesUpdated };
+  const counts = await Sites.applyNetworkDefaults({
+    bucket: bucketBothProvided ? { refillAt, target } : null,
+    cadenceDays: cadence,
+    scope: input.scope,
   });
   await audit({ action: "site.update", meta: counts, target: "network" });
 
@@ -187,7 +167,7 @@ const refillAllNeedyBucketsAction = createRefillAllNeedyBucketsAction({
 type PublishDraftResult = { ok: true } | { error: string; ok: false };
 const publishError = (cause: unknown): PublishDraftResult => ({
   error:
-    cause instanceof DomainError || cause instanceof PostStateError
+    cause instanceof Sites.DomainError || cause instanceof PostStateError
       ? cause.message
       : "Could not queue publishing. Try again.",
   ok: false,
