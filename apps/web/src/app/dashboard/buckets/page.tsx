@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { readIntegrations } from "@/lib/integrations";
@@ -18,8 +19,7 @@ import { BucketsHeaderActions } from "./buckets-header-actions";
 import { BucketsTable, type BucketRow } from "./buckets-table";
 
 const BucketsContent = async () => {
-  // Captured once per request so every relative-time string in the table
-  // formats against a single reference instant.
+  await connection();
   // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
   const buckets = await AutoPublish.readBuckets(new Date(nowMs));

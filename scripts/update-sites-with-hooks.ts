@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { prisma } from "@repo/db";
+import * as Sites from "@repo/sites";
 import { z } from "zod";
 
 type RolloutResult = {
@@ -24,13 +25,10 @@ const main = async () => {
   const results = z.array(rolloutResultSchema).parse(raw);
 
   for (const r of results) {
-    await prisma.site.update({
-      data: {
-        astroRepoUrl: r.astroRepoUrl,
-        vercelDeployHookUrl: r.hook,
-        vercelProjectName: r.project,
-      },
-      where: { id: r.siteId },
+    await Sites.update(r.siteId, {
+      astroRepoUrl: r.astroRepoUrl,
+      vercelDeployHookUrl: r.hook,
+      vercelProjectName: r.project,
     });
     console.log(`  ✓ ${r.domain.padEnd(28)} hook + project + repo set`);
   }

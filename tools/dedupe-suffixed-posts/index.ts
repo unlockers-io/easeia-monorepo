@@ -7,7 +7,7 @@ import "dotenv/config";
 
 import { prisma } from "@repo/db";
 import { closeJobs } from "@repo/jobs";
-import { reviseBody } from "@repo/posts";
+import { reviseBody, unpublish } from "@repo/posts";
 
 import { groupSuffixedPosts, longestBody } from "./group";
 
@@ -55,7 +55,7 @@ const main = async (): Promise<void> => {
         });
       }
       for (const dupe of dupes) {
-        await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: dupe.id } });
+        await unpublish(dupe.id);
       }
     }
   }
