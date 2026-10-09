@@ -1,6 +1,6 @@
-# ADR-0013: Ticks are scheduled Jobs; auto-publish is one module
+# ADR-0010: Ticks are scheduled Jobs; auto-publish is one module
 
-**Status:** accepted (2026-10-09); amends ADR-0002, ADR-0006 and ADR-0011
+**Status:** accepted (2026-10-09); amends ADR-0002, ADR-0006 and ADR-0008
 
 ## Context
 

@@ -4,7 +4,7 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 
 ## Network
 
-**Site**: an Astro site in the network, the principal aggregate. Owned by `@repo/sites`, the only writer of `Site` rows (ADR-0009).
+**Site**: an Astro site in the network, the principal aggregate. Owned by `@repo/sites`, the only writer of `Site` rows (ADR-0007).
 
 **Deployable**: a Site that is enabled and whose deploy hook parses as an http(s) URL. Only deployable Sites publish or redeploy.
 
@@ -16,7 +16,7 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 
 ## Posts
 
-**Post**: an article belonging to one Site. `@repo/posts` is the only writer of Post status (ADR-0011).
+**Post**: an article belonging to one Site. `@repo/posts` is the only writer of Post status (ADR-0008).
 
 **Intake module**: the module that owns a domain's rules and state transitions, such as `@repo/posts` or `@repo/sites`. Channels call it (ADR-0004).
 
@@ -27,6 +27,8 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 **Publish completion**: `Posts.completePublish`: the Post becomes PUBLISHED, then its Site is redeployed, then EMBED, CRAWL_LINKS and body-image Jobs are enqueued.
 
 **May be deployed**: a Post whose `publishedAt` is set and which is not ARCHIVED. Unpublishing or removing it requests a redeploy.
+
+**Body revision**: a change to a stored Post body through `Posts.reviseBody`: a compare-and-set on the body the writer read, then normalization by Site language and the content-changed consequences (ADR-0009). Every body writer goes through it.
 
 **Bucket draft**: a DRAFT Post without `scheduledAt`, waiting to be auto-published.
 
@@ -44,7 +46,7 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 
 **Job**: a durable unit of side-effecting work: a `Job` row plus a BullMQ job. `@repo/jobs` is the only reader and writer of `Job` rows (ADR-0002, ADR-0006).
 
-**Tick**: a recurring Job produced by a BullMQ job scheduler (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`). Runs once per interval regardless of worker replicas (ADR-0013).
+**Tick**: a recurring Job produced by a BullMQ job scheduler (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`). Runs once per interval regardless of worker replicas (ADR-0010).
 
 **Backfill**: a network-wide catch-up run (network, rewrite) whose state is its chain of Jobs; each tick enqueues its successor. One run at a time. Owned by `@repo/backfill`.
 

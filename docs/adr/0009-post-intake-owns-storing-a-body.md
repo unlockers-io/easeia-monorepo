@@ -1,6 +1,6 @@
-# ADR-0012: Post intake owns storing a body
+# ADR-0009: Post intake owns storing a body
 
-**Status:** accepted (2026-10-09); amends ADR-0009 and ADR-0011
+**Status:** accepted (2026-10-09); amends ADR-0007 and ADR-0008
 
 ## Context
 
@@ -38,7 +38,7 @@ recordSeedPost(post); // demo fixtures
 - Em-dash rules by Site language. Every language: numeric ranges, paired dashes, dangling dashes,
   subtitle colons in titles. PT only: the connector, label, enumeration and clause rules, which
   read Portuguese word lists. Elsewhere a single dash becomes a comma.
-- `update` and `reviseBody` set off the consequences ADR-0011 gives `update`: a live post
+- `update` and `reviseBody` set off the consequences ADR-0008 gives `update`: a live post
   redeploys; a new body or title enqueues EMBED and CRAWL_LINKS. The rewrite's body write sets
   them off, so `completeRewrite` is gone.
 - The Link module edits bodies through `reviseBody` and approves Link rows after the body write.
@@ -53,7 +53,7 @@ recordSeedPost(post); // demo fixtures
 - `pnpm normalize:bodies` applies `normalizeBody` to stored rows once; its `--apply` re-embeds,
   re-crawls and redeploys the live posts it changes.
 - `dedupe-suffixed-posts` redeploys a Site when it moves a body onto the base slug, so its
-  redirects ship before `--apply` (amends ADR-0009).
+  redirects ship before `--apply` (amends ADR-0007).
 - `strip-em-dashes` covers titles, excerpts and focus keywords only.
 - A tool cannot restore an old body verbatim: every write normalizes.
 - Obsolete: `completeRewrite`, the `normalizeBody(raw)` signature, the dedupe report
