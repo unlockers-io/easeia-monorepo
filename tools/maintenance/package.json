@@ -12,6 +12,7 @@
     "@repo/blob": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/hero": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",

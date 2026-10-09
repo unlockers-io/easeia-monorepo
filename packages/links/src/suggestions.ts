@@ -50,20 +50,16 @@ export const listSuggestions = ({
   });
 };
 
-const approve = async (
-  fromPostId: string,
-  links: ReadonlyArray<Link>,
-  body: string | undefined,
-): Promise<void> => {
+const approve = async (fromPostId: string, links: ReadonlyArray<Link>): Promise<void> => {
   if (links.length === 0) {
     return;
   }
-  await editPostBody(fromPostId, async (post, tx) => {
-    await tx.link.updateMany({
-      data: { approved: true },
-      where: { id: { in: links.map((link) => link.id) } },
-    });
-    return { body: withSeeAlsoLinks(body ?? post.body, links, post.language), result: null };
+  await editPostBody(fromPostId, (post) =>
+    Promise.resolve({ body: withSeeAlsoLinks(post.body, links, post.language), result: null }),
+  );
+  await prisma.link.updateMany({
+    data: { approved: true },
+    where: { id: { in: links.map((link) => link.id) } },
   });
 };
 
@@ -77,19 +73,18 @@ const requireSuggestion = async (id: string): Promise<Link> => {
 
 export const approveSuggestion = async (id: string): Promise<Link> => {
   const link = await requireSuggestion(id);
-  await approve(link.fromPostId, [link], undefined);
+  await approve(link.fromPostId, [link]);
   return { ...link, approved: true };
 };
 
 export const approveSuggestions = async (
   fromPostId: string,
   ids: ReadonlyArray<string>,
-  body?: string,
 ): Promise<void> => {
   const links = await prisma.link.findMany({
     where: { fromPostId, id: { in: [...ids] }, source: LinkSource.SUGGESTED },
   });
-  await approve(fromPostId, links, body);
+  await approve(fromPostId, links);
 };
 
 const reviseUnappliedSuggestion = async (

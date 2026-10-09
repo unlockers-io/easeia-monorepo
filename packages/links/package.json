@@ -16,11 +16,14 @@
   "dependencies": {
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",
-    "linkedom": "^0.18.13"
+    "linkedom": "^0.18.13",
+    "marked": "^18.1.0"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^26.2.0",
     "typescript": "^7.0.2",

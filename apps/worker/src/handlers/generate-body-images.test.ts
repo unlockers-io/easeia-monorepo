@@ -18,7 +18,6 @@ const post = {
   site: { imageStyle: "Professional audio studio scene.", language: "PT" as const },
   siteId: "s1",
   slug: "guia-de-microfones",
-  status: "PUBLISHED" as const,
   tags: ["audio"],
   title: "Guia de Microfones",
 };
@@ -41,10 +40,8 @@ type Mocks = {
   findPost: Mock;
   generatePostImage: Mock;
   planBodyImages: Mock;
-  readBody: Mock;
-  requestRedeploy: Mock;
+  reviseBody: Mock;
   upsertImage: Mock;
-  writeBody: Mock;
 };
 
 const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boolean } = {}) => {
@@ -56,10 +53,8 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
       return Promise.resolve(image(generated));
     }),
     planBodyImages: vi.fn().mockResolvedValue(plan),
-    readBody: vi.fn().mockResolvedValue(body),
-    requestRedeploy: vi.fn().mockResolvedValue("queued"),
+    reviseBody: vi.fn().mockResolvedValue(undefined),
     upsertImage: vi.fn().mockResolvedValue(undefined),
-    writeBody: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   return {
@@ -69,28 +64,18 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
 };
 
 describe("handleGenerateBodyImages", () => {
-  it("generates every planned image, splices them into the body, and deploys once", async () => {
+  it("generates every planned image and revises the body it planned against", async () => {
     const { deps, handle } = wire();
     await handle(ctx);
 
     expect(deps.generatePostImage).toHaveBeenCalledTimes(2);
     expect(deps.upsertImage).toHaveBeenCalledTimes(2);
-    expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.requestRedeploy).toHaveBeenCalledExactlyOnceWith("s1");
-
-    const written = deps.writeBody.mock.calls[0]?.[0].body;
-    expect(written).toContain("![Um microfone](https://img.easeia.com/1.jpg)");
-    expect(written).toContain("![O estúdio](https://img.easeia.com/2.jpg)");
-  });
-
-  it("splices images into a draft without deploying; publish ships them later", async () => {
-    const { deps, handle } = wire({
-      findPost: vi.fn().mockResolvedValue({ ...post, status: "DRAFT" }),
-    });
-    await handle(ctx);
-
-    expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.requestRedeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).toHaveBeenCalledOnce();
+    const [postId, revision] = deps.reviseBody.mock.calls[0] ?? [];
+    expect(postId).toBe("p1");
+    expect(revision.from).toBe(body);
+    expect(revision.body).toContain("![Um microfone](https://img.easeia.com/1.jpg)");
+    expect(revision.body).toContain("![O estúdio](https://img.easeia.com/2.jpg)");
   });
 
   it("names files per post and index so a retry upserts instead of duplicating", async () => {
@@ -129,8 +114,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.planBodyImages).not.toHaveBeenCalled();
-    expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.requestRedeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).not.toHaveBeenCalled();
   });
 
   it("skips when the planner finds no spots", async () => {
@@ -138,8 +122,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.generatePostImage).not.toHaveBeenCalled();
-    expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.requestRedeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).not.toHaveBeenCalled();
   });
 
   it("skips when BODY_IMAGES_ENABLED is off", async () => {
@@ -154,15 +137,6 @@ describe("handleGenerateBodyImages", () => {
       generatePostImage: vi.fn().mockRejectedValue(new Error("openai 429")),
     });
     await expect(handle(ctx)).rejects.toThrow("openai 429");
-    expect(deps.writeBody).not.toHaveBeenCalled();
-  });
-
-  it("refuses to splice into a body that changed while images were generating", async () => {
-    const { deps, handle } = wire({
-      readBody: vi.fn().mockResolvedValue(`${body}\n\nParágrafo novo.`),
-    });
-    await expect(handle(ctx)).rejects.toThrow("body changed");
-    expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.requestRedeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).not.toHaveBeenCalled();
   });
 });

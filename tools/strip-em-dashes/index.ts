@@ -2,8 +2,7 @@ import "dotenv/config";
 
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 
-import { JobKind, prisma } from "@repo/db";
-import { enqueue } from "@repo/jobs";
+import { prisma, type SiteLanguage } from "@repo/db";
 import { hasEmDash, stripEmDash, type StripKind } from "@repo/posts";
 import { z } from "zod";
 
@@ -21,24 +20,20 @@ const value = (name: string): string | undefined => {
 
 const APPLY = flag("apply");
 const PREVIEW = flag("preview");
-const REEMBED = flag("reembed");
 const RESTORE_FILE = value("restore");
 const BATCH_SIZE = Number(value("batch") ?? 200);
-const PREVIEW_BODIES_PER_SITE = Number(value("preview-limit") ?? 40);
 
 const KIND_OF: Record<Field, StripKind> = {
-  body: "markdown",
   excerpt: "text",
   focusKeyword: "text",
   title: "title",
 };
 
 type Row = {
-  body: string;
   excerpt: string | null;
   focusKeyword: string | null;
   id: string;
-  site: { domain: string };
+  site: { domain: string; language: SiteLanguage };
   siteId: string;
   slug: string;
   status: string;
@@ -46,11 +41,10 @@ type Row = {
 };
 
 const SELECT = {
-  body: true,
   excerpt: true,
   focusKeyword: true,
   id: true,
-  site: { select: { domain: true } },
+  site: { select: { domain: true, language: true } },
   siteId: true,
   slug: true,
   status: true,
@@ -64,7 +58,7 @@ const changesFor = (row: Row): Array<Change> => {
     if (!hasEmDash(current)) {
       continue;
     }
-    const result = stripEmDash(current, KIND_OF[field]);
+    const result = stripEmDash(current, row.site.language, KIND_OF[field]);
     if (!result.changed) {
       continue;
     }
@@ -169,14 +163,6 @@ const restore = async (path: string): Promise<void> => {
   console.log(`restored ${settled.length - failed} posts, ${failed} failed`);
 };
 
-const enqueueReembeds = async (postIds: Array<string>): Promise<void> => {
-  const settled = await Promise.allSettled(
-    postIds.map((postId) => enqueue({ kind: JobKind.EMBED, payload: { postId }, postId })),
-  );
-  const failed = settled.filter((r) => r.status === "rejected").length;
-  console.log(`\nenqueued ${settled.length - failed} EMBED jobs, ${failed} failed`);
-};
-
 const main = async (): Promise<void> => {
   if (RESTORE_FILE !== undefined) {
     await restore(RESTORE_FILE);
@@ -184,14 +170,11 @@ const main = async (): Promise<void> => {
   }
 
   if (PREVIEW) {
-    const { changes, coverage } = await collectPreviewChanges(PREVIEW_BODIES_PER_SITE);
-    printReport(changes, coverage);
+    const { changes, scanned } = await collectPreviewChanges();
+    printReport(changes, scanned);
     console.log("\npreview only: read from the live blogs, no database touched.");
-    console.log("\n!! The live blogs are NOT a representative sample of the database. They render");
-    console.log("!! only PUBLISHED posts, and rendered HTML hides the shapes that dominate the");
-    console.log("!! real rule mix. Measured against production the two disagree by a factor of");
-    console.log("!! 50 on some rules. Use --preview to eyeball the rewrite, never to size it.");
-    console.log("!! Run the dry run against the database for real proportions.");
+    console.log("\n!! The live blogs render only PUBLISHED posts. Use --preview to eyeball the");
+    console.log("!! rewrite, never to size it. Run the dry run against the database for that.");
     return;
   }
 
@@ -221,7 +204,7 @@ const main = async (): Promise<void> => {
     await applyBatch(batch);
   });
 
-  printReport(all, { bodiesRead: scanned, scanned });
+  printReport(all, scanned);
 
   if (!APPLY) {
     console.log("\ndry run: nothing written. Re-run with --apply to write.");
@@ -230,15 +213,6 @@ const main = async (): Promise<void> => {
 
   console.log(`\nwrote ${all.length} field values. Originals: ${path}`);
   console.log(`Undo with: pnpm strip:em-dashes --restore ${path}`);
-
-  if (REEMBED) {
-    await enqueueReembeds([
-      ...new Set(all.flatMap((change) => (change.field === "body" ? [change.postId] : []))),
-    ]);
-  } else {
-    console.log("\nPost.embedding left as-is: punctuation does not move a vector meaningfully.");
-    console.log("Pass --reembed to enqueue an EMBED job per touched body.");
-  }
 
   await redeploySites(touchedSiteIds);
 };

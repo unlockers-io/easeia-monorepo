@@ -1,6 +1,6 @@
 import { STRIP_RULES, type StripRule } from "@repo/posts";
 
-export const FIELDS = ["title", "excerpt", "body", "focusKeyword"] as const;
+export const FIELDS = ["title", "excerpt", "focusKeyword"] as const;
 
 export type Field = (typeof FIELDS)[number];
 
@@ -44,14 +44,7 @@ const excerptAround = (before: string, after: string): { after: string; before: 
 
 const SAMPLES_PER_RULE = 4;
 
-export type Coverage = {
-  /** Posts whose body was actually read. Below `scanned` when bodies are sampled. */
-  bodiesRead: number;
-  scanned: number;
-};
-
-export const printReport = (changes: Array<Change>, coverage: Coverage): void => {
-  const { bodiesRead, scanned } = coverage;
+export const printReport = (changes: Array<Change>, scanned: number): void => {
   const perSite = new Map<string, Partial<Record<Field, number>>>();
   const perField: Partial<Record<Field, number>> = {};
   const perRule: Partial<Record<StripRule, number>> = {};
@@ -79,17 +72,9 @@ export const printReport = (changes: Array<Change>, coverage: Coverage): void =>
     }
   }
 
-  console.log(`\nscanned ${scanned} posts, ${posts.size} affected, ${changes.length} field values`);
-  if (bodiesRead < scanned) {
-    const pct = ((bodiesRead / scanned) * 100).toFixed(0);
-    console.log(
-      `\n!! BODY SAMPLE, NOT A CENSUS: ${bodiesRead} of ${scanned} bodies read (${pct}%).`,
-    );
-    console.log(`!! Body counts below are from that sample. Do not quote them as a fleet total.`);
-    const projected = Math.round(((perField.body ?? 0) / bodiesRead) * scanned);
-    console.log(`!! Titles and excerpts ARE a census. Bodies extrapolate to about ${projected}.`);
-  }
-  console.log("");
+  console.log(
+    `\nscanned ${scanned} posts, ${posts.size} affected, ${changes.length} field values\n`,
+  );
 
   console.log("per site");
   for (const [site, fields] of [...perSite].toSorted((a, b) => a[0].localeCompare(b[0]))) {

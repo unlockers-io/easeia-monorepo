@@ -3,10 +3,10 @@ import "dotenv/config";
 
 import { generateStructured } from "@repo/ai";
 import { prisma } from "@repo/db";
+import { closeJobs } from "@repo/jobs";
 import { approveSuggestions, listSuggestions, suggestForPost } from "@repo/links";
+import { reviseBody } from "@repo/posts";
 import { z } from "zod";
-
-import { redeploySites } from "../_shared/redeploy";
 
 const BATCH_SIZE = 5;
 const LINKS_PER_POST = 4;
@@ -37,12 +37,10 @@ const proseOf = (s: string): string =>
     .replaceAll(/\s+/gu, " ")
     .trim();
 
-const selectPosts = (): Promise<
-  Array<{ body: string; id: string; siteId: string; slug: string }>
-> =>
+const selectPosts = (): Promise<Array<{ body: string; id: string; slug: string }>> =>
   prisma.post.findMany({
     orderBy: { createdAt: "asc" },
-    select: { body: true, id: true, siteId: true, slug: true },
+    select: { body: true, id: true, slug: true },
     skip: OFFSET,
     take: LIMIT,
     where: {
@@ -96,28 +94,22 @@ const buildPrompt = (body: string, anchors: ReadonlyArray<Anchor>): string =>
 
 type Outcome = {
   after?: string;
+  before?: string;
   id: string;
   linkIds?: Array<string>;
   method?: "fallback" | "inline";
   reason?: string;
-  siteId: string;
   slug: string;
   status: "enriched" | "skipped";
 };
 
-const enrichOne = async (post: {
-  body: string;
-  id: string;
-  siteId: string;
-  slug: string;
-}): Promise<Outcome> => {
+const enrichOne = async (post: { body: string; id: string; slug: string }): Promise<Outcome> => {
   await suggestForPost(post.id);
   const anchors = await fetchTopSuggestions(post.id, post.body);
   if (anchors.length === 0) {
     return {
       id: post.id,
       reason: "no fresh suggestions",
-      siteId: post.siteId,
       slug: post.slug,
       status: "skipped",
     };
@@ -133,10 +125,10 @@ const enrichOne = async (post: {
 
   return {
     after: llmClean ? llm : post.body,
+    before: post.body,
     id: post.id,
     linkIds: anchors.map((a) => a.linkId),
     method: llmClean ? "inline" : "fallback",
-    siteId: post.siteId,
     slug: post.slug,
     status: "enriched",
   };
@@ -159,7 +151,6 @@ const main = async (): Promise<number> => {
           return {
             id: p.id,
             reason: String(error),
-            siteId: p.siteId,
             slug: p.slug,
             status: "skipped",
           };
@@ -197,23 +188,27 @@ const main = async (): Promise<number> => {
     return 0;
   }
 
-  const affected = new Set<string>();
   for (const o of enriched) {
-    await approveSuggestions(o.id, o.linkIds ?? [], o.after);
-    affected.add(o.siteId);
+    if (o.before !== undefined && o.after !== undefined && o.after !== o.before) {
+      await reviseBody(o.id, { body: o.after, from: o.before });
+    }
+    await approveSuggestions(o.id, o.linkIds ?? []);
   }
 
   console.log(`\nWrote ${enriched.length} bodies.`);
-  await redeploySites(affected);
   return 0;
+};
+
+const cleanup = async (): Promise<void> => {
+  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
 };
 
 try {
   const code = await main();
-  await prisma.$disconnect();
+  await cleanup();
   process.exit(code);
 } catch (error) {
   console.error(error);
-  await prisma.$disconnect();
+  await cleanup();
   process.exit(1);
 }

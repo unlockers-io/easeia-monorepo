@@ -1,9 +1,8 @@
-import { type PostStatus, prisma, type SiteLanguage } from "@repo/db";
+import { prisma, type SiteLanguage } from "@repo/db";
 import { generatePostImage as realGeneratePostImage, buildBodyImagePrompt } from "@repo/hero";
 import type { ConsumerContext } from "@repo/jobs";
-import { applyBodyImages, type BodyImage } from "@repo/posts";
+import { applyBodyImages, type BodyImage, reviseBody as realReviseBody } from "@repo/posts";
 import { planBodyImages as realPlanBodyImages } from "@repo/rewrite";
-import { requestRedeploy as realRequestRedeploy } from "@repo/sites";
 
 import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
@@ -14,7 +13,6 @@ type PostForBodyImages = {
   site: { imageStyle: string | null; language: SiteLanguage };
   siteId: string;
   slug: string;
-  status: PostStatus;
   tags: ReadonlyArray<string>;
   title: string;
 };
@@ -34,10 +32,8 @@ type Deps = {
   findPost?: (postId: string) => Promise<PostForBodyImages | null>;
   generatePostImage?: typeof realGeneratePostImage;
   planBodyImages?: typeof realPlanBodyImages;
-  readBody?: (postId: string) => Promise<string | null>;
-  requestRedeploy?: typeof realRequestRedeploy;
+  reviseBody?: typeof realReviseBody;
   upsertImage?: (input: UpsertBodyImageInput) => Promise<void>;
-  writeBody?: (input: { body: string; postId: string }) => Promise<void>;
 };
 
 const MARKDOWN_IMAGE = /!\[[^\]]*\]\(/v;
@@ -50,17 +46,11 @@ const defaultFindPost = (postId: string): Promise<PostForBodyImages | null> =>
       site: { select: { imageStyle: true, language: true } },
       siteId: true,
       slug: true,
-      status: true,
       tags: true,
       title: true,
     },
     where: { id: postId },
   });
-
-const defaultReadBody = async (postId: string): Promise<string | null> => {
-  const row = await prisma.post.findUnique({ select: { body: true }, where: { id: postId } });
-  return row?.body ?? null;
-};
 
 const defaultUpsertImage = async (input: UpsertBodyImageInput): Promise<void> => {
   await prisma.postImage.upsert({
@@ -76,10 +66,6 @@ const defaultUpsertImage = async (input: UpsertBodyImageInput): Promise<void> =>
   });
 };
 
-const defaultWriteBody = async (input: { body: string; postId: string }): Promise<void> => {
-  await prisma.post.update({ data: { body: input.body }, where: { id: input.postId } });
-};
-
 export const makeHandleGenerateBodyImages =
   (deps: Deps = {}) =>
   async (ctx: ConsumerContext<"GENERATE_BODY_IMAGES">): Promise<void> => {
@@ -90,9 +76,7 @@ export const makeHandleGenerateBodyImages =
     const planBodyImages = deps.planBodyImages ?? realPlanBodyImages;
     const generatePostImage = deps.generatePostImage ?? realGeneratePostImage;
     const upsertImage = deps.upsertImage ?? defaultUpsertImage;
-    const readBody = deps.readBody ?? defaultReadBody;
-    const writeBody = deps.writeBody ?? defaultWriteBody;
-    const requestRedeploy = deps.requestRedeploy ?? realRequestRedeploy;
+    const reviseBody = deps.reviseBody ?? realReviseBody;
     const log = createJobLogger({ jobId, queue: "generate-body-images" });
     log.set({ postId });
 
@@ -155,21 +139,7 @@ export const makeHandleGenerateBodyImages =
       inserted.push({ alt: planned.alt, line: planned.line, url: image.url });
     }
 
-    // The plan's line numbers only mean anything against the body they were
-    // planned from. Retrying is the right answer to a concurrent edit; splicing
-    // into shifted lines would scatter the images through unrelated prose.
-    const fresh = await readBody(post.id);
-    if (fresh !== post.body) {
-      throw new Error(
-        `Post ${post.id} body changed while its images were generating; retrying against the new body`,
-      );
-    }
-
-    await writeBody({ body: applyBodyImages(post.body, inserted), postId: post.id });
-    // A draft has nothing live to rebuild; the publish-time deploy ships it.
-    if (post.status === "PUBLISHED") {
-      await requestRedeploy(post.siteId);
-    }
+    await reviseBody(post.id, { body: applyBodyImages(post.body, inserted), from: post.body });
     log.set({ insertedImages: inserted.length });
     log.info("generate-body-images: done");
     log.emit();

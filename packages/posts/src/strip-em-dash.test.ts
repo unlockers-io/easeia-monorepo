@@ -7,17 +7,19 @@ const EN = "\u2013";
 const NBSP = "\u00a0";
 
 const out = (input: string, kind?: "markdown" | "text" | "title"): string =>
-  stripEmDash(input, kind).text;
+  stripEmDash(input, "PT", kind).text;
+
+const english = (input: string): string => stripEmDash(input, "EN", "markdown").text;
 
 describe("stripEmDash", () => {
   it("reports a count for every rule, so no rule can go unreported", () => {
-    const { counts } = stripEmDash("nada aqui");
+    const { counts } = stripEmDash("nada aqui", "PT");
     expect(Object.keys(counts).toSorted()).toEqual([...STRIP_RULES].toSorted());
   });
 
   it("leaves copy without the glyph untouched and reports no change", () => {
     const clean = "Producao musical: conheca as cinco etapas e aplique checklists.";
-    const result = stripEmDash(clean, "markdown");
+    const result = stripEmDash(clean, "PT", "markdown");
     expect(result.changed).toBe(false);
     expect(result.text).toBe(clean);
   });
@@ -62,6 +64,7 @@ describe("stripEmDash", () => {
     it("reports the rule that fired", () => {
       const result = stripEmDash(
         `o conjunto ${EM} camera, lente e suporte ${EM} afeta o resultado.`,
+        "PT",
       );
       expect(result.counts["paired-appositive"]).toBe(1);
     });
@@ -152,7 +155,7 @@ describe("stripEmDash", () => {
         `ffmpeg -i in.wav out.wav # traco ${EM} preservado`,
         "```",
       ].join("\n");
-      const result = stripEmDash(md, "markdown");
+      const result = stripEmDash(md, "PT", "markdown");
       expect(result.text).toContain(`# traco ${EM} preservado`);
       expect(result.text).toContain("Rode o comando: ele grava o log.");
       expect(result.text.split("```")).toHaveLength(3);
@@ -187,7 +190,7 @@ describe("stripEmDash", () => {
         ``,
         `A diferenca de sensor ${EM} os numeros mostram o alcance real.`,
       ].join("\n");
-      const result = stripEmDash(md, "markdown");
+      const result = stripEmDash(md, "PT", "markdown");
       expect(result.text).not.toContain(EM);
       expect(result.text).toContain("A diferenca de sensor: os numeros mostram o alcance real.");
     });
@@ -200,7 +203,7 @@ describe("stripEmDash", () => {
         ``,
         `Corpo do texto ${EM} segue aqui.`,
       ].join("\n");
-      const result = stripEmDash(md, "markdown");
+      const result = stripEmDash(md, "PT", "markdown");
       expect(result.text).toContain(`title: Guia ${EM} 2026`);
       expect(result.text).toContain("Corpo do texto: segue aqui.");
     });
@@ -307,7 +310,7 @@ describe("stripEmDash", () => {
     it("does not swallow a second dash when the blocked tail is too long to pair", () => {
       const long =
         "luz, som, camera, tripe, gimbal, lentes, filtros, baterias, cartoes de memoria, refletores, rebatedores e cabos para o dia inteiro de gravacao na locacao alugada";
-      const result = stripEmDash(`Plano: bloco um ${EM} ${long} ${EM} fim.`);
+      const result = stripEmDash(`Plano: bloco um ${EM} ${long} ${EM} fim.`, "PT");
       expect(result.text).toBe(`Plano: bloco um, ${long}, fim.`);
       expect(result.counts["enumeration-parenthetical"]).toBe(0);
     });
@@ -439,6 +442,33 @@ describe("stripEmDash", () => {
     });
   });
 
+  describe("outside Portuguese", () => {
+    it("turns a single dash into a comma where the Portuguese rules would read a clause", () => {
+      expect(english(`The light was harsh ${EM} we moved the shoot indoors.`)).toBe(
+        "The light was harsh, we moved the shoot indoors.",
+      );
+      expect(out(`A luz estava dura ${EM} mudamos a sessao para dentro.`)).toBe(
+        "A luz estava dura: mudamos a sessao para dentro.",
+      );
+    });
+
+    it("does not read a short head as a label", () => {
+      expect(english(`Morning ${EM} and then a light check.`)).toBe(
+        "Morning, and then a light check.",
+      );
+    });
+
+    it("keeps the language-neutral rules", () => {
+      expect(english(`Pack the kit ${EM} camera, lens, tripod ${EM} before noon.`)).toBe(
+        "Pack the kit (camera, lens, tripod) before noon.",
+      );
+      expect(english(`Book 2${EM}3 hours.`)).toBe(`Book 2${EN}3 hours.`);
+      expect(stripEmDash(`Lighting ${EM} A Field Guide`, "ES", "title").text).toBe(
+        "Lighting: A Field Guide",
+      );
+    });
+  });
+
   describe("idempotency", () => {
     it("is a no-op on its own output", () => {
       const md = [
@@ -449,8 +479,8 @@ describe("stripEmDash", () => {
         `codigo ${EM} intacto`,
         "```",
       ].join("\n");
-      const once = stripEmDash(md, "markdown");
-      const twice = stripEmDash(once.text, "markdown");
+      const once = stripEmDash(md, "PT", "markdown");
+      const twice = stripEmDash(once.text, "PT", "markdown");
       expect(twice.changed).toBe(false);
       expect(twice.text).toBe(once.text);
     });
