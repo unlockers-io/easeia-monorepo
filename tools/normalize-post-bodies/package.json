@@ -1,5 +1,5 @@
 {
-  "name": "@tools/fix-markdown-links-in-html",
+  "name": "@tools/normalize-post-bodies",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@repo/db": "workspace:*",
+    "@repo/jobs": "workspace:*",
+    "@repo/posts": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.11"
   },

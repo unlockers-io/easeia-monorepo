@@ -1,6 +1,7 @@
-import { type Prisma, prisma, type SiteLanguage } from "@repo/db";
+import { prisma, type SiteLanguage } from "@repo/db";
+import { reviseBody } from "@repo/posts";
 
-type LockedPost = {
+type EditablePost = {
   body: string;
   domain: string;
   id: string;
@@ -8,26 +9,25 @@ type LockedPost = {
   siteId: string;
 };
 
-type BodyEdit<T> = (
-  post: LockedPost,
-  tx: Prisma.TransactionClient,
-) => Promise<{ body: string; result: T }>;
+type BodyEdit<T> = (post: EditablePost) => Promise<{ body: string; result: T }>;
 
-export const editPostBody = <T>(postId: string, edit: BodyEdit<T>): Promise<T | null> =>
-  prisma.$transaction(async (tx) => {
-    const [post] = await tx.$queryRaw<Array<LockedPost>>`
-      SELECT p.id, p.body, p."siteId", s.domain, s.language
-      FROM "Post" p
-      JOIN "Site" s ON s.id = p."siteId"
-      WHERE p.id = ${postId}
-      FOR UPDATE OF p
-    `;
-    if (post === undefined) {
-      return null;
-    }
-    const { body, result } = await edit(post, tx);
-    if (body !== post.body) {
-      await tx.post.update({ data: { body }, where: { id: postId } });
-    }
-    return result;
+export const editPostBody = async <T>(postId: string, edit: BodyEdit<T>): Promise<T | null> => {
+  const post = await prisma.post.findUnique({
+    select: {
+      body: true,
+      id: true,
+      site: { select: { domain: true, language: true } },
+      siteId: true,
+    },
+    where: { id: postId },
   });
+  if (post === null) {
+    return null;
+  }
+  const { site, ...rest } = post;
+  const { body, result } = await edit({ ...rest, domain: site.domain, language: site.language });
+  if (body !== post.body) {
+    await reviseBody(postId, { body, from: post.body });
+  }
+  return result;
+};

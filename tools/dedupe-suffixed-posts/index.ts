@@ -1,11 +1,13 @@
 /**
  * Dry-run by default; --apply moves the longest body onto the base slug and
- * archives the copies. Ship the /<category>/<slug>/ redirects in the same
- * deploy, or the URLs 404.
+ * archives the copies. Ship the /<category>/<slug>/ redirects before --apply:
+ * moving a body redeploys its Site, and that build drops the archived copies.
  */
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import { closeJobs } from "@repo/jobs";
+import { reviseBody } from "@repo/posts";
 
 import { groupSuffixedPosts, longestBody } from "./group";
 
@@ -45,9 +47,11 @@ const main = async (): Promise<void> => {
 
     if (APPLY) {
       if (source.id !== base.id) {
-        await prisma.post.update({
-          data: { body: source.body, excerpt: source.excerpt, title: source.title },
-          where: { id: base.id },
+        await reviseBody(base.id, {
+          body: source.body,
+          excerpt: source.excerpt,
+          from: base.body,
+          title: source.title,
         });
       }
       for (const dupe of dupes) {
@@ -72,5 +76,8 @@ const main = async (): Promise<void> => {
   console.log(`\nresolved ${groups.length} bases; ship the redirects above to publish them`);
 };
 
-await main();
-await prisma.$disconnect();
+try {
+  await main();
+} finally {
+  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
+}

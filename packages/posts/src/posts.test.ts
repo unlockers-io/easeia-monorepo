@@ -1,6 +1,6 @@
 import { AiNotConfiguredError } from "@repo/ai";
 import type { PostCreateInput } from "@repo/api-types";
-import { JobKind, Niche, type Post, PostStatus, prisma } from "@repo/db";
+import { JobKind, Niche, type Post, PostStatus, prisma, type SiteLanguage } from "@repo/db";
 import { closeJobs, countJobs, listJobs } from "@repo/jobs";
 import { SiteDeployHookMissingError } from "@repo/sites";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
@@ -21,6 +21,11 @@ const latestDeploy = async (siteId: string) => {
   return data[0];
 };
 
+const bodyOf = async (id: string) => {
+  const post = await load(id);
+  return post.body;
+};
+
 const statusOf = async (id: string) => {
   const post = await load(id);
   return post.status;
@@ -33,10 +38,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     const siteIds: Array<string> = [];
     let sequence = 0;
 
-    const createSite = async (vercelDeployHookUrl: string | null = HOOK): Promise<string> => {
+    const createSite = async (
+      vercelDeployHookUrl: string | null = HOOK,
+      language: SiteLanguage = "PT",
+    ): Promise<string> => {
       sequence += 1;
       const site = await prisma.site.create({
-        data: { domain: `s${sequence}.${run}.test`, vercelDeployHookUrl },
+        data: { domain: `s${sequence}.${run}.test`, language, vercelDeployHookUrl },
       });
       siteIds.push(site.id);
       return site.id;
@@ -363,12 +371,95 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
         expect(await postJobs(JobKind.REWRITE_POST, post.id)).toBe(1);
       });
+    });
 
-      it("re-embeds, re-crawls and redeploys once a live post is rewritten", async () => {
+    describe("body", () => {
+      const EM = "\u2014";
+      const paragraph =
+        "Um parágrafo longo o bastante para contar como bloco substancial na análise do corpo.";
+
+      it("stores a normalized body from create, update and revise", async () => {
+        const siteId = await createSite();
+        const created = await createDraft(siteId, { body: "<h2>Título</h2><p>Corpo\u0011.</p>" });
+        const updated = await Posts.update(created.id, {
+          body: "<!-- wp:paragraph -->\n<p>Veja [o guia](https://x.test/guia).</p>\n<!-- /wp:paragraph -->",
+        });
+        const revised = await Posts.reviseBody(created.id, {
+          body: [paragraph, paragraph, paragraph].join("\n\n"),
+          from: updated.body,
+        });
+
+        expect(created.body).toBe("## Título\n\nCorpo.");
+        expect(updated.body).toBe("Veja [o guia](https://x.test/guia).");
+        expect(revised.body).toBe(paragraph);
+        expect(await bodyOf(created.id)).toBe(paragraph);
+      });
+
+      it("applies the Portuguese clause rules to PT bodies only", async () => {
+        const body = `A luz estava dura ${EM} mudamos a sessao para dentro.`;
+        const pt = await createDraft(await createSite(HOOK, "PT"), { body });
+        const en = await createDraft(await createSite(HOOK, "EN"), {
+          body: `The light was harsh ${EM} we moved the shoot indoors.`,
+        });
+
+        expect(pt.body).toBe("A luz estava dura: mudamos a sessao para dentro.");
+        expect(en.body).toBe("The light was harsh, we moved the shoot indoors.");
+      });
+
+      it("writes the rewrite fields with the body", async () => {
+        const siteId = await createSite();
+        const post = await createDraft(siteId);
+        const rewrittenAt = new Date();
+
+        const revised = await Posts.reviseBody(post.id, {
+          body: "Novo corpo.",
+          excerpt: "Novo resumo.",
+          focusKeyword: "novo",
+          from: post.body,
+          rewrittenAt,
+          title: "Novo título",
+        });
+
+        expect(revised).toMatchObject({
+          body: "Novo corpo.",
+          excerpt: "Novo resumo.",
+          focusKeyword: "novo",
+          rewrittenAt,
+          title: "Novo título",
+        });
+      });
+
+      it("keeps one of two concurrent revisions of the same body and refuses the other", async () => {
+        const siteId = await createSite();
+        const post = await createDraft(siteId);
+
+        const results = await Promise.allSettled([
+          Posts.reviseBody(post.id, { body: "Primeira.", from: post.body }),
+          Posts.reviseBody(post.id, { body: "Segunda.", from: post.body }),
+        ]);
+
+        const kept = results.flatMap((r) => (r.status === "fulfilled" ? [r.value.body] : []));
+        expect(kept).toHaveLength(1);
+        expect(results.find((r) => r.status === "rejected")?.reason).toBeInstanceOf(PostStateError);
+        expect(await bodyOf(post.id)).toBe(kept[0]);
+      });
+
+      it("refuses a revision of a body that changed since it was read", async () => {
+        const siteId = await createSite();
+        const post = await createDraft(siteId);
+        await Posts.update(post.id, { body: "Editado no painel." });
+
+        await expect(
+          Posts.reviseBody(post.id, { body: "Revisão antiga.", from: post.body }),
+        ).rejects.toBeInstanceOf(PostStateError);
+        expect(await bodyOf(post.id)).toBe("Editado no painel.");
+      });
+
+      it("re-embeds, re-crawls and redeploys when a live post's body is revised", async () => {
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        await Posts.completeRewrite(post.id);
+        await Posts.reviseBody(post.id, { body: "Corpo revisado.", from: post.body });
 
         expect(await deploys(siteId)).toBe(1);
         expect(await postJobs(JobKind.EMBED, post.id)).toBe(1);

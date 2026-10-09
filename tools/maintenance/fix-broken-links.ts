@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import { reviseBody } from "@repo/posts";
 import * as Sites from "@repo/sites";
 
 import { readBrokenLinks } from "../_shared/broken-links";
@@ -252,17 +253,14 @@ const main = async () => {
     return;
   }
 
-  const affectedSiteIds = new Set<string>();
+  let bodiesWritten = 0;
   const deleteLinkIds = [...staleLinkIds];
   const rewriteUpdates: Array<{ id: string; toPostId: string | null; toUrl: string }> = [];
   const postIds = [...perPost.keys()];
   let processed = 0;
   const applyPost = async (postId: string): Promise<void> => {
     const bucket = perPost.get(postId);
-    const post = await prisma.post.findUnique({
-      select: { body: true, siteId: true },
-      where: { id: postId },
-    });
+    const post = await prisma.post.findUnique({ select: { body: true }, where: { id: postId } });
     if (!bucket || !post) {
       return;
     }
@@ -281,8 +279,8 @@ const main = async () => {
       }
     }
     if (body !== post.body) {
-      await prisma.post.update({ data: { body }, where: { id: postId } });
-      affectedSiteIds.add(post.siteId);
+      await reviseBody(postId, { body, from: post.body });
+      bodiesWritten += 1;
     }
     processed++;
     if (processed % 25 === 0) {
@@ -318,9 +316,9 @@ const main = async () => {
   console.log(`\n=== APPLIED ===`);
   console.log(`Link rows deleted: ${deleteLinkIds.length}`);
   console.log(`Link rows rewritten: ${rewriteUpdates.length}`);
-  console.log(`Sites with body changes (republish): ${affectedSiteIds.size}`);
+  console.log(`Bodies rewritten: ${bodiesWritten}`);
   console.log(`categorySlugMap populated on ${finalCatMap.size} sites`);
-  await redeploySites([...affectedSiteIds, ...finalCatMap.keys()]);
+  await redeploySites(finalCatMap.keys());
 
   await prisma.$disconnect();
 };

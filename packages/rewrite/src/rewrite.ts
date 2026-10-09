@@ -5,8 +5,9 @@ import {
   SEO_TITLE_MAX,
   SEO_TITLE_MIN,
 } from "@repo/health";
-import { approveSuggestions, listSuggestions } from "@repo/links";
+import { approveSuggestions, listSuggestions, withSeeAlsoLinks } from "@repo/links";
 import { findRelevantPages } from "@repo/money-sites";
+import { reviseBody } from "@repo/posts";
 import { z } from "zod";
 
 import { generateWithAnchors } from "./anchored-generation";
@@ -97,17 +98,21 @@ export const rewritePost = async (
     schema: rewriteOutputSchema,
   });
   const { excerpt, focusKeyword, title } = output;
-  const fallbackHtml = missing.map((a) => `<a href="${a.url}">${a.anchor}</a>`).join(" · ");
-  const body =
-    missing.length === 0
-      ? output.body
-      : `${output.body}\n\n<p><strong>Veja também:</strong> ${fallbackHtml}</p>`;
+  const body = withSeeAlsoLinks(
+    output.body,
+    missing.map((a) => ({ anchorText: a.anchor, toUrl: a.url })),
+    post.site.language,
+  );
 
   assertRewriteIsSane({ after: body, before: post.body, postId });
 
-  await prisma.post.update({
-    data: { body, excerpt, focusKeyword, rewrittenAt: new Date(), title },
-    where: { id: postId },
+  await reviseBody(postId, {
+    body,
+    excerpt,
+    focusKeyword,
+    from: post.body,
+    rewrittenAt: new Date(),
+    title,
   });
   await approveSuggestions(
     postId,

@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { JobKind, prisma } from "@repo/db";
 import { recordCompletedJob } from "@repo/jobs";
+import { recordSeedPost } from "@repo/posts";
 import * as Sites from "@repo/sites";
 
 import { seedAdmin } from "./admin";
@@ -113,7 +114,7 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       tags: ["guides", "demo"],
       title: n === 0 ? site.topic : `${site.topic}: part ${n + 1}`,
     };
-    await prisma.post.upsert({ create: { id, ...post }, update: post, where: { id } });
+    await recordSeedPost({ id, ...post });
     if (published) {
       await recordCompletedJob({
         finishedAt: ago(n + 1),

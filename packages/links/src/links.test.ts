@@ -1,4 +1,6 @@
-import { LinkSource, LinkType, PostStatus, prisma, type SiteLanguage } from "@repo/db";
+import { JobKind, LinkSource, LinkType, PostStatus, prisma, type SiteLanguage } from "@repo/db";
+import { closeJobs, countJobs } from "@repo/jobs";
+import * as Posts from "@repo/posts";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -57,6 +59,11 @@ const embed = (vector: string, ids: ReadonlyArray<string>) =>
     ...ids,
   ]);
 
+const setBody = async (id: string, body: string): Promise<void> => {
+  const post = await Posts.get(id);
+  await Posts.reviseBody(id, { body, from: post.body });
+};
+
 const bodyOf = async (id: string): Promise<string> => {
   const post = await prisma.post.findUniqueOrThrow({ select: { body: true }, where: { id } });
   return post.body;
@@ -72,7 +79,10 @@ const pendingIds = async (fromPostId: string): Promise<Array<string>> => {
   return rows.map((r) => r.id);
 };
 
-describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
+const withDatabaseAndRedis =
+  process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true";
+
+describe.runIf(withDatabaseAndRedis)("Link module", () => {
   const siteNames = ["alpha", "beta", "network", "off"];
   let alpha = "";
   let beta = "";
@@ -81,7 +91,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
   let peer = "";
 
   const resetSites = async () => {
-    await prisma.site.deleteMany({ where: { domain: { in: siteNames.map(domain) } } });
+    const sites = { domain: { in: siteNames.map(domain) } };
+    await prisma.job.deleteMany({ where: { post: { site: sites } } });
+    await prisma.site.deleteMany({ where: sites });
     await prisma.moneySite.deleteMany({ where: { domain: domain("money") } });
   };
 
@@ -99,6 +111,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
 
   afterAll(async () => {
     await resetSites();
+    await closeJobs();
     await prisma.$disconnect();
   });
 
@@ -211,14 +224,24 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
     expect(await inboundOf(present)).toBe(1);
   });
 
-  it("applies approved anchors onto a supplied body", async () => {
+  it("approves anchors a revised body already carries without touching it again", async () => {
     const { internal } = await suggestFromSource();
-    const inline = `<p>Read the [sibling post](${internal.toUrl}).</p>`;
+    const inline = `Read the [sibling post](${internal.toUrl}).`;
+    await setBody(source, inline);
 
-    await approveSuggestions(source, [internal.id], inline);
+    await approveSuggestions(source, [internal.id]);
 
     expect(await bodyOf(source)).toBe(inline);
     expect(await inboundOf(sibling)).toBe(1);
+  });
+
+  it("re-embeds and re-crawls a live post whose body an approval changed", async () => {
+    const { internal } = await suggestFromSource();
+
+    await approveSuggestion(internal.id);
+
+    expect(await countJobs({ kinds: [JobKind.EMBED], postId: source })).toBe(1);
+    expect(await countJobs({ kinds: [JobKind.CRAWL_LINKS], postId: source })).toBe(1);
   });
 
   it("refuses to reject or re-anchor a suggestion already in the body", async () => {
@@ -251,18 +274,16 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
   it("crawls body anchors into classified, resolved links", async () => {
     const network = await createSite("network", "PT");
     const target = await createPost(network, "target");
-    await prisma.post.update({
-      data: {
-        body: [
-          `<a href="/sem-categoria/sibling/">same site</a>`,
-          `<a href="https://www.${domain("network")}/c/target/">network</a>`,
-          `<a href="https://elsewhere.tld/x">outside</a>`,
-          `<a href="mailto:a@b.c">mail</a>`,
-          `<a href="#top">top</a>`,
-        ].join(" "),
-      },
-      where: { id: source },
-    });
+    await setBody(
+      source,
+      [
+        `[same site](/sem-categoria/sibling/)`,
+        `<a href="https://www.${domain("network")}/c/target/">network</a>`,
+        `<a href="https://elsewhere.tld/x">outside</a>`,
+        `<a href="mailto:a@b.c">mail</a>`,
+        `<a href="#top">top</a>`,
+      ].join(" "),
+    );
 
     expect(await crawlPost(source)).toEqual({ external: 1, internal: 1, pbn: 1, total: 3 });
     const rows = await prisma.link.findMany({
@@ -283,7 +304,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
     await approveSuggestion(internal.id);
     expect(await inboundOf(sibling)).toBe(1);
 
-    await prisma.post.update({ data: { body: "<p>Rewritten.</p>" }, where: { id: source } });
+    await setBody(source, "<p>Rewritten.</p>");
     await crawlPost(source);
 
     expect(await inboundOf(sibling)).toBe(0);
@@ -295,10 +316,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
   it("replaces an approved suggestion with the crawled anchor that carries it", async () => {
     const { internal } = await suggestFromSource();
     await approveSuggestion(internal.id);
-    await prisma.post.update({
-      data: { body: `<p><a href="${internal.toUrl}">sibling</a></p>` },
-      where: { id: source },
-    });
+    await setBody(source, `<p><a href="${internal.toUrl}">sibling</a></p>`);
 
     await crawlPost(source);
 
@@ -312,17 +330,16 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
 
   it("strips anchors to posts that do not exist, keeping their text", async () => {
     const fake = urlOf("alpha", "fake");
+    await createPost(alpha, "fake-2");
     const fakePrefix = urlOf("alpha", "fake-2");
-    await prisma.post.update({
-      data: {
-        body: [
-          `See [guia](${fake}) and <a href="${fake}" rel="ugc">guide</a>.`,
-          `[kept](${fakePrefix}) <a href="${urlOf("alpha", "sibling")}">real</a>`,
-          `<a href="https://elsewhere.tld/x">outside</a>`,
-        ].join("\n"),
-      },
-      where: { id: source },
-    });
+    await setBody(
+      source,
+      [
+        `See [guia](${fake}) and <a href="${fake}" rel="ugc">guide</a>.`,
+        `[kept](${fakePrefix}) <a href="${urlOf("alpha", "sibling")}">real</a>`,
+        `<a href="https://elsewhere.tld/x">outside</a>`,
+      ].join("\n"),
+    );
 
     expect(await pruneFabricatedLinks(source)).toEqual({ stripped: [fake] });
     expect(await bodyOf(source)).toBe(
@@ -338,15 +355,13 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Link module", () => {
     const money = await prisma.moneySite.create({
       data: { domain: domain("money"), name: "Money", sitemapUrl: "https://x.tld/sitemap.xml" },
     });
-    await prisma.post.update({
-      data: {
-        body: [
-          `<a href="https://www.${domain("money")}/spaces/one/">one</a>`,
-          `<a href="https://${domain("money")}.evil.tld/x">lookalike</a>`,
-        ].join(" "),
-      },
-      where: { id: source },
-    });
+    await setBody(
+      source,
+      [
+        `<a href="https://www.${domain("money")}/spaces/one/">one</a>`,
+        `<a href="https://${domain("money")}.evil.tld/x">lookalike</a>`,
+      ].join(" "),
+    );
     await crawlPost(source);
 
     const { moneyEdges } = await networkLinkEdges();

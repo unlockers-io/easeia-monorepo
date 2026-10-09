@@ -2,7 +2,7 @@ import { LinkSource, LinkStatus, LinkType, prisma } from "@repo/db";
 
 import { editPostBody } from "./body";
 import { classifyLinks, type ClassifiedLink, type ResolvedLink } from "./classify";
-import { extractFromHtml } from "./extract";
+import { extractLinks } from "./extract";
 import { liveLinkWhere } from "./live";
 import { fabricatedHrefs, stripAnchors } from "./prune";
 
@@ -63,7 +63,7 @@ const resolveBodyLinks = async (post: {
   return resolveToPostIds(
     classifyLinks({
       base: `https://${post.domain}`,
-      links: extractFromHtml(post.body),
+      links: extractLinks(post.body),
       network,
       ownSiteDomain: post.domain,
       ownSiteId: post.siteId,

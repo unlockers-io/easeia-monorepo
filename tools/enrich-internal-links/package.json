@@ -11,7 +11,9 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "@repo/links": "workspace:*",
+    "@repo/posts": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.11",
     "zod": "^4.6.5"

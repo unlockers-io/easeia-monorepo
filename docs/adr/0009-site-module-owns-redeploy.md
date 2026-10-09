@@ -1,6 +1,7 @@
 # ADR-0009: Site module owns redeploy
 
-**Status:** accepted (2026-10-07); supersedes ADR-0001
+**Status:** accepted (2026-10-07); supersedes ADR-0001; `dedupe-suffixed-posts` redeploy amended
+by [ADR-0012](./0012-post-intake-owns-storing-a-body.md)
 
 ## Context
 

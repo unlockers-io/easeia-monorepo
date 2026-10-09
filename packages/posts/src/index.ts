@@ -1,28 +1,19 @@
 export { applyBodyImages, type BodyImage } from "./apply-body-images";
 export { normalizeBody } from "./normalize-body";
 export { stripHtml } from "./strip-html";
-export {
-  analyzeBody,
-  dedupeBody,
-  splitBlocks,
-  type BodyAnalysis,
-  type DedupeMethod,
-  type DedupeResult,
-  type DroppedBlock,
-} from "./dedupe-body";
+export { analyzeBody } from "./dedupe-body";
 export {
   hasEmDash,
   STRIP_RULES,
   stripEmDash,
   type StripKind,
-  type StripResult,
   type StripRule,
 } from "./strip-em-dash";
 export { PostNotFoundError, PostStateError, PostValidationError } from "./errors";
 export { detail, get, list, type ListResult } from "./reads";
+export { recordSeedPost } from "./seed";
 export {
   completePublish,
-  completeRewrite,
   create,
   failPublish,
   publish,
@@ -30,6 +21,7 @@ export {
   remove,
   removeBucketDraft,
   requestRewrite,
+  reviseBody,
   startPublish,
   unpublish,
   update,

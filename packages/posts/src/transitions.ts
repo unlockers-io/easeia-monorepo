@@ -5,7 +5,7 @@ import {
   type PostCreateInput,
   type PostUpdateInput,
 } from "@repo/api-types";
-import { JobKind, type Post, PostStatus, prisma, type Site } from "@repo/db";
+import { JobKind, type Post, PostStatus, type Prisma, prisma, type Site } from "@repo/db";
 import { enqueue } from "@repo/jobs";
 import * as Sites from "@repo/sites";
 
@@ -30,6 +30,15 @@ export type PublishResult = {
 export type PublishTarget = {
   post: Post;
   site: Site;
+};
+
+export type BodyRevision = {
+  body: string;
+  excerpt?: string | null;
+  focusKeyword?: string | null;
+  from: string;
+  rewrittenAt?: Date;
+  title?: string;
 };
 
 const REPUBLISHABLE: ReadonlyArray<PostStatus> = [
@@ -102,19 +111,53 @@ const claimPublish = async (
   return sendToPublish(post);
 };
 
+const storedBody = async (siteId: string, body: string | undefined) => {
+  if (body === undefined) {
+    return {};
+  }
+  const { language } = await Sites.load(siteId);
+  return { body: normalizeBody(body, language) };
+};
+
+const write = async (
+  before: Post,
+  { body, ...data }: Prisma.PostUpdateManyMutationInput & { body?: string },
+): Promise<Post> => {
+  const stored = await storedBody(before.siteId, body);
+  const [post] = await prisma.post.updateManyAndReturn({
+    data: { ...data, ...stored },
+    where: body === undefined ? { id: before.id } : { body: before.body, id: before.id },
+  });
+  if (post === undefined) {
+    throw new PostStateError(`Post ${before.id} changed while being written`);
+  }
+  await settleLiveChange(post, post.body !== before.body || post.title !== before.title);
+  return post;
+};
+
 export const create = async (input: PostCreateInput): Promise<CreateResult> => {
   const { publish, ...data } = parseOrThrow(postCreateSchema, input);
-  await (publish ? Sites.requirePublishable(data.siteId) : Sites.requireEnabled(data.siteId));
-  const post = await prisma.post.create({ data: { ...data, body: normalizeBody(data.body) } });
+  const site = await (publish
+    ? Sites.requirePublishable(data.siteId)
+    : Sites.requireEnabled(data.siteId));
+  const post = await prisma.post.create({
+    data: { ...data, body: normalizeBody(data.body, site.language) },
+  });
   return publish ? sendToPublish(post) : { post };
 };
 
-export const update = async (id: string, input: PostUpdateInput): Promise<Post> => {
-  const data = parseOrThrow(postUpdateSchema, input);
+export const update = async (id: string, input: PostUpdateInput): Promise<Post> =>
+  write(await requirePost(id), parseOrThrow(postUpdateSchema, input));
+
+export const reviseBody = async (
+  id: string,
+  { from, ...revision }: BodyRevision,
+): Promise<Post> => {
   const before = await requirePost(id);
-  const post = await prisma.post.update({ data, where: { id } });
-  await settleLiveChange(post, post.body !== before.body || post.title !== before.title);
-  return post;
+  if (before.body !== from) {
+    throw new PostStateError(`Post ${id} body changed since it was read`);
+  }
+  return write(before, revision);
 };
 
 export const publish = (id: string): Promise<PublishResult> => claimPublish(id, REPUBLISHABLE);
@@ -197,11 +240,4 @@ export const failPublish = async (id: string): Promise<void> => {
     data: { status: PostStatus.FAILED },
     where: { id, status: PostStatus.SCHEDULED },
   });
-};
-
-export const completeRewrite = async (id: string): Promise<void> => {
-  const post = await prisma.post.findUnique({ where: { id } });
-  if (post !== null) {
-    await settleLiveChange(post, true);
-  }
 };
