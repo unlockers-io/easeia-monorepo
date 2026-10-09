@@ -173,6 +173,7 @@ export { createRequireEnabled, requireEnabled };
 export { load } from "./load";
 export { create, createSite } from "./create";
 export { deploy, requestRedeploy } from "./redeploy";
+export { requestSnapshots } from "./snapshots";
 export type { FindSite };
 
 export const toPublic = (site: Site) =>

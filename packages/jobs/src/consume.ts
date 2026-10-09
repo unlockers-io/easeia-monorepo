@@ -29,8 +29,18 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       const attemptsMade = bull.attemptsMade;
       const finalAttempt = attemptsMade + 1 >= (bull.opts.attempts ?? 1);
 
-      await prisma.job.update({
-        data: { attempts: { increment: 1 }, startedAt: new Date(), status: JobStatus.RUNNING },
+      const startedAt = new Date();
+      await prisma.job.upsert({
+        create: {
+          attempts: 1,
+          id: jobId,
+          kind: options.kind,
+          payload: bull.data,
+          queueJobId: jobId,
+          startedAt,
+          status: JobStatus.RUNNING,
+        },
+        update: { attempts: { increment: 1 }, startedAt, status: JobStatus.RUNNING },
         where: { id: jobId },
       });
 

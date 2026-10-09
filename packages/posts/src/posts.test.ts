@@ -377,7 +377,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     });
 
     describe("bucket drafts", () => {
-      it("publishes only drafts and stamps the Site's auto-publish time", async () => {
+      it("publishes only drafts", async () => {
         const siteId = await createSite();
         const draft = await createDraft(siteId);
         const live = await createLive(siteId);
@@ -388,17 +388,6 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         expect(await statusOf(draft.id)).toBe(PostStatus.SCHEDULED);
         expect(await postJobs(JobKind.PUBLISH, draft.id)).toBe(1);
         expect(await postJobs(JobKind.PUBLISH, live.id)).toBe(0);
-        const site = await prisma.site.findUniqueOrThrow({ where: { id: siteId } });
-        expect(site.lastAutoPublishedAt).not.toBeNull();
-      });
-
-      it("publishes the oldest unscheduled draft next", async () => {
-        const siteId = await createSite();
-        const oldest = await createDraft(siteId);
-        await createDraft(siteId);
-
-        expect(await Posts.publishNextBucketDraft(siteId)).toEqual({ postId: oldest.id });
-        expect(await statusOf(oldest.id)).toBe(PostStatus.SCHEDULED);
       });
 
       it("removes only drafts", async () => {

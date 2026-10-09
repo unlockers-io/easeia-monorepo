@@ -1,7 +1,7 @@
 # ADR-0002: Durable Job Module owns DB + BullMQ
 
 > Historical context: the WordPress publishing channel has been removed. Its channel-specific details are superseded by the Astro build API.
-> **Status:** accepted (2026-05-05); interface amended by ADR-0006
+> **Status:** accepted (2026-05-05); interface amended by ADR-0006; reaping tick restated by [ADR-0013](./0013-ticks-are-scheduled-jobs.md)
 
 ## Context
 

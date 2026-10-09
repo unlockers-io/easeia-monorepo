@@ -20,6 +20,7 @@
     "@repo/ai": "workspace:*",
     "@repo/api-types": "workspace:*",
     "@repo/auth": "workspace:*",
+    "@repo/auto-publish": "workspace:*",
     "@repo/backfill": "workspace:*",
     "@repo/dataforseo": "workspace:*",
     "@repo/db": "workspace:*",

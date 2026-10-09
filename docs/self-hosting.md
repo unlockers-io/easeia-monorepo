@@ -48,7 +48,7 @@ Embedding storage uses `text-embedding-3-small` with 1536 dimensions. Changing i
 
 `PUBLIC_WEB_URL` and `PUBLIC_API_URL` describe your browser-facing addresses. Compose gives the apps internal Postgres/Redis URLs separately. To change local published ports, set `WEB_PORT` and `API_PORT` and update the corresponding public URLs and `CORS_ORIGINS`.
 
-Keep exactly **one worker replica**. It owns five in-process scheduler timers, so running additional replicas duplicates their scans. Tune `WORKER_CONCURRENCY` to control concurrent queue jobs within that worker.
+The worker registers its periodic ticks as BullMQ job schedulers in Redis, so each tick runs once whatever the replica count. Tune `WORKER_CONCURRENCY` to control concurrent queue jobs within each worker.
 
 ## Monthly AI allowance
 
