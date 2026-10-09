@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { budgetStore } from "./budget-store";
 
 // Only enable against a disposable database; the test owns these month rows.
-describe.runIf(process.env.TEST_AI_BUDGET_DATABASE === "true")("Postgres AI allowance", () => {
+describe.runIf(process.env.TEST_DATABASE === "true")("Postgres AI allowance", () => {
   const month = "test-atomic";
   const nextMonth = "test-next";
 

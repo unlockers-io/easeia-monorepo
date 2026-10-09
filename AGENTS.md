@@ -23,13 +23,15 @@ Guidance for AI coding agents working in this repository. `CLAUDE.md` is a symli
 - **Testing:** Vitest (unit), Playwright (e2e: chromium, firefox, webkit)
 - **Release:** Changesets (`pnpm changeset`, `pnpm release`)
 
+Domain terms are defined in `GLOSSARY.md`; architecture decisions are in `docs/adr/`.
+
 ## Layout
 
 ```
 apps/           # Next.js + Hono runnable apps (web, landing, api, worker)
 packages/       # @repo/* libraries shared across apps
 tools/          # one-shot scripts (seed, backfill, rewrite-eval, etc.) run via `pnpm <script>`
-docs/           # design notes
+docs/           # design notes; docs/adr/ holds architecture decisions
 scripts/        # repo-local shell scripts
 tests/          # cross-app Playwright e2e specs
 ```
@@ -93,6 +95,8 @@ pnpm format:check
 
 # Tests
 pnpm test                  # vitest unit tests (turbo run test)
+# Postgres- and Redis-backed suites: point at a disposable database with the schema pushed
+DATABASE_URL=... REDIS_URL=... TEST_DATABASE=true TEST_REDIS=true pnpm exec turbo run test --concurrency=1
 pnpm test:e2e              # playwright (requires web + api running)
 pnpm test:e2e:ui
 
@@ -193,7 +197,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
 Four workflows are checked in:
 
-- `check.yml`: one job running the gitleaks secret scan, formatting, dead-code analysis, the shadcn component check, lint, typecheck, unit tests, the Postgres-backed AI budget test and `pnpm audit --audit-level=high`.
+- `check.yml`: one job running the gitleaks secret scan, formatting, dead-code analysis, the shadcn component check, lint, typecheck, the test suite against Postgres and Redis service containers (`TEST_DATABASE` and `TEST_REDIS` enable the database-backed suites) and `pnpm audit --audit-level=high`.
 - `e2e.yml`: builds `web`, `api` and `landing`, then runs the Playwright suite in Chromium against Postgres and Redis service containers.
 - `react-doctor.yml`: React Doctor on pull requests only.
 - `release.yml`: runs on pushes to `main`. The Changesets action opens the "chore: version packages" PR or, once that PR merges, publishes `@easeia/astro-content` through npm trusted publishing and confirms the version reached the registry. It dispatches every workflow that declares both `pull_request` and `workflow_dispatch` (`check.yml` and `e2e.yml`) onto the version PR, whose own `pull_request` runs never execute.

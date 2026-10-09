@@ -64,6 +64,7 @@
     "test": {
       "dependsOn": ["^build", "db:generate"],
       "outputs": ["coverage/**"],
+      "passThroughEnv": ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE", "TEST_REDIS"],
       "cache": false
     },
     "test:watch": {

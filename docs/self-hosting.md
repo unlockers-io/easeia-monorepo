@@ -87,7 +87,7 @@ SELECT "month", "usedMicroUsd" / 1000000.0 AS "reservedAndSpentUsd", "halted"
 FROM "AiMonthlyBudget" ORDER BY "month" DESC;
 ```
 
-The Postgres concurrency test uses a disposable database with the schema applied: `DATABASE_URL=... TEST_AI_BUDGET_DATABASE=true pnpm --filter @repo/ai test`. Do not run it against production.
+The Postgres concurrency test uses a disposable database with the schema applied: `DATABASE_URL=... TEST_DATABASE=true pnpm --filter @repo/ai test`. Do not run it against production.
 
 ## HTTPS and reverse proxies
 

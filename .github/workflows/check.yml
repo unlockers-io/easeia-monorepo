@@ -19,12 +19,21 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg18
         env:
-          POSTGRES_PASSWORD: budget_test
-          POSTGRES_DB: ai_budget_test
+          POSTGRES_PASSWORD: easeia_test
+          POSTGRES_DB: easeia_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d ai_budget_test"
+          --health-cmd "pg_isready -U postgres -d easeia_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -80,18 +89,18 @@ jobs:
       - name: Typecheck
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run typecheck -- pnpm typecheck
-      - name: Unit tests
-        if: ${{ !cancelled() }}
-        run: node .github/ci/ci.mjs run test -- pnpm test
-      - name: Verify concurrent AI budget reservations in Postgres
+      # Postgres- and Redis-backed suites share one database, so tasks run serially.
+      - name: Tests
         if: ${{ !cancelled() }}
         env:
-          DATABASE_URL: postgresql://postgres:budget_test@localhost:5432/ai_budget_test
+          DATABASE_URL: postgresql://postgres:easeia_test@localhost:5432/easeia_test
+          REDIS_URL: redis://localhost:6379
           PGAPPNAME: easeia:ci:test
-          TEST_AI_BUDGET_DATABASE: "true"
+          TEST_DATABASE: "true"
+          TEST_REDIS: "true"
         run: |
           pnpm --filter @repo/db db:push
-          node .github/ci/ci.mjs run test -- pnpm --filter @repo/ai exec vitest run src/budget-store.test.ts
+          node .github/ci/ci.mjs run test -- pnpm exec turbo run test --concurrency=1
       - name: Audit dependencies
         if: ${{ !cancelled() && github.event_name != 'pull_request' }}
         run: node .github/ci/ci.mjs run lint -- pnpm audit --audit-level=high
