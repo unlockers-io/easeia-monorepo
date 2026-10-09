@@ -43,6 +43,7 @@ const nextConfig: NextConfig = {
     ]),
   serverExternalPackages: [
     "@prisma/client",
+    "@repo/auto-publish",
     "@repo/backfill",
     "@repo/db",
     "@repo/jobs",

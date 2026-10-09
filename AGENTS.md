@@ -45,30 +45,31 @@ tests/          # cross-app Playwright e2e specs
 
 ### Packages
 
-| Package                                                        | Purpose                                                                                           |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `@repo/ui`                                                     | Shared React components (Tailwind + CVA). TanStack Form fields (`Field`, `FieldGroup`, etc.).     |
-| `@repo/auth`                                                   | Better Auth config. Exports `./server` (web and tools) and `./client` (web).                      |
-| `@repo/db`                                                     | Prisma client singleton + schema.                                                                 |
-| `@repo/blob`                                                   | Cloudflare R2 helpers (S3-compatible): upload, delete, URL resolution.                            |
-| `@repo/sites`                                                  | Site aggregate: sole writer, enabled/publishable gates, public projection, coalesced redeploy.    |
-| `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; BullMQ on `REDIS_URL` behind one interface.    |
-| `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks, status.                             |
-| `@repo/posts`                                                  | Post intake: transitions and what each sets off (redeploy, Jobs), reads, body text. All Channels. |
-| `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.    |
-| `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                             |
-| `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | AI interface (structured text, image, embedding; owns models + budget) and pipelines on it.       |
-| `@repo/dataforseo`                                             | DataForSEO client: Site market per language, request timeout, on-page check meanings.             |
-| `@repo/links`                                                  | Link lifecycle: crawl, suggest, approve-and-apply, prune; the live-link rule and its reads.       |
-| `@repo/money-sites`                                            | Money-site registry (host, niche, deploy hook).                                                   |
-| `@repo/search-console`                                         | Search Console per Site (`forSite(domain)`): connection, property, token refresh, OAuth connect.  |
-| `@repo/transactional`                                          | Resend email templates + sender.                                                                  |
-| `@repo/health`                                                 | On-page SEO scoring and health checks.                                                            |
-| `@easeia/astro-content`                                        | Build-time content adapter: fetches posts from `/api/build/*` and surfaces them as Astro content. |
-| `@repo/config-vitest`                                          | Shared Vitest config. Exports `react.ts` and `node.ts`.                                           |
-| `@repo/typescript-config`                                      | Shared tsconfig bases.                                                                            |
-| `@repo/observability`                                          | `evlog` wrapper: shared log fields plus Next.js, Hono, worker and Better Auth adapters.           |
-| `@repo/portless-env`                                           | `applyPortlessUrls`: fills dev URL env vars from `portless get`.                                  |
+| Package                                                        | Purpose                                                                                             |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `@repo/ui`                                                     | Shared React components (Tailwind + CVA). TanStack Form fields (`Field`, `FieldGroup`, etc.).       |
+| `@repo/auth`                                                   | Better Auth config. Exports `./server` (web and tools) and `./client` (web).                        |
+| `@repo/db`                                                     | Prisma client singleton + schema.                                                                   |
+| `@repo/blob`                                                   | Cloudflare R2 helpers (S3-compatible): upload, delete, URL resolution.                              |
+| `@repo/sites`                                                  | Site aggregate: sole writer, enabled/publishable gates, public projection, redeploy, snapshots.     |
+| `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; BullMQ queues and job schedulers on `REDIS_URL`. |
+| `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks, status.                               |
+| `@repo/posts`                                                  | Post intake: transitions and what each sets off (redeploy, Jobs), reads, body text. All Channels.   |
+| `@repo/auto-publish`                                           | Auto-publish schedule: cadence and bucket config, due rule, bucket refill, draft claim, tick.       |
+| `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.      |
+| `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                               |
+| `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | AI interface (structured text, image, embedding; owns models + budget) and pipelines on it.         |
+| `@repo/dataforseo`                                             | DataForSEO client: Site market per language, request timeout, on-page check meanings.               |
+| `@repo/links`                                                  | Link lifecycle: crawl, suggest, approve-and-apply, prune; the live-link rule and its reads.         |
+| `@repo/money-sites`                                            | Money-site registry (host, niche, deploy hook).                                                     |
+| `@repo/search-console`                                         | Search Console per Site (`forSite(domain)`): connection, property, token refresh, OAuth connect.    |
+| `@repo/transactional`                                          | Resend email templates + sender.                                                                    |
+| `@repo/health`                                                 | On-page SEO scoring and health checks.                                                              |
+| `@easeia/astro-content`                                        | Build-time content adapter: fetches posts from `/api/build/*` and surfaces them as Astro content.   |
+| `@repo/config-vitest`                                          | Shared Vitest config. Exports `react.ts` and `node.ts`.                                             |
+| `@repo/typescript-config`                                      | Shared tsconfig bases.                                                                              |
+| `@repo/observability`                                          | `evlog` wrapper: shared log fields plus Next.js, Hono, worker and Better Auth adapters.             |
+| `@repo/portless-env`                                           | `applyPortlessUrls`: fills dev URL env vars from `portless get`.                                    |
 
 ### Tools (root `tools/`)
 
@@ -170,6 +171,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **API structure:** Hono app, routes under `/api/*` (sites, posts, api-keys), health at `/healthz` and `/readyz`.
 - **Access:** `@repo/policy` owns both Channels' access rules. `authenticate` turns `Authorization: Bearer <key>` into an Actor (sha256 lookup, revoked keys rejected); `can(actor, action, siteId?)` is the only authorization verb, and the api guard passes a route's `:siteId` so Site-bound keys stay on their Site; `createApiKey` returns the plaintext once, `listApiKeys`/`revokeApiKey` serve the api routes and the admin page; `recordAudit` writes AuditLog rows for API actors and for admin actions (session user as actor) through `apps/web/src/lib/access.ts`.
 - **Publish pipeline:** `Posts.publish` (or `create` with `publish`) claims the Post as SCHEDULED and enqueues `Job(kind=PUBLISH)` → the worker's handler calls `Posts.startPublish` (Site gate, fallback category), prunes fabricated links, ensures the hero image in R2 (`@repo/blob`), then `Posts.completePublish` marks it PUBLISHED, calls `Sites.requestRedeploy` and enqueues EMBED, CRAWL_LINKS and GENERATE_BODY_IMAGES. The coalesced `TRIGGER_DEPLOY` Job POSTs the deploy hook through `Sites.deploy`. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`. ADR-0011 lists what every Post transition sets off.
+- **Ticks and auto-publish:** the worker registers its periodic work as BullMQ job schedulers through `Jobs.schedule` (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`); each run is one Job row and runs once whatever the replica count. `AUTO_PUBLISH` calls `AutoPublish.tick`: it claims the oldest bucket draft (DRAFT without `scheduledAt`) of each due Site through `Posts.publishBucketDraft`, stamps `lastAutoPublishedAt` through `Sites.update`, then refills buckets with GENERATE_POST Jobs. Web actions call `@repo/auto-publish` for schedule config and manual refills. ADR-0013.
 - **AI:** `@repo/ai` is the only module that calls OpenAI: `generateStructured` (one retry on a schema failure), `generateImage`, `embedText`, all through the budgeted transport priced from `packages/ai/src/models.ts`. `AiNotConfiguredError` and `AiBudgetExceededError` (both `AiUnavailableError`) end a Job FAILED without retry; when AI is unconfigured, CLASSIFY, EMBED, GENERATE_IMAGE and GENERATE_BODY_IMAGES complete instead (`apps/worker/src/lib/ai-unavailable.ts`). Tests drive the real interface through `createFakeOpenAi` from `@repo/ai/testing`.
 - **Build order:** Turbo `^build` and `build.dependsOn` includes `db:generate` so Prisma client is generated before dependents build.
 

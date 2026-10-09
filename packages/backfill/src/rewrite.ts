@@ -1,5 +1,7 @@
 import { JobKind, PostStatus, type Prisma, prisma } from "@repo/db";
 import { enqueue, type JobPayloads } from "@repo/jobs";
+import * as Posts from "@repo/posts";
+import * as Sites from "@repo/sites";
 
 import { createBackfill } from "./backfill";
 
@@ -25,8 +27,19 @@ export const nextRewritePhase = (
   return counts.postsRewritten >= counts.postsEligible ? "DONE" : "REWRITE_POST";
 };
 
-const eligiblePosts = (force: boolean): Prisma.PostWhereInput =>
-  force ? { status: PostStatus.PUBLISHED } : { rewrittenAt: null, status: PostStatus.PUBLISHED };
+const eligiblePosts = async (force: boolean): Promise<Prisma.PostWhereInput> => {
+  const sites = await Sites.list();
+  const where: Prisma.PostWhereInput = {
+    siteId: {
+      in: sites.flatMap((site) => (site.isEnabled && Sites.hasDeployHook(site) ? [site.id] : [])),
+    },
+    status: PostStatus.PUBLISHED,
+  };
+  if (!force) {
+    where.rewrittenAt = null;
+  }
+  return where;
+};
 
 const readRewriteCounts = async ({
   initialPostsEligible,
@@ -68,21 +81,20 @@ export const rewriteBackfill = createBackfill({
         },
       }));
     }
-    const posts = await prisma.post.findMany({ select: { id: true }, where: eligiblePosts(force) });
+    const posts = await prisma.post.findMany({
+      select: { id: true },
+      where: await eligiblePosts(force),
+    });
     return posts.map((post) => ({
       id: post.id,
       run: async () => {
-        await enqueue({
-          kind: JobKind.REWRITE_POST,
-          payload: { force, postId: post.id },
-          postId: post.id,
-        });
+        await Posts.requestRewrite(post.id, { force });
       },
     }));
   },
   initialPayload: async ({ force }: { force: boolean }) => ({
     force,
-    initialPostsEligible: await prisma.post.count({ where: eligiblePosts(force) }),
+    initialPostsEligible: await prisma.post.count({ where: await eligiblePosts(force) }),
     phase: "CRAWL_MONEY_SITE",
     startedAt: new Date().toISOString(),
   }),

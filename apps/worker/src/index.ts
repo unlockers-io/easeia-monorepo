@@ -3,10 +3,19 @@ import "dotenv/config";
 
 import { networkBackfill, rewriteBackfill } from "@repo/backfill";
 import { prisma } from "@repo/db";
-import { consume, type ConsumerContext, JobKind, reapStuckJobs } from "@repo/jobs";
+import {
+  consume,
+  type ConsumerContext,
+  JobKind,
+  reapStuckJobs,
+  schedule,
+  unschedule,
+} from "@repo/jobs";
 import { initWorkerLogger } from "@repo/observability/worker";
+import * as Sites from "@repo/sites";
 import type { Worker } from "bullmq";
 
+import { handleAutoPublish } from "./handlers/auto-publish";
 import { handleBackfillGscLinks } from "./handlers/backfill-gsc-links";
 import { handleClassify } from "./handlers/classify";
 import { handleCrawlGscLinks } from "./handlers/crawl-gsc-links";
@@ -26,13 +35,14 @@ import { isRetryable, skipOptionalAiWhenUnconfigured } from "./lib/ai-unavailabl
 import { env } from "./lib/env";
 import { backfillHeroes } from "./lib/hero-backfill-fanout";
 import { log } from "./lib/logger";
-import { publishDueFromBuckets, refillLowBuckets } from "./lib/scheduler-fanout";
 import { auditSlugDrift } from "./lib/slug-drift-audit";
-import { enqueueSnapshots } from "./lib/snapshot-fanout";
 
 initWorkerLogger({ service: "worker" });
 
 const SERIAL = 1;
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const STUCK_AFTER_MS = 2 * HOUR_MS;
 
 const startConsumer = <K extends JobKind>(
   kind: K,
@@ -48,9 +58,38 @@ const startConsumer = <K extends JobKind>(
 
 type ConsumersContract = Record<JobKind, () => Worker>;
 
+const reapStuck = async (): Promise<void> => {
+  const { reaped } = await reapStuckJobs(STUCK_AFTER_MS);
+  if (reaped > 0) {
+    log.warn({ message: "reaped stuck jobs", reaped });
+  }
+};
+
+const requestSnapshots = async (): Promise<void> => {
+  const { queued } = await Sites.requestSnapshots();
+  log.info({ message: "snapshots requested", queued });
+};
+
 const CONSUMERS = {
+  [JobKind.AUDIT_SLUG_DRIFT]: () =>
+    startConsumer(
+      JobKind.AUDIT_SLUG_DRIFT,
+      async () => {
+        await auditSlugDrift();
+      },
+      SERIAL,
+    ),
+  [JobKind.AUTO_PUBLISH]: () => startConsumer(JobKind.AUTO_PUBLISH, handleAutoPublish, SERIAL),
   [JobKind.BACKFILL_GSC_LINKS]: () =>
     startConsumer(JobKind.BACKFILL_GSC_LINKS, handleBackfillGscLinks, SERIAL),
+  [JobKind.BACKFILL_HEROES]: () =>
+    startConsumer(
+      JobKind.BACKFILL_HEROES,
+      async () => {
+        await backfillHeroes();
+      },
+      SERIAL,
+    ),
   [JobKind.BACKFILL_NETWORK]: () =>
     startConsumer(JobKind.BACKFILL_NETWORK, networkBackfill.tick, SERIAL),
   [JobKind.BACKFILL_REWRITE]: () =>
@@ -68,6 +107,9 @@ const CONSUMERS = {
   [JobKind.GENERATE_IMAGE]: () => startConsumer(JobKind.GENERATE_IMAGE, handleGenerateImage),
   [JobKind.GENERATE_POST]: () => startConsumer(JobKind.GENERATE_POST, handleGeneratePost, SERIAL),
   [JobKind.PUBLISH]: () => startConsumer(JobKind.PUBLISH, handlePublish),
+  [JobKind.REAP_STUCK_JOBS]: () => startConsumer(JobKind.REAP_STUCK_JOBS, reapStuck, SERIAL),
+  [JobKind.REQUEST_SNAPSHOTS]: () =>
+    startConsumer(JobKind.REQUEST_SNAPSHOTS, requestSnapshots, SERIAL),
   [JobKind.REWRITE_POST]: () => startConsumer(JobKind.REWRITE_POST, handleRewritePost),
   [JobKind.SNAPSHOT_SITE]: () => startConsumer(JobKind.SNAPSHOT_SITE, handleSnapshotSite),
   [JobKind.SUGGEST_LINKS]: () => startConsumer(JobKind.SUGGEST_LINKS, handleSuggestLinks),
@@ -97,124 +139,22 @@ for (const w of workers) {
 
 log.info({ env: env.NODE_ENV, message: "🚀 Worker started", queues: workers.map((w) => w.name) });
 
-const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
+const TICKS = [
+  { enabled: true, everyMs: 10 * MINUTE_MS, kind: JobKind.REAP_STUCK_JOBS },
+  { enabled: true, everyMs: 6 * HOUR_MS, kind: JobKind.REQUEST_SNAPSHOTS },
+  { enabled: true, everyMs: HOUR_MS, kind: JobKind.AUTO_PUBLISH },
+  { enabled: env.HERO_AUTOGEN_ENABLED, everyMs: HOUR_MS, kind: JobKind.BACKFILL_HEROES },
+  { enabled: true, everyMs: 24 * HOUR_MS, kind: JobKind.AUDIT_SLUG_DRIFT },
+] as const;
 
-type ScheduledStep = {
-  onError: string;
-  run: () => Promise<void>;
-};
-
-type ScheduledTask = {
-  intervalMs: number;
-  isEnabled?: () => boolean;
-  runOnBoot: boolean;
-  steps: ReadonlyArray<ScheduledStep>;
-};
-
-const SCHEDULED_TASKS: ReadonlyArray<ScheduledTask> = [
-  {
-    intervalMs: 10 * MINUTE_MS,
-    runOnBoot: false,
-    steps: [
-      {
-        onError: "reconcile failed",
-        run: async () => {
-          const res = await reapStuckJobs(2 * HOUR_MS);
-          if (res.reaped > 0) {
-            log.warn({ message: "reaped stuck jobs", reaped: res.reaped });
-          }
-        },
-      },
-    ],
-  },
-  {
-    intervalMs: 6 * HOUR_MS,
-    runOnBoot: true,
-    steps: [
-      {
-        onError: "snapshot-fanout: failed",
-        run: async () => {
-          await enqueueSnapshots();
-        },
-      },
-    ],
-  },
-  {
-    intervalMs: HOUR_MS,
-    runOnBoot: true,
-    steps: [
-      {
-        onError: "scheduler: publish-from-bucket failed",
-        run: async () => {
-          await publishDueFromBuckets();
-        },
-      },
-      {
-        onError: "scheduler: refill failed",
-        run: async () => {
-          await refillLowBuckets();
-        },
-      },
-    ],
-  },
-  {
-    intervalMs: HOUR_MS,
-    isEnabled: () => env.HERO_AUTOGEN_ENABLED,
-    runOnBoot: true,
-    steps: [
-      {
-        onError: "hero-backfill: failed",
-        run: async () => {
-          await backfillHeroes();
-        },
-      },
-    ],
-  },
-  {
-    intervalMs: 24 * HOUR_MS,
-    runOnBoot: true,
-    steps: [
-      {
-        onError: "slug-drift: audit failed",
-        run: async () => {
-          await auditSlugDrift();
-        },
-      },
-    ],
-  },
-];
-
-const runTask = (task: ScheduledTask): void => {
-  if (task.isEnabled !== undefined && !task.isEnabled()) {
-    return;
-  }
-  void (async () => {
-    for (const step of task.steps) {
-      try {
-        await step.run();
-      } catch (error) {
-        log.error({ err: error, message: step.onError });
-      }
-    }
-  })();
-};
-
-const timers = SCHEDULED_TASKS.map((task) => {
-  const timer = setInterval(() => {
-    runTask(task);
-  }, task.intervalMs);
-  if (task.runOnBoot) {
-    runTask(task);
-  }
-  return timer;
-});
+await Promise.all(
+  TICKS.map(({ enabled, everyMs, kind }) =>
+    enabled ? schedule({ everyMs, kind, payload: {} }) : unschedule(kind),
+  ),
+);
 
 const shutdown = async (signal: string) => {
   log.info({ message: "shutting down workers", signal });
-  for (const timer of timers) {
-    clearInterval(timer);
-  }
   await Promise.allSettled(workers.map((w) => w.close()));
   await prisma.$disconnect();
   process.exit(0);

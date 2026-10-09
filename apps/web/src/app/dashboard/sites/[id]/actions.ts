@@ -1,9 +1,10 @@
 "use server";
 
 import { siteUpdatePatchSchema } from "@repo/api-types";
+import * as AutoPublish from "@repo/auto-publish";
+import { AutoPublishConfigError } from "@repo/auto-publish";
 import { ExternalBacklinkSource, JobKind, prisma, type SiteLanguage } from "@repo/db";
 import { enqueue } from "@repo/jobs";
-import { bucketConfigErrors } from "@repo/posts";
 import { isConnected } from "@repo/search-console";
 import * as Sites from "@repo/sites";
 import { parseExternalBacklinksCsv } from "@repo/sites";
@@ -79,6 +80,11 @@ export const uploadExternalBacklinksAction = async (
   return { imported: rows.length, skipped };
 };
 
+const clean = (value: string | null): string | null => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed === "" ? null : trimmed;
+};
+
 export type UpdateAutoPublishInput = {
   autoPublishEnabled: boolean;
   bucketRefillAt: number | null;
@@ -90,14 +96,6 @@ export type UpdateAutoPublishInput = {
 
 export type UpdateAutoPublishResult = {
   errors: Array<string>;
-  warnings: Array<string>;
-};
-
-const sanitizeInt = (raw: number | null, max: number): number | null => {
-  if (raw === null || Number.isNaN(raw)) {
-    return null;
-  }
-  return Math.max(1, Math.min(max, Math.floor(raw)));
 };
 
 export const updateAutoPublishAction = async (
@@ -105,53 +103,23 @@ export const updateAutoPublishAction = async (
   input: UpdateAutoPublishInput,
 ): Promise<UpdateAutoPublishResult> => {
   await requireSession();
-
-  const errors: Array<string> = [];
-  const warnings: Array<string> = [];
-
-  const cadence = sanitizeInt(input.cadenceDays, 365);
-  const target = sanitizeInt(input.bucketTarget, 100);
-  const rawRefill = sanitizeInt(input.bucketRefillAt, 100);
-
-  if (input.autoPublishEnabled && cadence === null) {
-    errors.push("Cadence is required when auto-publish is enabled.");
+  try {
+    await AutoPublish.configure(siteId, {
+      autoPublishEnabled: input.autoPublishEnabled,
+      bucket: { refillAt: input.bucketRefillAt, target: input.bucketTarget },
+      cadenceDays: input.cadenceDays,
+    });
+  } catch (error) {
+    if (error instanceof AutoPublishConfigError) {
+      return { errors: error.messages };
+    }
+    throw error;
   }
-
-  if ((target === null) !== (rawRefill === null)) {
-    errors.push("Set both bucket target and refill threshold, or leave both blank.");
-  }
-
-  if (target !== null && rawRefill !== null) {
-    errors.push(...bucketConfigErrors({ refillAt: rawRefill, target }));
-  }
-
-  if (errors.length > 0) {
-    return { errors, warnings };
-  }
-
-  const bucketTarget = target;
-  const bucketRefillAt = rawRefill;
-  const hints =
-    input.topicHints !== null && input.topicHints.trim().length > 0
-      ? input.topicHints.trim()
-      : null;
-
-  if (input.autoPublishEnabled && cadence === null) {
-    warnings.push("Auto-publish disabled because cadence is missing.");
-  }
-
-  await Sites.update(siteId, {
-    autoPublishEnabled: input.autoPublishEnabled && cadence !== null,
-    bucketRefillAt,
-    bucketTarget,
-    cadenceDays: cadence,
-    language: input.language,
-    topicHints: hints,
-  });
+  await Sites.update(siteId, { language: input.language, topicHints: clean(input.topicHints) });
   await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
   revalidatePath("/dashboard/buckets");
-  return { errors, warnings };
+  return { errors: [] };
 };
 
 export type UpdateSiteAuthorInput = {
@@ -159,11 +127,6 @@ export type UpdateSiteAuthorInput = {
   name: string | null;
   photoUrl: string | null;
   url: string | null;
-};
-
-const clean = (value: string | null): string | null => {
-  const trimmed = value?.trim() ?? "";
-  return trimmed === "" ? null : trimmed;
 };
 
 export const updateSiteAuthorAction = async (
@@ -186,14 +149,7 @@ export const updateSiteCadenceAction = async (
   cadenceDays: number | null,
 ): Promise<void> => {
   await requireSession();
-  const cadence =
-    cadenceDays === null || Number.isNaN(cadenceDays)
-      ? null
-      : Math.max(1, Math.min(365, Math.floor(cadenceDays)));
-  await Sites.update(siteId, {
-    autoPublishEnabled: cadence !== null,
-    cadenceDays: cadence,
-  });
+  await AutoPublish.configure(siteId, { autoPublishEnabled: cadenceDays !== null, cadenceDays });
   await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath("/dashboard/sites");
   revalidatePath(`/dashboard/sites/${siteId}`);

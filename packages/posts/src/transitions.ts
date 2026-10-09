@@ -119,26 +119,7 @@ export const update = async (id: string, input: PostUpdateInput): Promise<Post> 
 
 export const publish = (id: string): Promise<PublishResult> => claimPublish(id, REPUBLISHABLE);
 
-export const publishBucketDraft = async (id: string): Promise<PublishResult> => {
-  const result = await claimPublish(id, BUCKET);
-  await Sites.update(result.post.siteId, { lastAutoPublishedAt: new Date() });
-  return result;
-};
-
-export const publishNextBucketDraft = async (
-  siteId: string,
-): Promise<{ postId: string } | null> => {
-  const draft = await prisma.post.findFirst({
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-    where: { scheduledAt: null, siteId, status: PostStatus.DRAFT },
-  });
-  if (!draft) {
-    return null;
-  }
-  await publishBucketDraft(draft.id);
-  return { postId: draft.id };
-};
+export const publishBucketDraft = (id: string): Promise<PublishResult> => claimPublish(id, BUCKET);
 
 export const removeBucketDraft = async (id: string): Promise<void> => {
   requireState(await requirePost(id), BUCKET, "remove from the bucket");

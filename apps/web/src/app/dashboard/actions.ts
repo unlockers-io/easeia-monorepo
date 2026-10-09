@@ -1,8 +1,6 @@
 "use server";
 
 import { siteCreateSchema, postCreateFromFormData, siteUpdateFromFormData } from "@repo/api-types";
-import { JobKind, prisma } from "@repo/db";
-import { enqueue } from "@repo/jobs";
 import * as Posts from "@repo/posts";
 import * as Sites from "@repo/sites";
 import { revalidatePath, updateTag } from "next/cache";
@@ -78,28 +76,8 @@ export const deletePostAction = async (formData: FormData) => {
 
 export const refreshSnapshotsAction = async () => {
   await requireSession();
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
-  const sites = await prisma.site.findMany({
-    select: { id: true },
-    where: {
-      isEnabled: true,
-      snapshots: { none: { date: today } },
-    },
-  });
-
-  await Promise.allSettled(
-    sites.map((site) =>
-      enqueue({
-        kind: JobKind.SNAPSHOT_SITE,
-        payload: { siteId: site.id },
-        siteId: site.id,
-      }),
-    ),
-  );
+  await Sites.requestSnapshots();
   await audit({ action: "snapshot.refresh", target: "network" });
-
   revalidatePath("/dashboard");
 };
 

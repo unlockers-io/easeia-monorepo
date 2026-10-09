@@ -9,8 +9,13 @@ type BackfillGscLinksPayload = {
 
 type JobPayloadMap<T extends Record<JobKind, Prisma.InputJsonObject>> = T;
 
+type TickPayload = Record<string, never>;
+
 type JobPayloads = JobPayloadMap<{
+  AUDIT_SLUG_DRIFT: TickPayload;
+  AUTO_PUBLISH: TickPayload;
   BACKFILL_GSC_LINKS: BackfillGscLinksPayload;
+  BACKFILL_HEROES: TickPayload;
   BACKFILL_NETWORK: {
     initialFanoutDone?: boolean;
     phase: "CLASSIFY_EMBED" | "SUGGEST_LINKS";
@@ -33,6 +38,8 @@ type JobPayloads = JobPayloadMap<{
   GENERATE_IMAGE: { postId: string };
   GENERATE_POST: { siteId: string };
   PUBLISH: { postId: string };
+  REAP_STUCK_JOBS: TickPayload;
+  REQUEST_SNAPSHOTS: TickPayload;
   REWRITE_POST: { force?: boolean; postId: string };
   SNAPSHOT_SITE: { siteId: string };
   SUGGEST_LINKS: { postId: string };
@@ -40,12 +47,12 @@ type JobPayloads = JobPayloadMap<{
 }>;
 
 /**
- * Read-side boundary for Job.payload. `enqueue` is the only writer and
- * its input is typed per kind, so the stored JSON matches JobPayloads[K];
- * this is the single place that assertion lives.
+ * Read-side boundary for Job.payload. `enqueue` and `consume` are the only
+ * writers and both type their input per kind, so the stored JSON matches
+ * JobPayloads[K]; this is the single place that assertion lives.
  */
 const getJobPayload = <K extends JobKind>(_kind: K, payload: Prisma.JsonValue): JobPayloads[K] =>
-  // SAFETY: enqueue is the only writer and statically binds each payload to its JobKind.
+  // SAFETY: enqueue and consume are the only writers and statically bind each payload to its JobKind.
   // oxlint-disable-next-line no-unsafe-type-assertion -- Prisma types the stored JSON as JsonValue
   payload as JobPayloads[K];
 

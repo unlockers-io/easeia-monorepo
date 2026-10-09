@@ -6,6 +6,8 @@ export {
   enqueueUnlessInFlight,
   enqueueUnlessQueued,
   recordCompletedJob,
+  schedule,
+  unschedule,
 } from "./queue";
 
 export { consume } from "./consume";

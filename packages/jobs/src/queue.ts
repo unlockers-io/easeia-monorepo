@@ -23,7 +23,10 @@ export const redisConnection = (): Redis => {
 type QueueNamesContract = Record<JobKind, string>;
 
 export const QUEUE_NAMES = {
+  [JobKind.AUDIT_SLUG_DRIFT]: "easeia-audit-slug-drift",
+  [JobKind.AUTO_PUBLISH]: "easeia-auto-publish",
   [JobKind.BACKFILL_GSC_LINKS]: "easeia-backfill-gsc-links",
+  [JobKind.BACKFILL_HEROES]: "easeia-backfill-heroes",
   [JobKind.BACKFILL_NETWORK]: "easeia-backfill-network",
   [JobKind.BACKFILL_REWRITE]: "easeia-backfill-rewrite",
   [JobKind.CLASSIFY]: "easeia-classify",
@@ -36,6 +39,8 @@ export const QUEUE_NAMES = {
   [JobKind.GENERATE_IMAGE]: "easeia-generate-image",
   [JobKind.GENERATE_POST]: "easeia-generate-post",
   [JobKind.PUBLISH]: "easeia-publish",
+  [JobKind.REAP_STUCK_JOBS]: "easeia-reap-stuck-jobs",
+  [JobKind.REQUEST_SNAPSHOTS]: "easeia-request-snapshots",
   [JobKind.REWRITE_POST]: "easeia-rewrite-post",
   [JobKind.SNAPSHOT_SITE]: "easeia-snapshot-site",
   [JobKind.SUGGEST_LINKS]: "easeia-suggest-links",
@@ -147,6 +152,28 @@ const enqueueUnless =
 export const enqueueUnlessInFlight = enqueueUnless(inFlight);
 
 export const enqueueUnlessQueued = enqueueUnless({ status: JobStatus.QUEUED });
+
+type ScheduleInput<K extends JobKind> = {
+  everyMs: number;
+  kind: K;
+  payload: JobPayloads[K];
+};
+
+export const schedule = async <K extends JobKind>({
+  everyMs,
+  kind,
+  payload,
+}: ScheduleInput<K>): Promise<void> => {
+  await queueFor(kind).upsertJobScheduler(
+    kind,
+    { every: everyMs },
+    { data: payload, name: kind.toLowerCase() },
+  );
+};
+
+export const unschedule = async (kind: JobKind): Promise<void> => {
+  await queueFor(kind).removeJobScheduler(kind);
+};
 
 type CompletedJob<K extends JobKind> = Omit<EnqueueInput<K>, "delayMs"> & {
   finishedAt: Date;
