@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useId, useRef, useState, useTransition } from "react";
 
 import { startGscBacklinkBackfillAction, uploadExternalBacklinksAction } from "./actions";
@@ -26,6 +28,7 @@ export const ExternalBacklinksUpload = ({
   const [apiFeedback, setApiFeedback] = useState<ApiFeedback>({ kind: "idle" });
   const [isCsvPending, startCsvTransition] = useTransition();
   const [isApiPending, startApiTransition] = useTransition();
+  const ready = useClientReady();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setCsvFeedback({ kind: "idle" });
@@ -77,7 +80,7 @@ export const ExternalBacklinksUpload = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <form className="flex flex-col gap-2" onSubmit={handleCsvSubmit}>
+      <ClientReadyForm className="flex flex-col gap-2" onSubmit={handleCsvSubmit}>
         <label className="text-xs font-medium text-muted-foreground" htmlFor={inputId}>
           Import GSC backlinks (CSV)
         </label>
@@ -114,7 +117,7 @@ export const ExternalBacklinksUpload = ({
             {csvFeedback.message}
           </p>
         )}
-      </form>
+      </ClientReadyForm>
 
       <div className="flex flex-col gap-2 border-t pt-4">
         <p className="text-xs font-medium text-muted-foreground">
@@ -122,7 +125,7 @@ export const ExternalBacklinksUpload = ({
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button
-            disabled={!hasGoogleConnection || isApiPending}
+            disabled={!ready || !hasGoogleConnection || isApiPending}
             onClick={handleApiStart}
             size="sm"
             type="button"

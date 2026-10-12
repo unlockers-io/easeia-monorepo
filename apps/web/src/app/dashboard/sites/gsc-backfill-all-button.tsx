@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Loader2, Sparkles } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -15,6 +16,7 @@ type State =
 export const GscBackfillAllButton = () => {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
+  const ready = useClientReady();
 
   const handleClick = () => {
     setState({ kind: "running" });
@@ -31,7 +33,7 @@ export const GscBackfillAllButton = () => {
   return (
     <div className="flex flex-col items-end gap-1">
       <Button
-        disabled={pending || state.kind === "done"}
+        disabled={!ready || pending || state.kind === "done"}
         onClick={handleClick}
         size="sm"
         type="button"

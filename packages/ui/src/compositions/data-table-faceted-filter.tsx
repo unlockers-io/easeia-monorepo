@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/dropdown-menu";
 import { Separator } from "../components/separator";
+import { useClientReady } from "../hooks/use-client-ready";
 
 type FacetedFilterOption = {
   label: string;
@@ -36,11 +37,12 @@ const DataTableFacetedFilter = ({
   title,
   value,
 }: DataTableFacetedFilterProps) => {
+  const ready = useClientReady();
   const selected = new Set(value);
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button size="default" variant="outline" />}>
+      <DropdownMenuTrigger disabled={!ready} render={<Button size="default" variant="outline" />}>
         <PlusCircleIcon className="size-4" />
         {title}
         {selected.size > 0 && (

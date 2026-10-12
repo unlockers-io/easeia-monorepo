@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { authClient } from "@/lib/auth-client";
 const SignOutButton = () => {
   const { push } = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const ready = useClientReady();
   const [error, setError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
@@ -27,7 +29,7 @@ const SignOutButton = () => {
   return (
     <div className="flex flex-col items-end gap-1">
       <Button
-        disabled={isLoading}
+        disabled={!ready || isLoading}
         onClick={() => {
           void handleSignOut();
         }}

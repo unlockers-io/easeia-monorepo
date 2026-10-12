@@ -3,6 +3,7 @@
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
@@ -53,7 +54,7 @@ const WaitlistForm = () => {
     );
   }
   return (
-    <form
+    <ClientReadyForm
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
@@ -121,7 +122,7 @@ const WaitlistForm = () => {
           </Link>
         </p>
       </FieldGroup>
-    </form>
+    </ClientReadyForm>
   );
 };
 export { WaitlistForm };

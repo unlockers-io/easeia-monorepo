@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@repo/ui/components/dialog";
 import { Skeleton } from "@repo/ui/components/skeleton";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { AlertTriangle, Check, Copy, Loader2, Sparkles, Wand2, XCircle } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
@@ -31,6 +32,7 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
   const [active, setActive] = useState<string | null>(null);
   const [bulk, setBulk] = useState<BulkState>({ kind: "idle" });
   const [bulkPending, startBulkTransition] = useTransition();
+  const clientReady = useClientReady();
 
   const handleClose = () => {
     setActive(null);
@@ -79,7 +81,7 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
         </p>
         {failing.length > 0 ? (
           <Button
-            disabled={bulkPending || bulk.kind === "done"}
+            disabled={!clientReady || bulkPending || bulk.kind === "done"}
             onClick={handleGenerateAll}
             size="sm"
             type="button"
@@ -104,6 +106,7 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
             <li key={name}>
               <button
                 className="-mx-1 flex w-full items-baseline gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                disabled={!clientReady}
                 onClick={() => {
                   setActive(name);
                 }}

@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -29,6 +30,7 @@ export const NetworkBackfillPage = ({
   start: () => Promise<void>;
 }) => {
   const queryClient = useQueryClient();
+  const ready = useClientReady();
 
   const { data: status, isError } = useQuery({
     queryFn: loadStatus,
@@ -56,7 +58,7 @@ export const NetworkBackfillPage = ({
 
       <div className="mt-6">
         <Button
-          disabled={busy || status?.active === true}
+          disabled={!ready || busy || status?.active === true}
           onClick={() => {
             runBackfill();
           }}

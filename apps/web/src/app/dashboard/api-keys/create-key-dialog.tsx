@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Check, Copy, KeyRound, Plus } from "lucide-react";
 import { useReducer, useTransition } from "react";
 import { toast } from "sonner";
@@ -102,6 +103,7 @@ const createKeyReducer = (state: CreateKeyState, action: CreateKeyAction): Creat
 const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
   const [state, dispatch] = useReducer(createKeyReducer, undefined, createInitialState);
   const [pending, startTransition] = useTransition();
+  const ready = useClientReady();
   const { copied, error, name, open, picked, siteId, token } = state;
 
   const needsSite = siteScopedScopes.some((scope) => picked.has(scope));
@@ -147,6 +149,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger
+        disabled={!ready}
         render={
           <Button>
             <Plus className="size-4" />

@@ -3,6 +3,7 @@
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
@@ -76,7 +77,7 @@ const LoginForm = ({
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
 
   return (
-    <form
+    <ClientReadyForm
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -171,7 +172,7 @@ const LoginForm = ({
           )}
         </Field>
       </FieldGroup>
-    </form>
+    </ClientReadyForm>
   );
 };
 

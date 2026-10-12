@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ type State = { kind: "idle" } | { kind: "pending" };
 
 export const RecrawlMoneySiteButton = ({ id }: { id: string }) => {
   const [state, setState] = useState<State>({ kind: "idle" });
+  const ready = useClientReady();
   const { refresh } = useRouter();
 
   const handleClick = async () => {
@@ -35,7 +37,7 @@ export const RecrawlMoneySiteButton = ({ id }: { id: string }) => {
   return (
     <Button
       aria-busy={state.kind === "pending"}
-      disabled={state.kind === "pending"}
+      disabled={!ready || state.kind === "pending"}
       onClick={() => {
         void handleClick();
       }}

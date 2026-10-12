@@ -10,16 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@repo/ui/components/dropdown-menu";
 import { Table, TableBody, TableCell, TableRow } from "@repo/ui/components/table";
 import { TableColumns } from "@repo/ui/compositions/table-columns";
-import { ExternalLink, MoreHorizontal, Send, Trash2 } from "lucide-react";
+import { ExternalLink, Send } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -29,12 +22,13 @@ import { RewriteTriggerButton } from "@/components/rewrite-trigger-button";
 import { SuggestedLinksPanel } from "@/components/suggested-links-panel";
 import { readIntegrations } from "@/lib/integrations";
 
-import { deletePostAction, publishPostAction } from "../../actions";
+import { publishPostAction } from "../../actions";
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
 import { PostStatusBadge } from "../post-status-badge";
 
 import { PostAuditCard, SeoNotApplicable, SerpRankCard } from "./dataforseo-cards";
 import { OutboundLinksCard } from "./outbound-links";
+import { PostActionsMenu } from "./post-actions-menu";
 import { JobStatusBadge, PostTimingLabel } from "./post-badges";
 import { MoneySiteLinksPanel, RewrittenBadge } from "./rewrite-panels";
 import { PostSearchConsoleCard } from "./search-console-card";
@@ -109,40 +103,11 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
               Publish
             </Button>
           </form>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button aria-label="Post actions" size="icon" variant="outline">
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-max max-w-(--available-width)">
-              <DropdownMenuItem
-                render={
-                  // eslint-disable-next-line jsx-a11y/control-has-associated-label, react-doctor/control-has-associated-label -- base-ui forwards the menu item children into the rendered anchor
-                  <a href={publicPageUrl} rel="noreferrer" target="_blank" />
-                }
-              >
-                <ExternalLink className="size-4" />
-                View on {post.site.domain}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <form action={deletePostAction}>
-                <input name="id" type="hidden" value={post.id} />
-                <DropdownMenuItem
-                  render={
-                    // eslint-disable-next-line jsx-a11y/control-has-associated-label -- base-ui forwards the menu item children into the rendered button
-                    <button className="w-full" type="submit" />
-                  }
-                  variant="destructive"
-                >
-                  <Trash2 className="size-4" />
-                  Delete post
-                </DropdownMenuItem>
-              </form>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <PostActionsMenu
+            domain={post.site.domain}
+            postId={post.id}
+            publicPageUrl={publicPageUrl}
+          />
         </div>
       </header>
 

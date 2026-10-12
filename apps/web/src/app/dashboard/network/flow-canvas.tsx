@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/select";
 import { Switch } from "@repo/ui/components/switch";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import {
   Background,
   BackgroundVariant,
@@ -46,53 +47,64 @@ export const NetworkFilters = ({
   onShowPbnLinksChange,
   selectedMoneySiteId,
   showPbnLinks,
-}: NetworkFiltersProps) => (
-  <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 border-b bg-card px-3 py-3 text-xs">
-    {moneySites.length > 1 && (
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="money-site-select">
-          <span className="text-xs text-muted-foreground">Money site</span>
+}: NetworkFiltersProps) => {
+  const ready = useClientReady();
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 border-b bg-card px-3 py-3 text-xs">
+      {moneySites.length > 1 && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="money-site-select">
+            <span className="text-xs text-muted-foreground">Money site</span>
+          </Label>
+          <Select
+            disabled={!ready}
+            onValueChange={(v) => {
+              if (typeof v !== "string") {
+                return;
+              }
+              onMoneySiteChange(v);
+            }}
+            value={selectedMoneySiteId}
+          >
+            <SelectTrigger className="w-50" id="money-site-select" size="default">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {moneySites.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor="toggle-pbn-links">
+          <span className="text-xs">Show PBN&nbsp;↔ PBN links</span>
         </Label>
-        <Select
-          onValueChange={(v) => {
-            if (typeof v !== "string") {
-              return;
-            }
-            onMoneySiteChange(v);
-          }}
-          value={selectedMoneySiteId}
-        >
-          <SelectTrigger className="w-50" id="money-site-select" size="default">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {moneySites.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Switch
+          checked={showPbnLinks}
+          disabled={!ready}
+          id="toggle-pbn-links"
+          onCheckedChange={onShowPbnLinksChange}
+        />
       </div>
-    )}
-    <div className="flex items-center justify-between gap-3">
-      <Label htmlFor="toggle-pbn-links">
-        <span className="text-xs">Show PBN&nbsp;↔ PBN links</span>
-      </Label>
-      <Switch checked={showPbnLinks} id="toggle-pbn-links" onCheckedChange={onShowPbnLinksChange} />
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor="toggle-hide-orphans">
+          <span className="text-xs">Hide orphans</span>
+        </Label>
+        <Switch
+          checked={hideOrphans}
+          disabled={!ready}
+          id="toggle-hide-orphans"
+          onCheckedChange={onHideOrphansChange}
+        />
+      </div>
     </div>
-    <div className="flex items-center justify-between gap-3">
-      <Label htmlFor="toggle-hide-orphans">
-        <span className="text-xs">Hide orphans</span>
-      </Label>
-      <Switch
-        checked={hideOrphans}
-        id="toggle-hide-orphans"
-        onCheckedChange={onHideOrphansChange}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 export const FlowCanvas = ({ filterVersion }: { filterVersion: string }) => {
   const { fitView } = useReactFlow();

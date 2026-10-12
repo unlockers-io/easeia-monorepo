@@ -3,12 +3,13 @@
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useState, useSyncExternalStore } from "react";
+import { Suspense, use, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthPasswordField } from "@/components/auth-password-field";
@@ -19,10 +20,6 @@ import { safeRedirectPath } from "@/lib/redirect-validation";
 type Props = {
   searchParams: Promise<{ from?: string }>;
 };
-
-const subscribe = () => () => {};
-const clientReady = () => true;
-const serverReady = () => false;
 
 const SignInLinkFallback = () => (
   <Link className="text-foreground underline underline-offset-4" href="/login">
@@ -47,8 +44,6 @@ const SignInLink = ({ searchParams }: Props) => {
 const RegisterForm = ({ searchParams }: Props) => {
   const { push, refresh } = useRouter();
   const [sentToEmail, setSentToEmail] = useState<string | null>(null);
-  // Controlled fields must not accept input before TanStack's handlers hydrate.
-  const isHydrated = useSyncExternalStore(subscribe, clientReady, serverReady);
 
   const form = useForm({
     defaultValues: { confirmPassword: "", email: "", name: "", password: "" },
@@ -100,7 +95,7 @@ const RegisterForm = ({ searchParams }: Props) => {
   }
 
   return (
-    <form
+    <ClientReadyForm
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -119,7 +114,7 @@ const RegisterForm = ({ searchParams }: Props) => {
                   aria-describedby={isInvalid ? "name-error" : undefined}
                   aria-invalid={isInvalid}
                   autoComplete="name"
-                  disabled={!isHydrated || isLoading}
+                  disabled={isLoading}
                   id="name"
                   name={field.name}
                   onBlur={field.handleBlur}
@@ -145,7 +140,7 @@ const RegisterForm = ({ searchParams }: Props) => {
                   aria-describedby={isInvalid ? "email-error" : undefined}
                   aria-invalid={isInvalid}
                   autoComplete="email"
-                  disabled={!isHydrated || isLoading}
+                  disabled={isLoading}
                   id="email"
                   name={field.name}
                   onBlur={field.handleBlur}
@@ -164,28 +159,18 @@ const RegisterForm = ({ searchParams }: Props) => {
 
         <div className="grid grid-cols-2 gap-4">
           <form.Field name="password">
-            {(field) => (
-              <AuthPasswordField
-                disabled={!isHydrated || isLoading}
-                field={field}
-                label="Password"
-              />
-            )}
+            {(field) => <AuthPasswordField disabled={isLoading} field={field} label="Password" />}
           </form.Field>
 
           <form.Field name="confirmPassword">
             {(field) => (
-              <AuthPasswordField
-                disabled={!isHydrated || isLoading}
-                field={field}
-                label="Confirm Password"
-              />
+              <AuthPasswordField disabled={isLoading} field={field} label="Confirm Password" />
             )}
           </form.Field>
         </div>
 
         <Field>
-          <Button aria-busy={isLoading} disabled={!isHydrated || isLoading} type="submit">
+          <Button aria-busy={isLoading} disabled={isLoading} type="submit">
             {isLoading && <Loader2 className="size-4 motion-safe:animate-spin" />}
             {isLoading ? "Creating account…" : "Create account"}
           </Button>
@@ -197,7 +182,7 @@ const RegisterForm = ({ searchParams }: Props) => {
           </FieldDescription>
         </Field>
       </FieldGroup>
-    </form>
+    </ClientReadyForm>
   );
 };
 

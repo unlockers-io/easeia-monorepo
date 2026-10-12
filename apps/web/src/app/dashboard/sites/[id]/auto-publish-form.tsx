@@ -12,6 +12,8 @@ import {
 } from "@repo/ui/components/select";
 import { Switch } from "@repo/ui/components/switch";
 import { Textarea } from "@repo/ui/components/textarea";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useReducer, useTransition } from "react";
 
 import { updateAutoPublishAction } from "./actions";
@@ -143,6 +145,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
 
   const [state, dispatch] = useReducer(autoPublishReducer, props, buildInitialState);
   const [pending, startTransition] = useTransition();
+  const ready = useClientReady();
 
   const {
     bucketRefillAt,
@@ -155,7 +158,8 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
     topicHints,
   } = state;
 
-  const handleSave = () => {
+  const handleSave = (event: React.SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
     startTransition(async () => {
       const result = await updateAutoPublishAction(siteId, {
         autoPublishEnabled: enabled,
@@ -170,7 +174,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <ClientReadyForm className="flex flex-col gap-4" noValidate onSubmit={handleSave}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col">
           <label className="text-sm font-medium" htmlFor={`auto-publish-${siteId}`}>
@@ -183,6 +187,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
         </div>
         <Switch
           checked={enabled}
+          disabled={!ready}
           id={`auto-publish-${siteId}`}
           onCheckedChange={(value) => {
             dispatch({ type: "enabled.toggle", value });
@@ -312,10 +317,10 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
           })}
           {savedAt ? ` · saved ${formatTime(savedAt)}` : ""}
         </p>
-        <Button disabled={pending} onClick={handleSave} size="sm" type="button">
+        <Button disabled={pending} size="sm" type="submit">
           {pending ? "Saving…" : "Save"}
         </Button>
       </div>
-    </div>
+    </ClientReadyForm>
   );
 };

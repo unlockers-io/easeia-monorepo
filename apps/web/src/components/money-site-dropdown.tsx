@@ -1,5 +1,6 @@
 "use client";
 
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ export const MoneySiteDropdown = ({
     (_, next: string) => next,
   );
   const [isPending, startTransition] = useTransition();
+  const ready = useClientReady();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nextValue = e.target.value;
@@ -38,7 +40,7 @@ export const MoneySiteDropdown = ({
     <select
       aria-label="Money site"
       className="rounded border px-2 py-1 text-base sm:text-sm"
-      disabled={isPending}
+      disabled={!ready || isPending}
       onChange={handleChange}
       value={optimisticValue}
     >

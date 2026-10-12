@@ -11,6 +11,7 @@ import {
 } from "@repo/ui/components/card";
 import { Field, FieldLabel, FieldGroup } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
@@ -80,7 +81,7 @@ export const PublishingForm = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form
+        <ClientReadyForm
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
@@ -129,7 +130,7 @@ export const PublishingForm = ({
               )}
             </form.Subscribe>
           </FieldGroup>
-        </form>
+        </ClientReadyForm>
       </CardContent>
     </Card>
   );

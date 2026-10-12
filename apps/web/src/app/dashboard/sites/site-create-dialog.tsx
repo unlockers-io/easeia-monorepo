@@ -13,7 +13,9 @@ import {
 } from "@repo/ui/components/dialog";
 import { Field, FieldLabel, FieldGroup } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -45,6 +47,7 @@ const defaultValues: z.input<typeof formSchema> = {
 
 export const SiteCreateDialog = () => {
   const [open, setOpen] = useState(false);
+  const ready = useClientReady();
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const router = useRouter();
@@ -66,7 +69,7 @@ export const SiteCreateDialog = () => {
   });
   return (
     <Dialog onOpenChange={setOpen} open={open}>
-      <DialogTrigger render={<Button>Add site</Button>} />
+      <DialogTrigger disabled={!ready} render={<Button>Add site</Button>} />
       <DialogContent className="max-h-(--layout-max-h-sheet-viewport) overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add a site</DialogTitle>
@@ -74,7 +77,7 @@ export const SiteCreateDialog = () => {
             Connect an Astro site to your network. You can configure publishing after saving.
           </DialogDescription>
         </DialogHeader>
-        <form
+        <ClientReadyForm
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
@@ -169,7 +172,7 @@ export const SiteCreateDialog = () => {
               )}
             </form.Subscribe>
           </FieldGroup>
-        </form>
+        </ClientReadyForm>
       </DialogContent>
     </Dialog>
   );
