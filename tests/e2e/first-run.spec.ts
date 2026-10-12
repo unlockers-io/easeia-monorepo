@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 import { recordCleanup } from "./helpers/cleanup-record";
+import { holdScripts } from "./helpers/hold-scripts";
 import { extractLink, waitForEmail } from "./helpers/resend";
 
 const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
@@ -12,25 +13,15 @@ test.use({ storageState: { cookies: [], origins: [] } });
 test("registration waits for interactive form handlers before accepting input", async ({
   page,
 }) => {
-  let releaseScripts: (() => void) | undefined;
-  const scriptsReady = new Promise<void>((resolve) => {
-    releaseScripts = resolve;
-  });
-  await page.route("**/_next/static/**/*.js", async (route) => {
-    await scriptsReady;
-    await route.continue();
-  });
-  try {
-    await page.goto("/register", { waitUntil: "commit" });
-    await expect(page.getByLabel("Full Name")).toBeDisabled();
-    // Streaming can keep the server-rendered form hidden until scripts resume.
-    await expect(
-      page.getByRole("button", { includeHidden: true, name: "Create account" }),
-    ).toBeDisabled();
-  } finally {
-    releaseScripts?.();
-  }
-  await expect(page.getByLabel("Full Name")).toBeEnabled();
+  const releaseScripts = await holdScripts(page);
+  await page.goto("/register", { waitUntil: "commit" });
+  await expect(page.getByLabel("Full Name")).toBeDisabled();
+  // Streaming can keep the server-rendered form hidden until scripts resume.
+  await expect(
+    page.getByRole("button", { includeHidden: true, name: "Create account" }),
+  ).toBeDisabled();
+
+  releaseScripts();
   await page.getByLabel("Full Name").fill("Demo Operator");
   await page.getByLabel("Email", { exact: true }).fill("demo@example.com");
   await expect(page.getByLabel("Full Name")).toHaveValue("Demo Operator");

@@ -24,6 +24,14 @@ export class LoginPage {
     await this.submitButton.click();
   };
 
+  expectDisabled = async () => {
+    await expect(this.emailInput).toBeDisabled();
+    await expect(this.passwordInput).toBeDisabled();
+    await expect(
+      this.page.getByRole("button", { includeHidden: true, name: /sign in|log in/i }),
+    ).toBeDisabled();
+  };
+
   expectErrorVisible = async () => {
     await expect(this.rootError).toBeVisible();
   };
