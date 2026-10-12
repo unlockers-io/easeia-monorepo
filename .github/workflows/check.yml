@@ -89,7 +89,7 @@ jobs:
       - name: Typecheck
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run typecheck -- pnpm typecheck
-      # Postgres- and Redis-backed suites share one database, so tasks run serially.
+      # Postgres- and Redis-backed suites share one database, so packages and their test files run serially.
       - name: Tests
         if: ${{ !cancelled() }}
         env:
