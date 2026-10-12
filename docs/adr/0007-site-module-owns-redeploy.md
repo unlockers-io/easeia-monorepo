@@ -34,8 +34,10 @@ deploy(siteId, postHook); // "posted" | "disabled" | "no-deploy-hook"; throws on
 ```
 
 - `requestRedeploy` applies the gate, then enqueues a TRIGGER_DEPLOY Job through
-  `Jobs.enqueueUnlessQueued`. A Site has at most one QUEUED deploy. A request while a deploy is
-  RUNNING enqueues one more, so content written during a hook POST reaches a later build.
+  `Jobs.enqueueUnlessQueued`, delayed by a 60-second window. A Site has at most one QUEUED deploy,
+  so every request inside the window coalesces into it and a burst of writes (a bulk tool, a
+  backfill, several approvals) costs one build. A request while a deploy is RUNNING enqueues one
+  more, so content written during a hook POST reaches a later build.
 - `deploy` applies the gate again when the Job runs, POSTs the hook with a 30-second timeout and
   throws on a non-2xx answer, which `Jobs.consume` retries.
 - The worker's TRIGGER_DEPLOY handler passes `fetch` to `deploy`. Worker handlers and tools call

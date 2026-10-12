@@ -48,7 +48,7 @@ export const QUEUE_NAMES = {
 } satisfies QueueNamesContract;
 
 const queues = new Map<JobKind, Queue>();
-const queueFor = (kind: JobKind): Queue => {
+export const queueFor = (kind: JobKind): Queue => {
   const cached = queues.get(kind);
   if (cached) {
     return cached;

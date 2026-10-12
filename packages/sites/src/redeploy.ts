@@ -5,6 +5,7 @@ import { parseDeployHook } from "./deploy-hook";
 import { load } from "./load";
 
 const DEPLOY_HOOK_TIMEOUT_MS = 30_000;
+const REDEPLOY_WINDOW_MS = 60_000;
 
 type Undeployable = "disabled" | "no-deploy-hook";
 
@@ -23,6 +24,7 @@ export const requestRedeploy = async (siteId: string): Promise<RedeployOutcome> 
     return target;
   }
   const job = await enqueueUnlessQueued({
+    delayMs: REDEPLOY_WINDOW_MS,
     kind: JobKind.TRIGGER_DEPLOY,
     payload: { siteId },
     siteId,
