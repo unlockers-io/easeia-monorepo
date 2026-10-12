@@ -1,6 +1,4 @@
-import { isAiConfigured } from "@repo/ai";
-import { PostStatus, prisma } from "@repo/db";
-import { countBucketSupplyBySite, needsRefill, type BucketSupply } from "@repo/posts";
+import * as AutoPublish from "@repo/auto-publish";
 import {
   Card,
   CardContent,
@@ -9,7 +7,10 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
+import { connection } from "next/server";
 import { Suspense } from "react";
+
+import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../lib/provider-card";
 
@@ -18,82 +19,31 @@ import { BucketsHeaderActions } from "./buckets-header-actions";
 import { BucketsTable, type BucketRow } from "./buckets-table";
 
 const BucketsContent = async () => {
-  const sites = await prisma.site.findMany({
-    orderBy: { domain: "asc" },
-    select: {
-      autoPublishEnabled: true,
-      bucketRefillAt: true,
-      bucketTarget: true,
-      cadenceDays: true,
-      domain: true,
-      id: true,
-      lastAutoPublishedAt: true,
-      niches: true,
-      posts: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          createdAt: true,
-          id: true,
-          slug: true,
-          title: true,
-        },
-        take: 10,
-        where: { scheduledAt: null, status: PostStatus.DRAFT },
-      },
-    },
-    where: { isEnabled: true },
-  });
-
-  const siteIds = sites.map((s) => s.id);
-  // Deliberately unguarded: countBucketSupplyBySite throws rather than
-  // returning zeros, because a fabricated zero renders every bucket as empty,
-  // marks the whole network as needing refill, and disables auto-refresh (which
-  // arms only when something is in flight), so the wrong page never corrects
-  // itself. An error boundary is the honest outcome.
-  const supplyBySite: Map<string, BucketSupply> = await countBucketSupplyBySite(siteIds);
-
-  // Captured once per request so every relative-time string in the table
-  // formats against a single reference instant.
+  await connection();
   // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const buckets = await AutoPublish.readBuckets(new Date(nowMs));
 
-  const rows: Array<BucketRow> = sites.map((s) => {
-    const { drafts, inflight, supply } = supplyBySite.get(s.id) ?? {
-      drafts: 0,
-      inflight: 0,
-      supply: 0,
-    };
-    const target = s.bucketTarget;
-    const refillAt = s.bucketRefillAt;
-    const siteNeedsRefill = needsRefill({ refillAt, supply, target });
-    const cadenceDue =
-      s.autoPublishEnabled &&
-      s.cadenceDays !== null &&
-      s.lastAutoPublishedAt !== null &&
-      nowMs - s.lastAutoPublishedAt.getTime() >= s.cadenceDays * MS_PER_DAY;
-    const missedCadence = cadenceDue && drafts === 0;
-    return {
-      autoPublishEnabled: s.autoPublishEnabled,
-      bucketTarget: target,
-      cadenceDays: s.cadenceDays,
-      drafts: s.posts.map((p) => ({
-        createdAt: p.createdAt.toISOString(),
-        id: p.id,
-        slug: p.slug,
-        title: p.title,
-      })),
-      draftsCount: drafts,
-      inflight,
-      lastAutoPublishedAt: s.lastAutoPublishedAt?.toISOString() ?? null,
-      missedCadence,
-      needsRefill: siteNeedsRefill,
-      niches: s.niches,
-      siteDomain: s.domain,
-      siteId: s.id,
-      supply,
-    };
-  });
+  const rows: Array<BucketRow> = buckets.map((bucket) => ({
+    autoPublishEnabled: bucket.autoPublishEnabled,
+    bucketTarget: bucket.bucketTarget,
+    cadenceDays: bucket.cadenceDays,
+    drafts: bucket.drafts.map((draft) => ({
+      createdAt: draft.createdAt.toISOString(),
+      id: draft.id,
+      slug: draft.slug,
+      title: draft.title,
+    })),
+    draftsCount: bucket.supply.drafts,
+    inflight: bucket.supply.inflight,
+    lastAutoPublishedAt: bucket.lastAutoPublishedAt?.toISOString() ?? null,
+    missedCadence: bucket.missedCadence,
+    needsRefill: bucket.needsRefill,
+    niches: bucket.niches,
+    siteDomain: bucket.domain,
+    siteId: bucket.id,
+    supply: bucket.supply.total,
+  }));
 
   rows.sort((a, b) => {
     if (a.needsRefill !== b.needsRefill) {
@@ -122,13 +72,14 @@ const BucketsContent = async () => {
     return { text: "All buckets above their refill threshold." };
   };
   const attention = buildAttentionLine();
+  const { openai } = readIntegrations();
 
   return (
     <>
-      {!isAiConfigured() && (
+      {!openai.configured && (
         <IntegrationNotConfiguredCard
           feature="Generate drafts for your buckets"
-          missing={["OPENAI_API_KEY"]}
+          missing={openai.missing}
           name="OpenAI"
         />
       )}
@@ -146,10 +97,10 @@ const BucketsContent = async () => {
               <span className={attention.className}>{attention.text}</span>
             </CardDescription>
           </div>
-          <BucketsHeaderActions aiConfigured={isAiConfigured()} />
+          <BucketsHeaderActions aiConfigured={openai.configured} />
         </CardHeader>
         <CardContent>
-          <BucketsTable aiConfigured={isAiConfigured()} nowMs={nowMs} rows={rows} />
+          <BucketsTable aiConfigured={openai.configured} nowMs={nowMs} rows={rows} />
         </CardContent>
       </Card>
     </>

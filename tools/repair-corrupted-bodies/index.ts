@@ -1,32 +1,34 @@
 import "dotenv/config";
 
-import { requireProvider, REWRITE_MODEL as REPAIR_MODEL } from "@repo/ai";
-import { prisma } from "@repo/db";
-import { normalizeBody } from "@repo/posts";
-import { generateText } from "ai";
-
-import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
+import { generateStructured } from "@repo/ai";
+import { prisma, type SiteLanguage } from "@repo/db";
+import { closeJobs } from "@repo/jobs";
+import { normalizeBody, reviseBody } from "@repo/posts";
+import { z } from "zod";
 
 const BATCH_SIZE = 5;
+
+const bodySchema = z.object({ body: z.string() });
 
 const APPLY = process.argv.includes("--apply");
 
 type Row = {
   body: string;
   id: string;
+  language: SiteLanguage;
   siteId: string;
   slug: string;
-  status: string;
 };
 
 const selectCorrupted = (): Promise<ReadonlyArray<Row>> =>
   prisma.$queryRawUnsafe<ReadonlyArray<Row>>(`
-    SELECT id, "siteId", slug, status, body
-    FROM "Post"
-    WHERE position(chr(10) in body) = 0
-       OR position('\\*' in body) > 0
-       OR position('\\#' in body) > 0
-    ORDER BY "siteId", slug
+    SELECT p.id, p."siteId", p.slug, p.body, s.language
+    FROM "Post" p
+    JOIN "Site" s ON s.id = p."siteId"
+    WHERE position(chr(10) in p.body) = 0
+       OR position('\\*' in p.body) > 0
+       OR position('\\#' in p.body) > 0
+    ORDER BY p."siteId", p.slug
   `);
 
 const buildPrompt = (body: string): string =>
@@ -45,7 +47,7 @@ const buildPrompt = (body: string): string =>
     "  Keep every sentence verbatim. Keep the original language (Brazilian",
     "  Portuguese).",
     "- Do not invent links, images, or headings that are not already present.",
-    "- Output ONLY the repaired Markdown body — no code fences, no commentary.",
+    "- Return the repaired Markdown body as `body`, with no code fences and no commentary.",
     "",
     "Corrupted body:",
     "<<<",
@@ -64,27 +66,23 @@ const wordBag = (s: string): Set<string> =>
 
 type RepairOutcome = {
   after?: string;
-  method?: "html" | "llm";
+  method?: "llm" | "normalized";
   reason?: string;
   row: Row;
   status: "ok" | "skipped";
 };
 
 const repairOne = async (row: Row): Promise<RepairOutcome> => {
-  const normalized = normalizeBody(row.body);
+  const normalized = normalizeBody(row.body, row.language);
   if (normalized !== row.body) {
     if (normalized.trim().length === 0) {
       return { reason: "normalizeBody produced an empty body", row, status: "skipped" };
     }
-    return { after: normalized, method: "html", row, status: "ok" };
+    return { after: normalized, method: "normalized", row, status: "ok" };
   }
 
-  const provider = requireProvider();
-  const { text } = await generateText({
-    model: provider(REPAIR_MODEL),
-    prompt: buildPrompt(row.body),
-  });
-  const after = text.trim();
+  const { body } = await generateStructured({ prompt: buildPrompt(row.body), schema: bodySchema });
+  const after = body.trim();
 
   if (after.includes(String.raw`\*`) || after.includes(String.raw`\#`)) {
     return { reason: "still contains escaped markdown", row, status: "skipped" };
@@ -168,24 +166,18 @@ const main = async (): Promise<number> => {
     return skipped.length > 0 ? 1 : 0;
   }
 
-  const affectedSiteIds = new Set<string>();
   let written = 0;
   for (const o of repaired) {
-    await prisma.post.update({ data: { body: o.after }, where: { id: o.row.id } });
-    affectedSiteIds.add(o.row.siteId);
+    await reviseBody(o.row.id, { body: o.after ?? o.row.body, from: o.row.body });
     written++;
   }
 
-  recordAffectedSites([...affectedSiteIds]);
-  console.log(
-    `\nWrote ${written} bodies. ${affectedSiteIds.size} affected site ids → ${AFFECTED_SITES_FILE}`,
-  );
-  console.log("Next: `tsx tools/maintenance/redeploy-affected-sites.ts` to trigger rebuilds.");
+  console.log(`\nWrote ${written} bodies.`);
   return skipped.length > 0 ? 1 : 0;
 };
 
 const cleanup = async (): Promise<void> => {
-  await Promise.allSettled([prisma.$disconnect()]);
+  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
 };
 
 try {

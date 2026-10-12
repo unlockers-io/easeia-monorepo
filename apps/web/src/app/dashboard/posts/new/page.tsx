@@ -19,6 +19,8 @@ import {
 import { Switch } from "@repo/ui/components/switch";
 import { Textarea } from "@repo/ui/components/textarea";
 
+import { Banner } from "@/components/banner";
+
 import { createPostAction } from "../../actions";
 import { SiteCreateDialog } from "../../sites/site-create-dialog";
 
@@ -26,11 +28,11 @@ import { NicheSelector } from "./niche-selector";
 
 const NICHE_OPTIONS = Object.values(Niche);
 
-const NewPostPage = async () => {
-  const sites = await prisma.site.findMany({
-    orderBy: { domain: "asc" },
-    where: { isEnabled: true },
-  });
+const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: string }> }) => {
+  const [{ error }, sites] = await Promise.all([
+    searchParams,
+    prisma.site.findMany({ orderBy: { domain: "asc" }, where: { isEnabled: true } }),
+  ]);
 
   const [firstSite] = sites;
   if (firstSite === undefined) {
@@ -60,6 +62,8 @@ const NewPostPage = async () => {
           hook.
         </p>
       </header>
+
+      {error !== undefined && error !== "" ? <Banner tone="error">{error}</Banner> : null}
 
       <form action={createPostAction} className="flex flex-col gap-6">
         <Card>

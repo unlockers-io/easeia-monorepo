@@ -1,15 +1,16 @@
-/* Dry-run unless --apply; requires DATABASE_URL and OPENAI_API_KEY. */
+/* Dry-run unless --apply. */
 import "dotenv/config";
 
-import { requireProvider, REWRITE_MODEL as ENRICH_MODEL } from "@repo/ai";
+import { generateStructured } from "@repo/ai";
 import { prisma } from "@repo/db";
-import { suggestForPost } from "@repo/suggest-links";
-import { generateText } from "ai";
-
-import { AFFECTED_SITES_FILE, recordAffectedSites } from "../_shared/affected-sites";
+import { closeJobs } from "@repo/jobs";
+import { approveSuggestions, listSuggestions, suggestForPost } from "@repo/links";
+import { reviseBody } from "@repo/posts";
+import { z } from "zod";
 
 const BATCH_SIZE = 5;
 const LINKS_PER_POST = 4;
+const SUGGESTIONS_PER_POST = 20;
 
 const APPLY = process.argv.includes("--apply");
 const argValue = (flag: string): string | undefined => {
@@ -27,8 +28,7 @@ const SITE_SET = SITE !== undefined && SITE !== "";
 
 type Anchor = { anchor: string; linkId: string; url: string };
 
-const missingAnchors = (body: string, anchors: ReadonlyArray<Anchor>): Array<Anchor> =>
-  anchors.filter((a) => !body.includes(a.url));
+const bodySchema = z.object({ body: z.string() });
 
 const proseOf = (s: string): string =>
   s
@@ -37,12 +37,10 @@ const proseOf = (s: string): string =>
     .replaceAll(/\s+/gu, " ")
     .trim();
 
-const selectPosts = (): Promise<
-  Array<{ body: string; id: string; siteId: string; slug: string }>
-> =>
+const selectPosts = (): Promise<Array<{ body: string; id: string; slug: string }>> =>
   prisma.post.findMany({
     orderBy: { createdAt: "asc" },
-    select: { body: true, id: true, siteId: true, slug: true },
+    select: { body: true, id: true, slug: true },
     skip: OFFSET,
     take: LIMIT,
     where: {
@@ -52,11 +50,7 @@ const selectPosts = (): Promise<
   });
 
 const fetchTopSuggestions = async (postId: string, body: string): Promise<Array<Anchor>> => {
-  const links = await prisma.link.findMany({
-    orderBy: { suggestedAt: "desc" },
-    select: { anchorText: true, id: true, toPostId: true, toUrl: true, type: true },
-    where: { approved: null, fromPostId: postId, source: "SUGGESTED", toPostId: { not: null } },
-  });
+  const links = await listSuggestions({ fromPostId: postId, limit: SUGGESTIONS_PER_POST });
   const seen = new Set<string>();
   const out: Array<Anchor> = [];
   for (const l of links) {
@@ -87,7 +81,7 @@ const buildPrompt = (body: string, anchors: ReadonlyArray<Anchor>): string =>
     "  Never force a link or invent text to host it.",
     "- Wrap each phrase at most once; never link inside a heading line.",
     "- Do not reword, remove, translate, reorder, or re-spell any other text.",
-    "- Output ONLY the full Markdown body — no commentary, no code fences.",
+    "- Return the full Markdown body as `body`, with no commentary and no code fences.",
     "",
     "Target URLs (suggested anchor shown for context only — link an existing phrase):",
     ...anchors.map((a) => `- ${a.url}  (about: ${a.anchor})`),
@@ -98,61 +92,43 @@ const buildPrompt = (body: string, anchors: ReadonlyArray<Anchor>): string =>
     ">>>",
   ].join("\n");
 
-const leiaTambemBlock = (anchors: ReadonlyArray<Anchor>): string =>
-  ["", "", "## Leia também", "", ...anchors.map((a) => `- [${a.anchor}](${a.url})`)].join("\n");
-
 type Outcome = {
   after?: string;
+  before?: string;
   id: string;
   linkIds?: Array<string>;
   method?: "fallback" | "inline";
   reason?: string;
-  siteId: string;
   slug: string;
   status: "enriched" | "skipped";
 };
 
-const enrichOne = async (post: {
-  body: string;
-  id: string;
-  siteId: string;
-  slug: string;
-}): Promise<Outcome> => {
+const enrichOne = async (post: { body: string; id: string; slug: string }): Promise<Outcome> => {
   await suggestForPost(post.id);
   const anchors = await fetchTopSuggestions(post.id, post.body);
   if (anchors.length === 0) {
     return {
       id: post.id,
       reason: "no fresh suggestions",
-      siteId: post.siteId,
       slug: post.slug,
       status: "skipped",
     };
   }
 
-  const provider = requireProvider();
-  const { text } = await generateText({
-    model: provider(ENRICH_MODEL),
+  const { body } = await generateStructured({
     prompt: buildPrompt(post.body, anchors),
+    schema: bodySchema,
   });
-  const llm = text.trim();
+  const llm = body.trim();
 
   const llmClean = proseOf(llm) === proseOf(post.body);
 
-  let after = llmClean ? llm : post.body;
-  const method: "fallback" | "inline" = llmClean ? "inline" : "fallback";
-
-  const missing = missingAnchors(after, anchors);
-  if (missing.length > 0) {
-    after += leiaTambemBlock(missing);
-  }
-
   return {
-    after,
+    after: llmClean ? llm : post.body,
+    before: post.body,
     id: post.id,
     linkIds: anchors.map((a) => a.linkId),
-    method,
-    siteId: post.siteId,
+    method: llmClean ? "inline" : "fallback",
     slug: post.slug,
     status: "enriched",
   };
@@ -175,7 +151,6 @@ const main = async (): Promise<number> => {
           return {
             id: p.id,
             reason: String(error),
-            siteId: p.siteId,
             slug: p.slug,
             status: "skipped",
           };
@@ -213,29 +188,27 @@ const main = async (): Promise<number> => {
     return 0;
   }
 
-  const affected = new Set<string>();
   for (const o of enriched) {
-    await prisma.$transaction([
-      prisma.post.update({ data: { body: o.after }, where: { id: o.id } }),
-      prisma.link.updateMany({ data: { approved: true }, where: { id: { in: o.linkIds ?? [] } } }),
-    ]);
-    affected.add(o.siteId);
+    if (o.before !== undefined && o.after !== undefined && o.after !== o.before) {
+      await reviseBody(o.id, { body: o.after, from: o.before });
+    }
+    await approveSuggestions(o.id, o.linkIds ?? []);
   }
 
-  recordAffectedSites([...affected]);
-  console.log(
-    `\nWrote ${enriched.length} bodies. ${affected.size} affected site ids → ${AFFECTED_SITES_FILE}`,
-  );
-  console.log("Next: `tsx tools/maintenance/redeploy-affected-sites.ts` to trigger rebuilds.");
+  console.log(`\nWrote ${enriched.length} bodies.`);
   return 0;
+};
+
+const cleanup = async (): Promise<void> => {
+  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
 };
 
 try {
   const code = await main();
-  await prisma.$disconnect();
+  await cleanup();
   process.exit(code);
 } catch (error) {
   console.error(error);
-  await prisma.$disconnect();
+  await cleanup();
   process.exit(1);
 }

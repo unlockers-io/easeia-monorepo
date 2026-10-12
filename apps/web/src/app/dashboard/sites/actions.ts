@@ -2,10 +2,11 @@
 
 import { JobKind, prisma } from "@repo/db";
 import { enqueue, fanoutRejections } from "@repo/jobs";
+import { isConnected } from "@repo/search-console";
 import { revalidatePath } from "next/cache";
 
+import { audit } from "@/lib/access";
 import { getSession } from "@/lib/auth-helpers";
-import { redisUrl } from "@/lib/env";
 import { log } from "@/lib/observability";
 
 export type BackfillAllResult =
@@ -18,11 +19,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
     return { error: "Not authenticated.", ok: false };
   }
 
-  const connection = await prisma.googleConnection.findUnique({
-    select: { id: true },
-    where: { userId: session.user.id },
-  });
-  if (!connection) {
+  if (!(await isConnected())) {
     return { error: "Connect Google in Settings before importing.", ok: false };
   }
 
@@ -39,8 +36,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
     sites.map((site) =>
       enqueue({
         kind: JobKind.BACKFILL_GSC_LINKS,
-        payload: { siteId: site.id, userId: session.user.id },
-        redisUrl: redisUrl(),
+        payload: { siteId: site.id },
         siteId: site.id,
       }),
     ),
@@ -56,6 +52,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
   }
   const skipped = rejections.length;
   const queued = results.length - skipped;
+  await audit({ action: "backlinks.backfill", meta: { queued, skipped }, target: "network" });
 
   revalidatePath("/dashboard/sites");
   return { ok: true, queued, skipped };

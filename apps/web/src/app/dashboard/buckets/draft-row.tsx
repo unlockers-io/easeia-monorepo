@@ -5,6 +5,8 @@ import { Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
+import { unwrapAction } from "@/lib/action-result";
+
 import { deleteDraftAction, publishDraftAction } from "./actions";
 
 export type Draft = {
@@ -66,10 +68,7 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
 
   const handlePublish = () => {
     runAction("Publish", async () => {
-      const result = await publishDraftAction(draft.id);
-      if (!result.ok) {
-        setError(result.error);
-      }
+      unwrapAction(await publishDraftAction(draft.id));
     });
   };
 
@@ -79,7 +78,9 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
       return;
     }
     setArmed(false);
-    runAction("Delete", () => deleteDraftAction(draft.id));
+    runAction("Delete", async () => {
+      unwrapAction(await deleteDraftAction(draft.id));
+    });
   };
 
   return (

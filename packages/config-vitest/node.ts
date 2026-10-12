@@ -14,6 +14,7 @@ const nodeConfig = defineConfig({
   ],
   test: {
     environment: "node",
+    fileParallelism: process.env.TEST_DATABASE !== "true",
     globals: true,
     include: ["src/**/*.test.{ts,tsx}"],
     passWithNoTests: true,

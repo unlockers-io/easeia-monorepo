@@ -24,7 +24,7 @@ export const fabricatedHrefs = (resolved: ReadonlyArray<ResolvedLink>): Set<stri
  * Remove a single anchor (by exact href) from a body, keeping the anchor text
  * as plain prose. Handles markdown `[text](href)` and html `<a href=…>…</a>`.
  */
-export const stripAnchor = (body: string, href: string): string => {
+const stripAnchor = (body: string, href: string): string => {
   const h = escapeRegex(href);
   const mdRe = new RegExp(`\\[([^\\]]+)\\]\\(${h}(?:\\s+"[^"]*")?\\)`, "gv");
   let out = body.replace(mdRe, (_full, anchor: string) => anchor);

@@ -1,6 +1,9 @@
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
+import { JobKind, prisma } from "@repo/db";
+import { recordCompletedJob } from "@repo/jobs";
+import { recordSeedPost } from "@repo/posts";
+import * as Sites from "@repo/sites";
 
 import { seedAdmin } from "./admin";
 
@@ -55,8 +58,9 @@ const SITES = [
 const ago = (days: number) => new Date(Date.now() - days * 86_400_000);
 
 const seedSite = async (site: (typeof SITES)[number], index: number) => {
-  const siteId = `demo-site-${index}`;
-  const data = {
+  const niches = ["PHOTOGRAPHY" as const, "LIFESTYLE" as const];
+  const { id: siteId } = await Sites.upsert({ domain: site.domain, isEnabled: true, niches });
+  await Sites.update(siteId, {
     authorBio: "An editorial team in the synthetic Easeia demo network.",
     authorName: "Demo Editorial",
     autoPublishEnabled: false,
@@ -64,18 +68,9 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
     bucketTarget: 6,
     cadenceDays: 2,
     defaultCategory: "journal",
-    domain: site.domain,
-    isEnabled: true,
-    language: "EN" as const,
+    language: "EN",
     moneySiteId: "demo-money-site",
-    niches: ["PHOTOGRAPHY" as const, "LIFESTYLE" as const],
     topicHints: site.keyword,
-    vercelDeployHookUrl: null,
-  };
-  await prisma.site.upsert({
-    create: { id: siteId, ...data },
-    update: data,
-    where: { id: siteId },
   });
   for (let day = 0; day < 14; day += 1) {
     const date = ago(day);
@@ -111,7 +106,7 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       createdAt: ago(n + 1),
       excerpt: "A practical starting point, written for a synthetic demo network.",
       focusKeyword: site.keyword,
-      niches: data.niches,
+      niches,
       publishedAt: published ? ago(n + 1) : null,
       siteId,
       slug: `guide-${n + 1}`,
@@ -119,23 +114,15 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       tags: ["guides", "demo"],
       title: n === 0 ? site.topic : `${site.topic}: part ${n + 1}`,
     };
-    await prisma.post.upsert({ create: { id, ...post }, update: post, where: { id } });
+    await recordSeedPost({ id, ...post });
     if (published) {
-      const job = {
-        attempts: 1,
-        createdAt: ago(n + 1),
+      await recordCompletedJob({
         finishedAt: ago(n + 1),
-        kind: n === 1 ? ("REWRITE_POST" as const) : ("PUBLISH" as const),
-        payload: { demo: true },
+        id: `demo-job-${index}-${n}`,
+        kind: n === 1 ? JobKind.REWRITE_POST : JobKind.PUBLISH,
+        payload: { postId: id },
         postId: id,
         siteId,
-        startedAt: ago(n + 1),
-        status: "DONE" as const,
-      };
-      await prisma.job.upsert({
-        create: { id: `demo-job-${index}-${n}`, ...job },
-        update: job,
-        where: { id: `demo-job-${index}-${n}` },
       });
     }
   }

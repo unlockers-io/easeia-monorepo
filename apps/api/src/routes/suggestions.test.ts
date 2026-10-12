@@ -13,16 +13,17 @@ vi.hoisted(() => {
 import { createSuggestionRoutes } from "./suggestions";
 import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
 
-const updateMock = vi.fn(() =>
-  Promise.resolve({ anchorText: "new anchor", approved: null, id: "l1" }),
-);
+const decided = { anchorText: "new anchor", approved: null, id: "l1" };
+const editAnchorMock = vi.fn(() => Promise.resolve(decided));
 const suggestionRoutes = createSuggestionRoutes({
   apiAuth: bypassMiddleware,
+  approveSuggestion: () => Promise.resolve(decided),
   audit: () => Promise.resolve(),
+  editSuggestionAnchor: editAnchorMock,
   listSuggestions: () => Promise.resolve([]),
   rateLimit: bypassMiddleware,
+  rejectSuggestion: () => Promise.resolve(decided),
   requirePermission: allowAction,
-  updateSuggestion: updateMock,
 });
 const app = mountForTest(suggestionRoutes);
 
@@ -51,7 +52,7 @@ describe("PATCH /:id/anchor: validation error envelope", () => {
   it("updates the anchor on a valid body", async () => {
     const res = await patch("/l1/anchor", { anchorText: "new anchor" });
     expect(res.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith("l1", { anchorText: "new anchor" });
+    expect(editAnchorMock).toHaveBeenCalledWith("l1", "new anchor");
   });
 });
 

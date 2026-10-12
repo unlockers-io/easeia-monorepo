@@ -4,7 +4,6 @@ import { Niche, PostStatus } from "@repo/db";
 import * as Posts from "@repo/posts";
 import type { Context } from "hono";
 
-import { env } from "@/lib/env";
 import { createRouter } from "@/lib/openapi";
 import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
 import type { AuthVariables } from "@/middleware/api-auth";
@@ -77,7 +76,8 @@ const lifecycleResponseSchema = z
 const okResponseSchema = z.object({ ok: z.literal(true) }).openapi("OkResponse");
 
 const listPostsRoute = createRoute({
-  description: "Cursor-paginated list of Posts. Filter by site, status, niche, or free-text query.",
+  description:
+    "Cursor-paginated list of Posts, newest first unless `sort=oldest`. Filter by site, status, one or more niches (repeat `niche`), or a query matched against title and slug.",
   method: "get",
   path: "/",
   request: { query: postListQuerySchema.openapi("PostListQuery") },
@@ -130,9 +130,7 @@ const createPostRoute = createRoute({
 });
 
 postRoutes.openapi(createPostRoute, async (c) => {
-  const result = await Posts.create(c.req.valid("json"), {
-    redisUrl: env.REDIS_URL,
-  });
+  const result = await Posts.create(c.req.valid("json"));
   await recordAudit(c, { action: "post.create", target: `post:${result.post.id}` });
   return c.json({ data: result.post, job: result.job }, 201);
 });
@@ -162,7 +160,8 @@ postRoutes.openapi(getPostRoute, async (c) => {
 });
 
 const updatePostRoute = createRoute({
-  description: "Patch a Post. `siteId` and `status` are immutable here; use publish/unpublish.",
+  description:
+    "Patch a Post. Omitted fields keep their values. `siteId` is immutable and `status` changes through publish/unpublish. Changing a live post redeploys its Site.",
   method: "patch",
   path: "/{id}",
   request: {
@@ -196,8 +195,7 @@ postRoutes.openapi(updatePostRoute, async (c) => {
 });
 
 const deletePostRoute = createRoute({
-  description:
-    "Hard-delete the Post row. The corresponding WordPress post is NOT touched; call /unpublish first if you also need it gone on WP.",
+  description: "Hard-delete the Post. Redeploys its Site when the post was live.",
   method: "delete",
   path: "/{id}",
   request: { params: idParamSchema },
@@ -224,7 +222,7 @@ postRoutes.openapi(deletePostRoute, async (c) => {
 
 const publishPostRoute = createRoute({
   description:
-    "Move the Post into the publish pipeline. Permitted from DRAFT, FAILED, SCHEDULED, or PUBLISHED (republish). Returns the queued job id; track via /api/jobs/:id (forthcoming).",
+    "Move the Post into the publish pipeline. Permitted from DRAFT, FAILED, or PUBLISHED (republish); a SCHEDULED post already has a publish queued. Returns the queued job id.",
   method: "post",
   path: "/{id}/publish",
   request: { params: idParamSchema },
@@ -244,16 +242,13 @@ const publishPostRoute = createRoute({
 });
 
 postRoutes.openapi(publishPostRoute, async (c) => {
-  const result = await Posts.publish(c.req.valid("param").id, {
-    redisUrl: env.REDIS_URL,
-  });
+  const result = await Posts.publish(c.req.valid("param").id);
   await recordAudit(c, { action: "post.publish", target: `post:${result.post.id}` });
   return c.json({ data: { jobId: result.job.id, postId: result.post.id } }, 202);
 });
 
 const unpublishPostRoute = createRoute({
-  description:
-    "Mark a Post as ARCHIVED. The next Astro build will omit this post. Idempotent for non-PUBLISHED states.",
+  description: "Mark a Post as ARCHIVED and redeploy its Site when the post was live.",
   method: "post",
   path: "/{id}/unpublish",
   request: { params: idParamSchema },
@@ -273,9 +268,7 @@ const unpublishPostRoute = createRoute({
 
 postRoutes.openapi(unpublishPostRoute, async (c) => {
   const id = c.req.valid("param").id;
-  await Posts.unpublish(id, {
-    redisUrl: env.REDIS_URL,
-  });
+  await Posts.unpublish(id);
   await recordAudit(c, { action: "post.unpublish", target: `post:${id}` });
   return c.json({ ok: true as const }, 200);
 });

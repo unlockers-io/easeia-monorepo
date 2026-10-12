@@ -1,5 +1,6 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
-import { hasUsableDeployHook } from "@repo/sites";
+import { countJobs } from "@repo/jobs";
+import { hasDeployHook } from "@repo/sites";
 import * as Sites from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
 import { buttonVariants } from "@repo/ui/components/button";
@@ -20,14 +21,12 @@ import {
 } from "@repo/ui/components/table";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, CheckCircle2, ExternalLink, XCircle } from "lucide-react";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { MoneySiteDropdown } from "@/components/money-site-dropdown";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
-import { getSession } from "@/lib/auth-helpers";
 import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
@@ -57,10 +56,8 @@ import { StatGridSkeleton, CardSkeleton, SectionSkeleton } from "./skeletons";
 
 const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const [site, session, headersList, moneySiteOptions] = await Promise.all([
+  const [site, moneySiteOptions] = await Promise.all([
     Sites.find(id),
-    getSession(),
-    headers(),
     prisma.moneySite.findMany({
       orderBy: { domain: "asc" },
       select: { domain: true, id: true, name: true },
@@ -70,9 +67,6 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   if (!site) {
     notFound();
   }
-  const host = headersList.get("host") ?? "localhost";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  const origin = `${proto}://${host}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -184,9 +178,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
         </CardContent>
       </Card>
 
-      <PublishingForm
-        site={{ ...site, hasDeployHook: hasUsableDeployHook(site.vercelDeployHookUrl) }}
-      />
+      <PublishingForm site={{ ...site, hasDeployHook: hasDeployHook(site) }} />
       <AuthorCard
         defaultBio={site.authorBio}
         defaultName={site.authorName}
@@ -200,7 +192,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <div className="mt-2 flex flex-col gap-1">
             <h2 className="text-lg font-semibold">SEO insights</h2>
             <p className="text-sm text-muted-foreground">
-              Live data from DataForSEO. Each section hits a metered live endpoint on render.
+              Data from DataForSEO&rsquo;s metered endpoints, cached between visits.
             </p>
           </div>
 
@@ -210,13 +202,13 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
             the panel. Nesting keeps the fetches parallel but settles the panel top-down. */}
             <SeoPanel>
               <Suspense fallback={<SectionSkeleton title="Domain rank" />}>
-                <DomainRankCard domain={site.domain} />
+                <DomainRankCard domain={site.domain} language={site.language} />
                 <Suspense fallback={<SectionSkeleton title="Backlinks" />}>
                   <BacklinksCard siteId={site.id} />
                   <Suspense fallback={<SectionSkeleton title="Homepage audit" />}>
                     <OnPageAuditCard siteId={site.id} url={`https://${site.domain}`} />
                     <Suspense fallback={<SectionSkeleton title="Top organic keywords" />}>
-                      <TopKeywordsCard domain={site.domain} />
+                      <TopKeywordsCard domain={site.domain} language={site.language} />
                     </Suspense>
                   </Suspense>
                 </Suspense>
@@ -232,11 +224,9 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       )}
 
-      {session ? (
-        <Suspense fallback={<CardSkeleton title="Google Search Console" />}>
-          <SearchConsoleCard domain={site.domain} origin={origin} userId={session.user.id} />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<CardSkeleton title="Google Search Console" />}>
+        <SearchConsoleCard domain={site.domain} />
+      </Suspense>
     </div>
   );
 };
@@ -244,9 +234,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
 const SiteStatGrid = async ({ siteId }: { siteId: string }) => {
   const [stats, rewriteCount] = await Promise.all([
     fetchSiteStats(siteId),
-    prisma.job.count({
-      where: { kind: JobKind.REWRITE_POST, post: { siteId }, status: JobStatus.DONE },
-    }),
+    countJobs({ kinds: [JobKind.REWRITE_POST], siteId, status: JobStatus.DONE }),
   ]);
   const items: ReadonlyArray<StatItem> = [
     { label: "Published posts", value: stats.postsTotal.toLocaleString() },

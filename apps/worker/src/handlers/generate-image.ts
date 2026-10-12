@@ -1,9 +1,8 @@
-import { AiNotConfiguredError } from "@repo/ai";
 import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
-import { enqueueTriggerDeploy as realEnqueueTriggerDeploy, type ConsumerContext } from "@repo/jobs";
+import type { ConsumerContext } from "@repo/jobs";
+import { requestRedeploy as realRequestRedeploy } from "@repo/sites";
 
-import { env } from "../lib/env";
 import { createJobLogger } from "../lib/logger";
 
 type PostForHero = {
@@ -17,11 +16,10 @@ type PostForHero = {
 };
 
 type Deps = {
-  enqueueTriggerDeploy?: typeof realEnqueueTriggerDeploy;
   findPost?: (postId: string) => Promise<PostForHero | null>;
   generateHero?: typeof realGenerateHero;
   hasHero?: (postId: string) => Promise<boolean>;
-  redisUrl?: string;
+  requestRedeploy?: typeof realRequestRedeploy;
 };
 
 const defaultFindPost = (postId: string): Promise<PostForHero | null> =>
@@ -50,8 +48,7 @@ export const makeHandleGenerateImage =
     const findPost = deps.findPost ?? defaultFindPost;
     const hasHero = deps.hasHero ?? defaultHasHero;
     const generateHero = deps.generateHero ?? realGenerateHero;
-    const enqueueTriggerDeploy = deps.enqueueTriggerDeploy ?? realEnqueueTriggerDeploy;
-    const redisUrl = deps.redisUrl ?? env.REDIS_URL;
+    const requestRedeploy = deps.requestRedeploy ?? realRequestRedeploy;
     const log = createJobLogger({ jobId, queue: "generate-image" });
     log.set({ postId });
 
@@ -68,29 +65,18 @@ export const makeHandleGenerateImage =
       log.emit();
       return;
     }
-    try {
-      await generateHero({
-        post: {
-          categories: post.categories,
-          id: post.id,
-          siteId: post.siteId,
-          slug: post.slug,
-          tags: post.tags,
-          title: post.title,
-        },
-        site: post.site,
-      });
-    } catch (error) {
-      // Parity with embed and classify: an unconfigured worker skips rather than
-      // burning the whole retry ladder on a condition retrying cannot fix.
-      if (error instanceof AiNotConfiguredError) {
-        log.warn("generate-image: OPENAI_API_KEY not set, skip");
-        log.emit();
-        return;
-      }
-      throw error;
-    }
-    await enqueueTriggerDeploy({ redisUrl, siteId: post.siteId });
+    await generateHero({
+      post: {
+        categories: post.categories,
+        id: post.id,
+        siteId: post.siteId,
+        slug: post.slug,
+        tags: post.tags,
+        title: post.title,
+      },
+      site: post.site,
+    });
+    await requestRedeploy(post.siteId);
     log.info("generate-image: done");
     log.emit();
   };

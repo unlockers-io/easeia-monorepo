@@ -1,7 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import { suggestionAnchorPatchSchema, suggestionListQuerySchema } from "@repo/api-types";
+import {
+  approveSuggestion,
+  editSuggestionAnchor,
+  listSuggestions,
+  rejectSuggestion,
+} from "@repo/links";
 import type { Action } from "@repo/policy";
-import { listSuggestions, updateSuggestion } from "@repo/suggest-links";
 import type { MiddlewareHandler } from "hono";
 import type { z } from "zod";
 
@@ -24,14 +29,13 @@ type SuggestionListItem = z.infer<typeof suggestionPublicSchema>;
 type SuggestionResult = z.infer<typeof suggestionDecisionSchema>["link"];
 type SuggestionRouteDependencies = {
   apiAuth: MiddlewareHandler;
+  approveSuggestion: (id: string) => Promise<SuggestionResult>;
   audit: typeof recordAudit;
+  editSuggestionAnchor: (id: string, anchorText: string) => Promise<SuggestionResult>;
   listSuggestions: (input: SuggestionListInput) => Promise<ReadonlyArray<SuggestionListItem>>;
   rateLimit: MiddlewareHandler;
-  requirePermission: (action: Action) => MiddlewareHandler;
-  updateSuggestion: (
-    id: string,
-    patch: { anchorText?: string; approved?: boolean },
-  ) => Promise<SuggestionResult>;
+  rejectSuggestion: (id: string) => Promise<SuggestionResult>;
+  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
 };
 
 const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
@@ -85,7 +89,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
     }),
     async (c) => {
       const id = c.req.valid("param").id;
-      const link = await dependencies.updateSuggestion(id, { approved: true });
+      const link = await dependencies.approveSuggestion(id);
       await dependencies.audit(c, { action: "link.approve", target: `link:${id}` });
       return c.json({ link }, 200);
     },
@@ -107,7 +111,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
     }),
     async (c) => {
       const id = c.req.valid("param").id;
-      const link = await dependencies.updateSuggestion(id, { approved: false });
+      const link = await dependencies.rejectSuggestion(id);
       await dependencies.audit(c, { action: "link.reject", target: `link:${id}` });
       return c.json({ link }, 200);
     },
@@ -136,7 +140,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
     async (c) => {
       const id = c.req.valid("param").id;
       const parsed = c.req.valid("json");
-      const link = await dependencies.updateSuggestion(id, { anchorText: parsed.anchorText });
+      const link = await dependencies.editSuggestionAnchor(id, parsed.anchorText);
       await dependencies.audit(c, { action: "link.update", target: `link:${id}` });
       return c.json({ link }, 200);
     },
@@ -147,11 +151,13 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
 
 const suggestionRoutes = createSuggestionRoutes({
   apiAuth: apiAuthMiddleware,
+  approveSuggestion,
   audit: recordAudit,
+  editSuggestionAnchor,
   listSuggestions,
   rateLimit: apiRateLimit,
+  rejectSuggestion,
   requirePermission: requireAction,
-  updateSuggestion,
 });
 
 export { createSuggestionRoutes, suggestionRoutes };

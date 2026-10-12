@@ -1,6 +1,6 @@
 import { isLiveLink } from "@repo/links";
 import * as Posts from "@repo/posts";
-import { hasUsableDeployHook, postPath, postPublicUrl } from "@repo/sites";
+import { hasDeployHook, postPath, postPublicUrl } from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -20,14 +20,13 @@ import {
 import { Table, TableBody, TableCell, TableRow } from "@repo/ui/components/table";
 import { TableColumns } from "@repo/ui/compositions/table-columns";
 import { ExternalLink, MoreHorizontal, Send, Trash2 } from "lucide-react";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { Banner } from "@/components/banner";
 import { RewriteTriggerButton } from "@/components/rewrite-trigger-button";
 import { SuggestedLinksPanel } from "@/components/suggested-links-panel";
-import { getSession } from "@/lib/auth-helpers";
 import { readIntegrations } from "@/lib/integrations";
 
 import { deletePostAction, publishPostAction } from "../../actions";
@@ -41,13 +40,14 @@ import { MoneySiteLinksPanel, RewrittenBadge } from "./rewrite-panels";
 import { PostSearchConsoleCard } from "./search-console-card";
 import { SimilarPostsCard } from "./similar-posts";
 
-const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
-  const [post, session, headersList] = await Promise.all([
-    Posts.detail(id),
-    getSession(),
-    headers(),
-  ]);
+type PostPageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+};
+
+const PostPage = async ({ params, searchParams }: PostPageProps) => {
+  const [{ id }, { error }] = await Promise.all([params, searchParams]);
+  const post = await Posts.detail(id);
   if (!post) {
     notFound();
   }
@@ -71,9 +71,6 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const nowMs = Date.now();
   const publicPageUrl = postPublicUrl(post.site, post);
   const permalinkLabel = `${post.site.domain} · ${postPath(post.site, post)}`;
-  const host = headersList.get("host") ?? "localhost";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  const origin = `${proto}://${host}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,10 +104,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <RewriteTriggerButton aiConfigured={readIntegrations().openai.configured} postId={id} />
           <form action={publishPostAction}>
             <input name="id" type="hidden" value={post.id} />
-            <Button
-              disabled={!post.site.isEnabled || !hasUsableDeployHook(post.site.vercelDeployHookUrl)}
-              type="submit"
-            >
+            <Button disabled={!post.site.isEnabled || !hasDeployHook(post.site)} type="submit">
               <Send className="size-4" />
               Publish
             </Button>
@@ -152,7 +146,9 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         </div>
       </header>
 
-      {!hasUsableDeployHook(post.site.vercelDeployHookUrl) && (
+      {error !== undefined && error !== "" ? <Banner tone="error">{error}</Banner> : null}
+
+      {!hasDeployHook(post.site) && (
         <output className="text-sm">
           Publishing requires a deploy hook.{" "}
           <Link className="underline" href={`/dashboard/sites/${post.site.id}#publishing`}>
@@ -254,7 +250,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <div className="mt-2 flex flex-col gap-1">
             <h2 className="text-lg font-semibold tracking-tight">SEO insights</h2>
             <p className="text-sm text-muted-foreground">
-              Live data from DataForSEO. Each card hits a metered live endpoint on render.
+              Data from DataForSEO&rsquo;s metered endpoints, cached between visits.
             </p>
           </div>
 
@@ -264,6 +260,7 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
                 <SerpRankCard
                   focusKeyword={post.focusKeyword}
                   siteDomain={post.site.domain}
+                  siteLanguage={post.site.language}
                   url={publicPageUrl}
                 />
               </Suspense>
@@ -283,16 +280,9 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       )}
 
-      {session ? (
-        <Suspense fallback={<SeoLoadingCard title="Search Console: page performance" />}>
-          <PostSearchConsoleCard
-            domain={post.site.domain}
-            origin={origin}
-            pageUrl={publicPageUrl}
-            userId={session.user.id}
-          />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<SeoLoadingCard title="Search Console: page performance" />}>
+        <PostSearchConsoleCard domain={post.site.domain} pageUrl={publicPageUrl} />
+      </Suspense>
 
       <OutboundLinksCard outbound={liveOutbound} />
 

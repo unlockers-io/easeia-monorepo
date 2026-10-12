@@ -8,8 +8,6 @@ vi.hoisted(() => {
   });
 });
 
-import { AiNotConfiguredError } from "@repo/ai";
-
 import { makeHandleGenerateBodyImages } from "./generate-body-images";
 
 const body = ["## Microfones", "", "Um parágrafo.", "", "Fecho."].join("\n");
@@ -20,7 +18,6 @@ const post = {
   site: { imageStyle: "Professional audio studio scene.", language: "PT" as const },
   siteId: "s1",
   slug: "guia-de-microfones",
-  status: "PUBLISHED" as const,
   tags: ["audio"],
   title: "Guia de Microfones",
 };
@@ -40,62 +37,45 @@ const image = (n: number) => ({
 });
 
 type Mocks = {
-  enqueueTriggerDeploy: Mock;
   findPost: Mock;
   generatePostImage: Mock;
   planBodyImages: Mock;
-  readBody: Mock;
+  reviseBody: Mock;
   upsertImage: Mock;
-  writeBody: Mock;
 };
 
 const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boolean } = {}) => {
   let generated = 0;
   const deps: Mocks = {
-    enqueueTriggerDeploy: vi.fn().mockResolvedValue({ skipped: false }),
     findPost: vi.fn().mockResolvedValue(post),
     generatePostImage: vi.fn().mockImplementation(() => {
       generated += 1;
       return Promise.resolve(image(generated));
     }),
     planBodyImages: vi.fn().mockResolvedValue(plan),
-    readBody: vi.fn().mockResolvedValue(body),
+    reviseBody: vi.fn().mockResolvedValue(undefined),
     upsertImage: vi.fn().mockResolvedValue(undefined),
-    writeBody: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   return {
     deps,
-    handle: makeHandleGenerateBodyImages({ ...deps, enabled, redisUrl: "redis://x" }),
+    handle: makeHandleGenerateBodyImages({ ...deps, enabled }),
   };
 };
 
 describe("handleGenerateBodyImages", () => {
-  it("generates every planned image, splices them into the body, and deploys once", async () => {
+  it("generates every planned image and revises the body it planned against", async () => {
     const { deps, handle } = wire();
     await handle(ctx);
 
     expect(deps.generatePostImage).toHaveBeenCalledTimes(2);
     expect(deps.upsertImage).toHaveBeenCalledTimes(2);
-    expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.enqueueTriggerDeploy).toHaveBeenCalledExactlyOnceWith({
-      redisUrl: "redis://x",
-      siteId: "s1",
-    });
-
-    const written = deps.writeBody.mock.calls[0]?.[0].body;
-    expect(written).toContain("![Um microfone](https://img.easeia.com/1.jpg)");
-    expect(written).toContain("![O estúdio](https://img.easeia.com/2.jpg)");
-  });
-
-  it("splices images into a draft without deploying; publish ships them later", async () => {
-    const { deps, handle } = wire({
-      findPost: vi.fn().mockResolvedValue({ ...post, status: "DRAFT" }),
-    });
-    await handle(ctx);
-
-    expect(deps.writeBody).toHaveBeenCalledOnce();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).toHaveBeenCalledOnce();
+    const [postId, revision] = deps.reviseBody.mock.calls[0] ?? [];
+    expect(postId).toBe("p1");
+    expect(revision.from).toBe(body);
+    expect(revision.body).toContain("![Um microfone](https://img.easeia.com/1.jpg)");
+    expect(revision.body).toContain("![O estúdio](https://img.easeia.com/2.jpg)");
   });
 
   it("names files per post and index so a retry upserts instead of duplicating", async () => {
@@ -134,8 +114,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.planBodyImages).not.toHaveBeenCalled();
-    expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).not.toHaveBeenCalled();
   });
 
   it("skips when the planner finds no spots", async () => {
@@ -143,8 +122,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.generatePostImage).not.toHaveBeenCalled();
-    expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).not.toHaveBeenCalled();
   });
 
   it("skips when BODY_IMAGES_ENABLED is off", async () => {
@@ -154,28 +132,11 @@ describe("handleGenerateBodyImages", () => {
     expect(deps.findPost).not.toHaveBeenCalled();
   });
 
-  it("skips without burning retries when the AI provider is unconfigured", async () => {
-    const { deps, handle } = wire({
-      planBodyImages: vi.fn().mockRejectedValue(new AiNotConfiguredError()),
-    });
-    await expect(handle(ctx)).resolves.toBeUndefined();
-    expect(deps.writeBody).not.toHaveBeenCalled();
-  });
-
   it("propagates generation failures so the retry ladder runs", async () => {
     const { deps, handle } = wire({
       generatePostImage: vi.fn().mockRejectedValue(new Error("openai 429")),
     });
     await expect(handle(ctx)).rejects.toThrow("openai 429");
-    expect(deps.writeBody).not.toHaveBeenCalled();
-  });
-
-  it("refuses to splice into a body that changed while images were generating", async () => {
-    const { deps, handle } = wire({
-      readBody: vi.fn().mockResolvedValue(`${body}\n\nParágrafo novo.`),
-    });
-    await expect(handle(ctx)).rejects.toThrow("body changed");
-    expect(deps.writeBody).not.toHaveBeenCalled();
-    expect(deps.enqueueTriggerDeploy).not.toHaveBeenCalled();
+    expect(deps.reviseBody).not.toHaveBeenCalled();
   });
 });

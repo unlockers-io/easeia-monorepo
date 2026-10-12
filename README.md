@@ -101,7 +101,7 @@ flowchart LR
 | `@repo/db`, `@repo/auth`, `@repo/policy`                               | Prisma/Postgres, sessions, and authorization                |
 | `@repo/posts`, `@repo/sites`, `@repo/jobs`                             | Post intake, site lifecycle, deploy hooks, and durable jobs |
 | `@repo/ai`, `@repo/hero`, `@repo/rewrite`, `@repo/classify`            | Text, image, rewrite, and categorization pipelines          |
-| `@repo/links`, `@repo/suggest-links`, `@repo/money-sites`              | Link graph, suggestions, and commercial targets             |
+| `@repo/links`, `@repo/money-sites`                                     | Link lifecycle and commercial targets                       |
 | `@repo/dataforseo`, `@repo/search-console`, `@repo/health`             | Provider clients and on-page SEO checks                     |
 | `@repo/blob`, `@repo/transactional`                                    | R2 storage and optional Resend mail                         |
 | `@repo/api-types`, `@repo/ui`, `@repo/observability`                   | Shared schemas, React components, and structured logging    |
@@ -123,9 +123,8 @@ The four required application values are `DATABASE_URL`, `REDIS_URL`, `BETTER_AU
 | Search Console                     | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`                                       |
 | Verification and password recovery | `RESEND_API_KEY`, `FROM_EMAIL`                                                               |
 | Registration                       | `SIGNUP_MODE=first-user` (default), `closed`, or `open`                                      |
-| Text/image model selection         | `OPENAI_GENERATION_MODEL`, `OPENAI_REWRITE_MODEL`, `OPENAI_IMAGE_MODEL`                      |
 
-See [.env.example](.env.example) for the full set. The dashboard’s **Settings → Integrations** identifies missing variables without showing their values. Embeddings remain fixed at 1536 dimensions; changing that requires a schema change and re-embedding.
+See [.env.example](.env.example) for the full set. The dashboard’s **Settings → Integrations** identifies missing variables without showing their values. Models and their prices are fixed in `packages/ai/src/models.ts`. Embeddings use 1536 dimensions; changing that requires a schema change and re-embedding.
 
 ## Connect an Astro site
 

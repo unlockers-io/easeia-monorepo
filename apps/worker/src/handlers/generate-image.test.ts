@@ -23,31 +23,29 @@ const post = {
 describe("handleGenerateImage", () => {
   it("generates a hero and enqueues a deploy when none exists", async () => {
     const generateHero = vi.fn().mockResolvedValue({ key: "k", url: "u" });
-    const enqueueTriggerDeploy = vi.fn().mockResolvedValue({ skipped: false });
+    const requestRedeploy = vi.fn().mockResolvedValue("queued");
     const handle = makeHandleGenerateImage({
-      enqueueTriggerDeploy,
       findPost: () => Promise.resolve(post),
       generateHero,
       hasHero: () => Promise.resolve(false),
-      redisUrl: "redis://x",
+      requestRedeploy,
     });
     await handle({ attemptsMade: 0, finalAttempt: false, jobId: "j", payload: { postId: "p1" } });
     expect(generateHero).toHaveBeenCalledExactlyOnceWith({
       post: expect.objectContaining({ id: "p1" }),
       site: { imageStyle: post.site.imageStyle },
     });
-    expect(enqueueTriggerDeploy).toHaveBeenCalledWith({ redisUrl: "redis://x", siteId: "s1" });
+    expect(requestRedeploy).toHaveBeenCalledWith("s1");
   });
 
   it("is idempotent: skips generation when a hero already exists", async () => {
     const generateHero = vi.fn();
-    const enqueueTriggerDeploy = vi.fn().mockResolvedValue({ skipped: true });
+    const requestRedeploy = vi.fn().mockResolvedValue("coalesced");
     const handle = makeHandleGenerateImage({
-      enqueueTriggerDeploy,
       findPost: () => Promise.resolve(post),
       generateHero,
       hasHero: () => Promise.resolve(true),
-      redisUrl: "redis://x",
+      requestRedeploy,
     });
     await handle({ attemptsMade: 0, finalAttempt: false, jobId: "j", payload: { postId: "p1" } });
     expect(generateHero).not.toHaveBeenCalled();

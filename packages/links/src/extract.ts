@@ -1,4 +1,5 @@
 import { parseHTML } from "linkedom";
+import { marked } from "marked";
 
 export type ExtractedLink = {
   anchorText: string;
@@ -11,7 +12,8 @@ export type ExtractedLink = {
 // eslint-disable-next-line no-script-url -- detection list, not a literal href
 const SKIP_PREFIXES = ["#", "mailto:", "tel:", "javascript:"];
 
-export const extractFromHtml = (html: string): Array<ExtractedLink> => {
+export const extractLinks = (body: string): Array<ExtractedLink> => {
+  const html = marked.parse(body, { async: false });
   const { document } = parseHTML(`<!doctype html><html><body>${html}</body></html>`);
   const anchors = document.querySelectorAll("a[href]");
   const out: Array<ExtractedLink> = [];

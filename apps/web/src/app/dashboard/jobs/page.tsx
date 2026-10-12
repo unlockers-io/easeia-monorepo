@@ -1,5 +1,6 @@
-import { JobStatus, prisma } from "@repo/db";
+import { JobStatus } from "@repo/db";
 import type { JobKind } from "@repo/db";
+import { listJobs } from "@repo/jobs";
 import { Badge } from "@repo/ui/components/badge";
 import {
   Card,
@@ -22,14 +23,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 const JobsTable = async () => {
-  const jobs = await prisma.job.findMany({
-    include: {
-      post: { select: { id: true, slug: true, title: true } },
-      site: { select: { domain: true, id: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const { data: jobs } = await listJobs({ limit: 100 });
 
   if (jobs.length === 0) {
     return <p className="px-6 pb-6 text-sm text-muted-foreground">No jobs yet.</p>;

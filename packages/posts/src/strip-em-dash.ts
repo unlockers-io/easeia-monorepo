@@ -1,3 +1,5 @@
+import type { SiteLanguage } from "@repo/db";
+
 import { isClauseTail } from "./pt-clause";
 
 const EM_DASH = String.fromCodePoint(8212);
@@ -226,14 +228,20 @@ const parentheticalTail = (tail: string, head: string): string | null => {
 
 type Replacement = { rule: StripRule; text: string; wrap?: string };
 
-const singleReplacement = (head: string, tail: string, kind: StripKind): Replacement => {
+type Context = { kind: StripKind; language: SiteLanguage };
+
+const singleReplacement = (
+  head: string,
+  tail: string,
+  { kind, language }: Context,
+): Replacement => {
   if (/[,:;?!]$/v.test(head.replace(TRAILING_SPACE_RE, ""))) {
     return { rule: "dangling", text: " " };
   }
   if (kind === "title" && !head.includes(":") && /^\p{Lu}/v.test(tail.trimStart())) {
     return { rule: "subtitle-colon", text: ": " };
   }
-  if (CONNECTORS.has(firstToken(tail))) {
+  if (language !== "PT" || CONNECTORS.has(firstToken(tail))) {
     return { rule: "appended-comma", text: ", " };
   }
   const colonTaken = hasProseColon(sentenceHead(head)) || hasProseColon(sentenceTail(tail));
@@ -266,7 +274,7 @@ const leadingSpaceWidth = (s: string): number => s.length - s.trimStart().length
  * break ends a paragraph in this corpus, so a pair never legitimately straddles
  * one, and per-line work keeps the label rule anchored to the real line start.
  */
-const stripLine = (line: string, counts: Record<StripRule, number>, kind: StripKind): string => {
+const stripLine = (line: string, counts: Record<StripRule, number>, context: Context): string => {
   if (!line.includes(EM_DASH)) {
     return line;
   }
@@ -319,7 +327,7 @@ const stripLine = (line: string, counts: Record<StripRule, number>, kind: StripK
       continue;
     }
 
-    const { rule, text, wrap } = singleReplacement(head, tail, kind);
+    const { rule, text, wrap } = singleReplacement(head, tail, context);
     out += line.slice(cursor, at).replace(TRAILING_SPACE_RE, "") + text;
     counts[rule] += 1;
     cursor = at + 1 + leadingSpaceWidth(tail);
@@ -332,10 +340,10 @@ const stripLine = (line: string, counts: Record<StripRule, number>, kind: StripK
   return out;
 };
 
-const stripFreeText = (text: string, counts: Record<StripRule, number>, kind: StripKind): string =>
+const stripFreeText = (text: string, counts: Record<StripRule, number>, context: Context): string =>
   text
     .split("\n")
-    .map((line) => stripLine(line, counts, kind))
+    .map((line) => stripLine(line, counts, context))
     .join("\n");
 
 const MASK = String.fromCodePoint(0);
@@ -360,7 +368,11 @@ const unmask = (text: string, spans: Array<string>): string =>
     (_, i: string) => spans[Number(i)] ?? "",
   );
 
-export const stripEmDash = (input: string, kind: StripKind = "text"): StripResult => {
+export const stripEmDash = (
+  input: string,
+  language: SiteLanguage,
+  kind: StripKind = "text",
+): StripResult => {
   const counts = emptyCounts();
   if (!input.includes(EM_DASH)) {
     return { changed: false, counts, text: input };
@@ -368,7 +380,7 @@ export const stripEmDash = (input: string, kind: StripKind = "text"): StripResul
 
   const { spans, text: masked } =
     kind === "markdown" ? maskProtected(input) : { spans: [], text: input };
-  const text = unmask(stripFreeText(masked, counts, kind), spans);
+  const text = unmask(stripFreeText(masked, counts, { kind, language }), spans);
 
   return { changed: text !== input, counts, text };
 };

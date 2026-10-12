@@ -1,4 +1,5 @@
 import type { Niche, SiteLanguage } from "@repo/db";
+import { SEO_DESCRIPTION_MAX, SEO_TITLE_MAX } from "@repo/health";
 
 import { REWRITER_SYSTEM_PROMPT, SITE_LANGUAGE_HUMAN } from "./prompt-constants";
 
@@ -50,7 +51,7 @@ export const buildRewritePrompt = (input: RewritePromptInput): string => {
     `Niches: ${input.post.niches.join(", ")}`,
     `Tags: ${input.post.tags.slice(0, 8).join(", ")}`,
     "",
-    `Output structured JSON with: title (50-60 chars, in ${languageName}), body (HTML in ${languageName}), excerpt (140-160 chars, in ${languageName}), focusKeyword (2-5 words, in ${languageName}).`,
+    `Output structured JSON with: title (50-${SEO_TITLE_MAX} chars, in ${languageName}), body (HTML in ${languageName}), excerpt (140-${SEO_DESCRIPTION_MAX} chars, in ${languageName}), focusKeyword (2-5 words, in ${languageName}).`,
     "Preserve all WordPress Gutenberg block-comment markup (`<!-- wp:* -->` / `<!-- /wp:* -->`) if present in the original: output the new body in the same block structure.",
     "",
     "Original body:",

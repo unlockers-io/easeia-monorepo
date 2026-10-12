@@ -1,13 +1,13 @@
 /**
  * Dry-run by default. --apply renames English categories to Portuguese only where
  * the site's categorySlugMap maps both names to one slug; anything that would move
- * an indexed category page is skipped. Redeploy with redeploy-affected-sites after.
+ * an indexed category page is skipped.
  */
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 import { slugify } from "../_shared/slugify";
 
 const APPLY = process.argv.includes("--apply");
@@ -100,8 +100,8 @@ const main = async (): Promise<void> => {
   for (const post of planned) {
     await prisma.post.update({ data: { categories: post.next }, where: { id: post.id } });
   }
-  const touched = recordAffectedSites([...new Set(planned.map((p) => p.siteId))]);
-  console.log(`\nupdated ${planned.length} posts; ${touched.length} sites pending redeploy`);
+  console.log(`\nupdated ${planned.length} posts`);
+  await redeploySites(planned.map((p) => p.siteId));
 };
 
 await main();

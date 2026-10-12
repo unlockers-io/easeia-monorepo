@@ -1,13 +1,13 @@
 /**
  * Dry-run by default. --apply collapses tag names differing only in case, accent
  * or a leading hash onto one stored name. They share a slug, so every /tag/ URL
- * survives; the tool refuses a canonical name that disagrees. Redeploy after.
+ * survives; the tool refuses a canonical name that disagrees.
  */
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
+import { redeploySites } from "../_shared/redeploy";
 import { slugify } from "../_shared/slugify";
 
 const APPLY = process.argv.includes("--apply");
@@ -94,8 +94,8 @@ const main = async (): Promise<void> => {
   for (const post of planned) {
     await prisma.post.update({ data: { tags: post.next }, where: { id: post.id } });
   }
-  const touched = recordAffectedSites([...new Set(planned.map((post) => post.siteId))]);
-  console.log(`\nupdated ${planned.length} posts; ${touched.length} sites pending redeploy`);
+  console.log(`\nupdated ${planned.length} posts`);
+  await redeploySites(planned.map((post) => post.siteId));
 };
 
 await main();

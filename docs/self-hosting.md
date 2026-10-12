@@ -36,30 +36,29 @@ The API exposes <http://localhost:4000/readyz>, <http://localhost:4000/docs>, an
 
 The [root environment example](../.env.example) documents every supported setting. Restart the apps after changing integration keys. **Settings → Integrations** shows missing variable names without exposing values.
 
-| Feature                            | Variables                                                               | When absent                                                       |
-| ---------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| AI drafts, rewrites, embeddings    | `OPENAI_API_KEY`                                                        | Manual writing and publishing remain available                    |
-| Live SEO insights                  | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`                               | Configuration cards replace metered requests                      |
-| Search Console                     | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`                  | Google connection is unavailable                                  |
-| Verification and recovery email    | `RESEND_API_KEY`, `FROM_EMAIL`                                          | Registration needs no verification; email recovery is unavailable |
-| Image storage and generated images | All five `R2_*` variables                                               | Image uploads are unavailable                                     |
-| AI model selection                 | `OPENAI_GENERATION_MODEL`, `OPENAI_REWRITE_MODEL`, `OPENAI_IMAGE_MODEL` | The documented defaults apply                                     |
+| Feature                            | Variables                                              | When absent                                                       |
+| ---------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| AI drafts, rewrites, embeddings    | `OPENAI_API_KEY`                                       | Manual writing and publishing remain available                    |
+| Live SEO insights                  | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`              | Configuration cards replace metered requests                      |
+| Search Console                     | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | Google connection is unavailable                                  |
+| Verification and recovery email    | `RESEND_API_KEY`, `FROM_EMAIL`                         | Registration needs no verification; email recovery is unavailable |
+| Image storage and generated images | All five `R2_*` variables                              | Image uploads are unavailable                                     |
 
-Embedding storage uses `text-embedding-3-small` with 1536 dimensions. Changing it requires a schema change and re-embedding existing content; there is no embedding-model environment override.
+Embedding storage uses `text-embedding-3-small` with 1536 dimensions. Changing it requires a schema change and re-embedding existing content.
 
 `PUBLIC_WEB_URL` and `PUBLIC_API_URL` describe your browser-facing addresses. Compose gives the apps internal Postgres/Redis URLs separately. To change local published ports, set `WEB_PORT` and `API_PORT` and update the corresponding public URLs and `CORS_ORIGINS`.
 
-Keep exactly **one worker replica**. It owns five in-process scheduler timers, so running additional replicas duplicates their scans. Tune `WORKER_CONCURRENCY` to control concurrent queue jobs within that worker.
+The worker registers its periodic ticks as BullMQ job schedulers in Redis, so each tick runs once whatever the replica count. Tune `WORKER_CONCURRENCY` to control concurrent queue jobs within each worker.
 
 ## Monthly AI allowance
 
-`AI_MONTHLY_BUDGET_USD` defaults to **18 USD across all sites**, per UTC calendar month. Set it identically on web, API, worker, and maintenance commands that share a database. `0` blocks new AI calls once enforcement is active. Images retain `OPENAI_IMAGE_QUALITY=medium`. `BODY_IMAGES_ENABLED=false` generates a hero at publication without automatic inline images; existing body images remain in place. Set the worker flag to `true` to opt into extra images and their cost. Daily publishing cadence is unchanged, but generation stops when the remaining allowance cannot cover the next request. Existing drafts can still publish, including without a newly generated hero.
+`AI_MONTHLY_BUDGET_USD` defaults to **18 USD across all sites**, per UTC calendar month. Set it identically on web, API, worker, and maintenance commands that share a database. `0` blocks new AI calls once enforcement is active. Images retain `OPENAI_IMAGE_QUALITY=medium`. `BODY_IMAGES_ENABLED=false` generates a hero at publication without automatic inline images; existing body images remain in place. Set the worker flag to `true` to opt into extra images and their cost. Daily publishing cadence is unchanged, but generation stops when the remaining allowance cannot cover the next request; the Job that hits the limit fails without retrying. Existing drafts can still publish, including without a newly generated hero.
 
 When enforcement is active, all OpenAI requests reserve a conservative cost in the shared `AiMonthlyBudget` table before contacting OpenAI. Successful responses refund unused reservation using reported tokens; failed requests, missing usage, and failed settlements retain the reservation. Concurrent jobs and SDK retries each reserve separately. Database failures block requests. A reported cost exceeding its reservation halts that month for investigation. The next month starts a fresh allowance automatically. In-flight calls are attributed to the month in which they reserved.
 
-The priced models are `gpt-5.6-luna` for text, `gpt-image-2` for images, and `text-embedding-3-small` for embeddings. Unknown models, streaming, stored conversation references, multimodal text inputs, and paid built-in tools are rejected. Text requests use the standard service tier and at most 16,384 output tokens. The guard budgets text at the higher long-context rates and ignores cache discounts. Images support one 1536×1024 output per request.
+The models are fixed in `packages/ai/src/models.ts`: `gpt-5.6-luna` for text, `gpt-image-2` for images, and `text-embedding-3-small` for embeddings, each with its price. Unknown models, streaming, stored conversation references, multimodal text inputs, and paid built-in tools are rejected. Text requests use the standard service tier and at most 16,384 output tokens. The guard budgets text at the higher long-context rates and ignores cache discounts. Images support one 1536×1024 output per request.
 
-At 12 daily posts and one medium-quality hero per post, 360 images cost approximately **$14.82 in image output per 30 days** ($15.31 for 31 days), plus input tokens and text/embedding calls. This cuts the normal image count by about 80%. Retries and backfills also consume the allowance, so some posts may publish without a new hero, and draft generation may pause before the end of a busy month. Rates used as of September 14, 2026: text $0.40/$1.80 per million input/output tokens, image text input $5 and image output $30 per million tokens, embeddings $0.02 per million tokens. See [OpenAI pricing](https://developers.openai.com/api/docs/pricing) and the [image generation guide](https://developers.openai.com/api/docs/guides/image-generation). Review the rates in `packages/ai/src/budget-policy.ts` when provider pricing changes.
+At 12 daily posts and one medium-quality hero per post, 360 images cost approximately **$14.82 in image output per 30 days** ($15.31 for 31 days), plus input tokens and text/embedding calls. This cuts the normal image count by about 80%. Retries and backfills also consume the allowance, so some posts may publish without a new hero, and draft generation may pause before the end of a busy month. Rates used as of September 14, 2026: text $0.40/$1.80 per million input/output tokens, image text input $5 and image output $30 per million tokens, embeddings $0.02 per million tokens. See [OpenAI pricing](https://developers.openai.com/api/docs/pricing) and the [image generation guide](https://developers.openai.com/api/docs/guides/image-generation). Review the rates in `packages/ai/src/models.ts` when provider pricing changes.
 
 This allowance estimates application usage; it is not an OpenAI invoice or an account-wide billing limit. Calls outside this deployment, older deployments, provider pricing changes, and month-boundary billing attribution are outside its control. The $18 default leaves $2 below a $20 target. Reservations can stop generation before $18 of actual usage.
 
@@ -88,7 +87,7 @@ SELECT "month", "usedMicroUsd" / 1000000.0 AS "reservedAndSpentUsd", "halted"
 FROM "AiMonthlyBudget" ORDER BY "month" DESC;
 ```
 
-The Postgres concurrency test uses a disposable database with the schema applied: `DATABASE_URL=... TEST_AI_BUDGET_DATABASE=true pnpm --filter @repo/ai test`. Do not run it against production.
+The Postgres concurrency test uses a disposable database with the schema applied: `DATABASE_URL=... TEST_DATABASE=true pnpm --filter @repo/ai test`. Do not run it against production.
 
 ## HTTPS and reverse proxies
 

@@ -1,11 +1,18 @@
-const modelName = (raw: string | undefined, fallback: string): string => {
-  const value = raw?.trim();
-  return value === undefined || value === "" ? fallback : value;
-};
-
-export const GENERATION_MODEL = modelName(process.env.OPENAI_GENERATION_MODEL, "gpt-5.6-luna");
-export const REWRITE_MODEL = modelName(process.env.OPENAI_REWRITE_MODEL, "gpt-5.6-luna");
-export const IMAGE_MODEL = modelName(process.env.OPENAI_IMAGE_MODEL, "gpt-image-2");
-// Fixed: text-embedding-3-small produces the 1536 dimensions used by pgvector columns.
-// Changing this requires a schema migration and re-embedding all stored vectors.
-export const EMBED_MODEL = "text-embedding-3-small";
+export const MODELS = {
+  embedding: {
+    dimensions: 1536,
+    microUsdPerInputToken: 0.02,
+    name: "text-embedding-3-small",
+  },
+  image: {
+    microUsdPerInputToken: 5,
+    microUsdPerOutputToken: 30,
+    name: "gpt-image-2",
+    size: "1536x1024",
+  },
+  text: {
+    microUsdPerInputToken: 0.4,
+    microUsdPerOutputToken: 1.8,
+    name: "gpt-5.6-luna",
+  },
+} as const;

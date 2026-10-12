@@ -1,4 +1,4 @@
-import { serpOrganic } from "@repo/dataforseo";
+import { dataForSeo } from "@repo/dataforseo";
 import { JobKind, type Prisma, prisma, type SiteLanguage } from "@repo/db";
 import { type ConsumerContext, enqueue } from "@repo/jobs";
 import * as Posts from "@repo/posts";
@@ -39,30 +39,14 @@ type GeneratePostDependencies = {
   findSite: (siteId: string) => Promise<SiteForGeneration | null>;
   generatePost: typeof generateNewPost;
   proposeTopic: typeof proposeTopic;
-  redisUrl: string;
   selectAnchors: typeof selectAnchorsForNewPost;
 };
 
 const SERP_COMPETITOR_LIMIT = 8;
 
-// DataForSEO location/language codes per site language. The network targets
-// Brazil (PT), Spain (ES), and the US (EN); SERPs differ per market, so the
-// lookup must match where the site's readers actually search.
-const SERP_LOCALE = {
-  EN: { languageCode: "en", locationCode: 2840 },
-  ES: { languageCode: "es", locationCode: 2724 },
-  PT: { languageCode: "pt", locationCode: 2076 },
-} satisfies Record<SiteLanguage, { languageCode: string; locationCode: number }>;
-
 const fetchSerpCompetitors = async (input: SerpLookup): Promise<ReadonlyArray<SerpCompetitor>> => {
   try {
-    const locale = SERP_LOCALE[input.language];
-    const result = await serpOrganic(
-      input.keyword,
-      input.domain,
-      locale.locationCode,
-      locale.languageCode,
-    );
+    const result = await dataForSeo.serpOrganic(input, input.keyword);
     return result.top
       .filter((p) => p.domain !== input.domain.toLowerCase())
       .slice(0, SERP_COMPETITOR_LIMIT)
@@ -125,21 +109,18 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
       topicHints,
     });
 
-    const { post } = await dependencies.createPost(
-      {
-        body: generated.body,
-        categories: [generated.category],
-        excerpt: generated.excerpt,
-        focusKeyword: generated.focusKeyword,
-        niches: site.niches,
-        publish: false,
-        siteId,
-        slug: generated.slug,
-        tags: [...generated.tags],
-        title: generated.title,
-      },
-      { redisUrl: dependencies.redisUrl },
-    );
+    const { post } = await dependencies.createPost({
+      body: generated.body,
+      categories: [generated.category],
+      excerpt: generated.excerpt,
+      focusKeyword: generated.focusKeyword,
+      niches: site.niches,
+      publish: false,
+      siteId,
+      slug: generated.slug,
+      tags: [...generated.tags],
+      title: generated.title,
+    });
 
     if (dependencies.bodyImagesEnabled) {
       // Retrying GENERATE_POST would create a second draft; publish retries this fanout.
@@ -148,7 +129,6 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
           kind: JobKind.GENERATE_BODY_IMAGES,
           payload: { postId: post.id },
           postId: post.id,
-          redisUrl: dependencies.redisUrl,
         });
       } catch (error) {
         workerLog.warn({ err: error, message: "body-image enqueue failed", postId: post.id });
@@ -183,7 +163,6 @@ const handleGeneratePost = createHandleGeneratePost({
     }),
   generatePost: generateNewPost,
   proposeTopic,
-  redisUrl: env.REDIS_URL,
   selectAnchors: selectAnchorsForNewPost,
 });
 

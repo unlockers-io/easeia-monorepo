@@ -10,7 +10,6 @@ import { errorResponse } from "@/lib/openapi-schemas";
 import type { AuthVariables } from "@/middleware/api-auth";
 import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
 import { apiRateLimit } from "@/middleware/security";
-import { requireMatchingSiteKey } from "@/middleware/site-scoped-key";
 
 type BuildAuthor = {
   bio: string | null;
@@ -69,7 +68,6 @@ type BuildRouteDependencies = {
   findSite: (siteId: string) => Promise<BuildSite | null>;
   rateLimit: MiddlewareHandler;
   requirePermission: (action: Action) => MiddlewareHandler;
-  requireSiteScope: MiddlewareHandler;
 };
 
 type BuildVariables = AuthVariables & { site: BuildSite };
@@ -110,8 +108,7 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
 
   buildRoutes.use("*", dependencies.apiAuth);
   buildRoutes.use("*", dependencies.rateLimit);
-  buildRoutes.use("*", dependencies.requirePermission("content:read"));
-  buildRoutes.use("/sites/:siteId/*", dependencies.requireSiteScope);
+  buildRoutes.use("/sites/:siteId/*", dependencies.requirePermission("content:read"));
 
   // The scope check runs first so a mis-scoped key cannot confirm whether a site id exists.
   buildRoutes.use("/sites/:siteId/*", async (c, next) => {
@@ -346,7 +343,6 @@ const buildRoutes = createBuildRoutes({
     }),
   rateLimit: apiRateLimit,
   requirePermission: requireAction,
-  requireSiteScope: requireMatchingSiteKey,
 });
 
 export { buildRoutes, createBuildRoutes };

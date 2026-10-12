@@ -41,7 +41,6 @@ const dependencies: GeneratePostDependencies = {
   findSite,
   generatePost,
   proposeTopic,
-  redisUrl: "redis://test",
   selectAnchors,
 };
 const handleGeneratePost = createHandleGeneratePost(dependencies);
@@ -93,9 +92,7 @@ describe("handleGeneratePost", () => {
       payload: { siteId: "site_a" },
     });
 
-    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ publish: false }), {
-      redisUrl: "redis://test",
-    });
+    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ publish: false }));
   });
 
   it.each([true, false])("only chains body images when enabled: %s", async (bodyImagesEnabled) => {
@@ -131,7 +128,6 @@ describe("handleGeneratePost", () => {
         kind: "GENERATE_BODY_IMAGES",
         payload: { postId: "post_1" },
         postId: "post_1",
-        redisUrl: "redis://test",
       });
     } else {
       expect(enqueueJob).not.toHaveBeenCalled();

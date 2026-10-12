@@ -21,7 +21,7 @@ describe("backfillHeroes", () => {
           { id: "p2", siteId: "s2" },
         ]),
     });
-    const result = await backfill("redis://x");
+    const result = await backfill();
     expect(result.enqueued).toBe(2);
     expect(enqueueJob).toHaveBeenCalledTimes(2);
   });
@@ -29,7 +29,7 @@ describe("backfillHeroes", () => {
   it("no-ops when nothing is heroless", async () => {
     const enqueueJob = vi.fn();
     const backfill = makeBackfillHeroes({ enqueueJob, findHeroless: () => Promise.resolve([]) });
-    const result = await backfill("redis://x");
+    const result = await backfill();
     expect(result.enqueued).toBe(0);
     expect(enqueueJob).not.toHaveBeenCalled();
   });
@@ -47,7 +47,7 @@ describe("backfillHeroes", () => {
           { id: "p2", siteId: "s2" },
         ]),
     });
-    const result = await backfill("redis://x");
+    const result = await backfill();
     expect(result.enqueued).toBe(1);
   });
 });

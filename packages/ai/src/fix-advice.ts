@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { generateStructured } from "./generate";
+import { generateStructured } from "./client";
 
 const severitySchema = z.enum(["low", "medium", "high"]);
 const categorySchema = z.enum(["hosting", "wordpress", "content", "structure"]);

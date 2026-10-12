@@ -13,7 +13,7 @@
     "@repo/db": "workspace:*",
     "@repo/health": "workspace:*",
     "@repo/links": "workspace:*",
-    "@repo/sites": "workspace:*",
+    "@repo/posts": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.11"
   },

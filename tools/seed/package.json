@@ -12,6 +12,8 @@
   "dependencies": {
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/jobs": "workspace:*",
+    "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.11",

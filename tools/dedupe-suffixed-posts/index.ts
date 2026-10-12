@@ -1,13 +1,13 @@
 /**
  * Dry-run by default; --apply moves the longest body onto the base slug and
- * archives the copies. Ship the /<category>/<slug>/ redirects in the same
- * deploy, or the URLs 404.
+ * archives the copies. Ship the /<category>/<slug>/ redirects before --apply:
+ * moving a body redeploys its Site, and that build drops the archived copies.
  */
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
-
-import { recordAffectedSites } from "../_shared/affected-sites";
+import { closeJobs } from "@repo/jobs";
+import { reviseBody, unpublish } from "@repo/posts";
 
 import { groupSuffixedPosts, longestBody } from "./group";
 
@@ -47,13 +47,15 @@ const main = async (): Promise<void> => {
 
     if (APPLY) {
       if (source.id !== base.id) {
-        await prisma.post.update({
-          data: { body: source.body, excerpt: source.excerpt, title: source.title },
-          where: { id: base.id },
+        await reviseBody(base.id, {
+          body: source.body,
+          excerpt: source.excerpt,
+          from: base.body,
+          title: source.title,
         });
       }
       for (const dupe of dupes) {
-        await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: dupe.id } });
+        await unpublish(dupe.id);
       }
     }
   }
@@ -71,9 +73,11 @@ const main = async (): Promise<void> => {
     console.log("\ndry run; pass --apply to write");
     return;
   }
-  const touched = recordAffectedSites([...new Set(groups.map(({ base }) => base.siteId))]);
-  console.log(`\nresolved ${groups.length} bases; ${touched.length} sites pending redeploy`);
+  console.log(`\nresolved ${groups.length} bases; ship the redirects above to publish them`);
 };
 
-await main();
-await prisma.$disconnect();
+try {
+  await main();
+} finally {
+  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
+}

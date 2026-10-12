@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findMissingAnchors } from "./rewrite";
+import { findMissingAnchors } from "./anchored-generation";
 
 describe("findMissingAnchors", () => {
   it("returns anchors whose url does not appear in the body", () => {

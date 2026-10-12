@@ -1,73 +1,53 @@
-import { JobStatus } from "@repo/db";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { JobKind, JobStatus, prisma } from "@repo/db";
+import { afterAll, describe, expect, it } from "vitest";
 
-import { createReapStuckJobs, type UpdateJobs } from "./index";
+import { reapStuckJobs } from "./index";
 
-type ReapWhere = {
-  OR: Array<{
-    attempts?: { gt: number };
-    startedAt: { lt: Date; not: null };
-    status: string;
-  }>;
-};
+const HOUR_MS = 60 * 60 * 1000;
 
-const updateMany = vi.fn<UpdateJobs>(() => Promise.resolve({ count: 0 }));
-const reapStuckJobs = createReapStuckJobs(updateMany);
+describe.runIf(process.env.TEST_DATABASE === "true")("reapStuckJobs", () => {
+  const createdIds: Array<string> = [];
 
-/** The `where` the reaper would send, so the clauses can be asserted directly. */
-const capturedWhere = (): ReapWhere => {
-  const call = updateMany.mock.calls[0];
-  if (call === undefined) {
-    throw new Error("reapStuckJobs did not call updateMany");
-  }
-  return call[0].where as ReapWhere;
-};
-
-describe("reapStuckJobs", () => {
-  beforeEach(() => {
-    updateMany.mockClear();
+  afterAll(async () => {
+    await prisma.job.deleteMany({ where: { id: { in: createdIds } } });
   });
 
-  it("keys both clauses on startedAt, never createdAt", async () => {
-    await reapStuckJobs(60_000);
-    const where = capturedWhere();
+  const seed = async (row: { attempts: number; startedAt: Date | null; status: JobStatus }) => {
+    const job = await prisma.job.create({
+      data: {
+        ...row,
+        createdAt: new Date(Date.now() - 3 * HOUR_MS),
+        kind: JobKind.CRAWL_LINKS,
+        payload: { postId: "post_unused" },
+      },
+    });
+    createdIds.push(job.id);
+    return job.id;
+  };
 
-    expect(JSON.stringify(where)).not.toContain("createdAt");
-    for (const clause of where.OR) {
-      expect(clause.startedAt).toEqual({ lt: expect.any(Date), not: null });
-    }
-  });
+  it("fails stale RUNNING and retried QUEUED rows and leaves the rest alone", async () => {
+    const stale = new Date(Date.now() - 2 * HOUR_MS);
+    const fresh = new Date();
+    const staleRunning = await seed({ attempts: 1, startedAt: stale, status: JobStatus.RUNNING });
+    const staleRetry = await seed({ attempts: 2, startedAt: stale, status: JobStatus.QUEUED });
+    const freshRunning = await seed({ attempts: 1, startedAt: fresh, status: JobStatus.RUNNING });
+    const freshRetry = await seed({ attempts: 1, startedAt: fresh, status: JobStatus.QUEUED });
+    const delayed = await seed({ attempts: 0, startedAt: null, status: JobStatus.QUEUED });
+    const finished = await seed({ attempts: 1, startedAt: stale, status: JobStatus.DONE });
 
-  it("reaps RUNNING jobs that started before the cutoff", async () => {
-    await reapStuckJobs(60_000);
-    const running = capturedWhere().OR.find((c) => c.status === JobStatus.RUNNING);
+    const { reaped } = await reapStuckJobs(HOUR_MS);
+    const rows = await prisma.job.findMany({ where: { id: { in: createdIds } } });
+    const statusOf = new Map(rows.map((row) => [row.id, row.status]));
 
-    expect(running).toBeDefined();
-    expect(running?.attempts).toBeUndefined();
-  });
-
-  it("reaps QUEUED jobs only when they have already attempted at least once", async () => {
-    // A delayed job that has never run has attempts 0 and startedAt null, so
-    // this clause must not be able to match it.
-    await reapStuckJobs(60_000);
-    const queued = capturedWhere().OR.find((c) => c.status === JobStatus.QUEUED);
-
-    expect(queued).toBeDefined();
-    expect(queued?.attempts).toEqual({ gt: 0 });
-    expect(queued?.startedAt.not).toBeNull();
-  });
-
-  it("uses the supplied max age to build the cutoff", async () => {
-    const before = Date.now();
-    await reapStuckJobs(3_600_000);
-    const cutoff = capturedWhere().OR[0]?.startedAt.lt ?? new Date(0);
-
-    expect(before - cutoff.getTime()).toBeGreaterThanOrEqual(3_600_000);
-    expect(before - cutoff.getTime()).toBeLessThan(3_605_000);
-  });
-
-  it("returns the number of rows the update touched", async () => {
-    updateMany.mockResolvedValueOnce({ count: 7 });
-    await expect(reapStuckJobs()).resolves.toEqual({ reaped: 7 });
+    expect(reaped).toBeGreaterThanOrEqual(2);
+    expect(statusOf.get(staleRunning)).toBe(JobStatus.FAILED);
+    expect(statusOf.get(staleRetry)).toBe(JobStatus.FAILED);
+    expect(statusOf.get(freshRunning)).toBe(JobStatus.RUNNING);
+    expect(statusOf.get(freshRetry)).toBe(JobStatus.QUEUED);
+    expect(statusOf.get(delayed)).toBe(JobStatus.QUEUED);
+    expect(statusOf.get(finished)).toBe(JobStatus.DONE);
+    expect(rows.find((row) => row.id === staleRunning)?.lastError).toBe(
+      "stuck: reaped by reconciliation",
+    );
   });
 });

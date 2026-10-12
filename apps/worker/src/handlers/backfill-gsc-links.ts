@@ -6,10 +6,8 @@ import {
   type BackfillGscLinksPayload,
   type ConsumerContext,
 } from "@repo/jobs";
-import { GoogleNotConnectedError, resolveSiteUrl } from "@repo/search-console";
+import { forSite } from "@repo/search-console";
 
-import { env } from "../lib/env";
-import { buildRedirectUri } from "../lib/google-redirect-uri";
 import { createJobLogger } from "../lib/logger";
 
 import { sliceBatch } from "./slice-batch";
@@ -30,7 +28,6 @@ const reEnqueueSelf = async (payload: BackfillGscLinksPayload, delayMs: number):
     delayMs,
     kind: JobKind.BACKFILL_GSC_LINKS,
     payload,
-    redisUrl: env.REDIS_URL,
     siteId: payload.siteId,
   });
 };
@@ -53,26 +50,13 @@ export const handleBackfillGscLinks = async (
       return;
     }
 
-    const redirectUri = buildRedirectUri();
-    if (redirectUri === null || redirectUri === "") {
-      log.warn("backfill-gsc-links: APP_URL unset, aborting");
+    const searchConsole = await forSite(site.domain);
+    if (searchConsole.status === "not_connected") {
+      log.warn("backfill-gsc-links: no Google connection, aborting");
       log.emit();
       return;
     }
-
-    let sitePropertyUrl: string | null;
-    try {
-      sitePropertyUrl = await resolveSiteUrl({ redirectUri, userId: payload.userId }, site.domain);
-    } catch (error) {
-      if (error instanceof GoogleNotConnectedError) {
-        log.set({ userId: payload.userId });
-        log.warn("backfill-gsc-links: user has no Google connection, aborting");
-        log.emit();
-        return;
-      }
-      throw error;
-    }
-    if (sitePropertyUrl === null || sitePropertyUrl === "") {
+    if (searchConsole.status === "not_verified") {
       log.set({ domain: site.domain });
       log.warn("backfill-gsc-links: domain not verified in GSC, aborting");
       log.emit();
@@ -88,7 +72,7 @@ export const handleBackfillGscLinks = async (
       },
     });
 
-    log.set({ posts: posts.length, sitePropertyUrl });
+    log.set({ posts: posts.length, sitePropertyUrl: searchConsole.property });
     log.info("backfill-gsc-links: initial fanout");
     log.emit();
 
@@ -98,8 +82,6 @@ export const handleBackfillGscLinks = async (
         initialFanoutDone: true,
         postIds: posts.map((p) => p.id),
         siteId: site.id,
-        sitePropertyUrl,
-        userId: payload.userId,
       },
       0,
     );
@@ -108,12 +90,6 @@ export const handleBackfillGscLinks = async (
 
   const postIds = payload.postIds ?? [];
   const cursor = payload.cursor ?? 0;
-  const sitePropertyUrl = payload.sitePropertyUrl;
-  if (sitePropertyUrl === undefined || sitePropertyUrl === "") {
-    log.warn("backfill-gsc-links: missing sitePropertyUrl, aborting");
-    log.emit();
-    return;
-  }
 
   const { slice } = sliceBatch(postIds, cursor);
   if (slice.length === 0) {
@@ -128,9 +104,8 @@ export const handleBackfillGscLinks = async (
       enqueue({
         delayMs: i * STAGGER_MS,
         kind: JobKind.CRAWL_GSC_LINKS,
-        payload: { postId, sitePropertyUrl, userId: payload.userId },
+        payload: { postId },
         postId,
-        redisUrl: env.REDIS_URL,
       }),
     ),
   );
@@ -164,8 +139,6 @@ export const handleBackfillGscLinks = async (
       initialFanoutDone: true,
       postIds,
       siteId: payload.siteId,
-      sitePropertyUrl,
-      userId: payload.userId,
     },
     TICK_DELAY_MS,
   );

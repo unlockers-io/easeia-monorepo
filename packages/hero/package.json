@@ -17,8 +17,7 @@
     "@repo/ai": "workspace:*",
     "@repo/blob": "workspace:*",
     "@repo/db": "workspace:*",
-    "sharp": "^0.35.5",
-    "zod": "^4.6.5"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",

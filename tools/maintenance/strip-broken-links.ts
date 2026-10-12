@@ -1,8 +1,9 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import { closeJobs } from "@repo/jobs";
+import { reviseBody } from "@repo/posts";
 
-import { recordAffectedSites } from "../_shared/affected-sites";
 import { readBrokenLinks, type BrokenLink } from "../_shared/broken-links";
 
 type BrokenHit = BrokenLink;
@@ -91,10 +92,7 @@ const main = async () => {
     affectedSiteIds.add(post.siteId);
 
     if (APPLY) {
-      await prisma.post.update({
-        data: { body: newBody },
-        where: { id: postId },
-      });
+      await reviseBody(postId, { body: newBody, from: post.body });
     }
   }
 
@@ -113,10 +111,7 @@ const main = async () => {
   console.log(`links removed:   ${stats.linksRemoved}`);
   console.log(`sites affected:  ${affectedSiteIds.size}`);
 
-  recordAffectedSites([...affectedSiteIds]);
-  console.log(`\nwrote /tmp/easeia-affected-site-ids.json`);
-
-  await prisma.$disconnect();
+  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
 };
 
 try {

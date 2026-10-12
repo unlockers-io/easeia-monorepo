@@ -14,10 +14,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@repo/ai": "workspace:*",
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/sites": "workspace:*",
+    "@truto/turndown-plugin-gfm": "^1.0.5",
     "turndown": "^7.2.0"
   },
   "devDependencies": {

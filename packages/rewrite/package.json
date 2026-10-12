@@ -16,10 +16,11 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/health": "workspace:*",
+    "@repo/links": "workspace:*",
     "@repo/money-sites": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",
-    "ai": "^7.0.58",
     "franc": "^6.2.0",
     "zod": "^4.6.5"
   },

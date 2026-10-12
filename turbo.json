@@ -8,10 +8,7 @@
     "AI_BUDGET_START_MONTH",
     "BODY_IMAGES_ENABLED",
     "HERO_AUTOGEN_ENABLED",
-    "OPENAI_IMAGE_QUALITY",
-    "OPENAI_GENERATION_MODEL",
-    "OPENAI_REWRITE_MODEL",
-    "OPENAI_IMAGE_MODEL"
+    "OPENAI_IMAGE_QUALITY"
   ],
   "globalPassThroughEnv": ["PGAPPNAME"],
   "tasks": {
@@ -67,6 +64,7 @@
     "test": {
       "dependsOn": ["^build", "db:generate"],
       "outputs": ["coverage/**"],
+      "passThroughEnv": ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE", "TEST_REDIS"],
       "cache": false
     },
     "test:watch": {

@@ -13,15 +13,16 @@ vi.hoisted(() => {
 import { createRewriteRoutes } from "./rewrite";
 import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
 
-const enqueueMock = vi.fn(() => Promise.resolve({ id: "job_1", queueJobId: undefined }));
+const requestRewrite = vi.fn(() => Promise.resolve({ id: "job_1" }));
+const start = vi.fn(() => Promise.resolve({ jobId: "job_2" }));
 const rewriteRoutes = createRewriteRoutes({
   apiAuth: bypassMiddleware,
   audit: () => Promise.resolve(),
-  enqueueJob: enqueueMock,
-  getRedisUrl: () => "redis://test",
   rateLimit: bypassMiddleware,
   readStatus: () => Promise.resolve({ active: false }),
+  requestRewrite,
   requirePermission: allowAction,
+  start,
 });
 const app = mountForTest(rewriteRoutes);
 
@@ -38,17 +39,13 @@ describe("rewrite write routes: body validation", () => {
   it("POST /network accepts an empty body (force defaults to false)", async () => {
     const res = await post("/network");
     expect(res.status).toBe(202);
-    expect(enqueueMock).toHaveBeenCalledWith(
-      expect.objectContaining({ payload: expect.objectContaining({ force: false }) }),
-    );
+    expect(start).toHaveBeenCalledWith({ force: false });
   });
 
   it("POST /network accepts force: true", async () => {
     const res = await post("/network", { force: true });
     expect(res.status).toBe(202);
-    expect(enqueueMock).toHaveBeenCalledWith(
-      expect.objectContaining({ payload: expect.objectContaining({ force: true }) }),
-    );
+    expect(start).toHaveBeenCalledWith({ force: true });
   });
 
   it("POST /network rejects a malformed force body with the standard envelope", async () => {
@@ -63,9 +60,10 @@ describe("rewrite write routes: body validation", () => {
     });
   });
 
-  it("POST /post/:id accepts an empty body", async () => {
+  it("POST /post/:id accepts an empty body (force defaults to false)", async () => {
     const res = await post("/post/p1");
     expect(res.status).toBe(202);
+    expect(requestRewrite).toHaveBeenCalledWith("p1", { force: false });
   });
 
   it("POST /post/:id rejects a malformed force body", async () => {

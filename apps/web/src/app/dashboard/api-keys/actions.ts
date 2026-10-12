@@ -1,26 +1,32 @@
 "use server";
 
-import { prisma } from "@repo/db";
+import type { ApiKeyCreate } from "@repo/api-types";
+import { createApiKey, revokeApiKey } from "@repo/policy";
 import { revalidatePath } from "next/cache";
 
-import { getSession } from "@/lib/auth-helpers";
+import { audit } from "@/lib/access";
+import { requireSession } from "@/lib/auth-helpers";
+import { withAuth } from "@/lib/server-action";
 
-import { createApiKeyActions } from "./api-key-actions";
+export const createApiKeyAction = async (input: ApiKeyCreate) =>
+  withAuth(async () => {
+    const issued = await createApiKey(input);
+    await audit({
+      action: "apikey.create",
+      meta: { scopes: issued.scopes },
+      target: `apikey:${issued.id}`,
+    });
+    revalidatePath("/dashboard/api-keys");
+    return issued.token;
+  });
 
-const requireSession = async (): Promise<void> => {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("Unauthorized");
+export const revokeApiKeyAction = async (formData: FormData) => {
+  await requireSession();
+  const id = formData.get("id");
+  if (typeof id !== "string" || id === "") {
+    throw new Error("id is required");
   }
+  await revokeApiKey(id);
+  await audit({ action: "apikey.revoke", target: `apikey:${id}` });
+  revalidatePath("/dashboard/api-keys");
 };
-
-const { createApiKeyAction, revokeApiKeyAction } = createApiKeyActions({
-  createKey: (data) => prisma.apiKey.create({ data }),
-  requireSession,
-  revalidate: revalidatePath,
-  revokeKey: async (id) => {
-    await prisma.apiKey.update({ data: { revokedAt: new Date() }, where: { id } });
-  },
-});
-
-export { createApiKeyAction, revokeApiKeyAction };

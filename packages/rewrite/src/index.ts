@@ -14,7 +14,7 @@ export {
   sanitizeBodyImagePlan,
 } from "./plan-body-images";
 export type { PlanBodyImagesInput, PlannedBodyImage } from "./plan-body-images";
-export { REWRITER_SYSTEM_PROMPT, REWRITER_MODEL } from "./prompt-constants";
+export { REWRITER_SYSTEM_PROMPT } from "./prompt-constants";
 export { buildRewritePrompt } from "./prompt";
 export type { AnchorSpec, RewritePromptInput } from "./prompt";
 export { EVAL_CASES, EVAL_LANGUAGE_TO_SITE } from "./evals/cases";

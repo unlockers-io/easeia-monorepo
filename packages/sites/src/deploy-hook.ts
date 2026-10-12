@@ -11,5 +11,3 @@ export const parseDeployHook = (raw: string | null): URL | null => {
   }
   return parsed;
 };
-
-export const hasUsableDeployHook = (raw: string | null): boolean => parseDeployHook(raw) !== null;

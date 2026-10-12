@@ -7,12 +7,6 @@ if (SITE_ID === undefined || SITE_ID === "") {
   process.exit(1);
 }
 
-const REDIS_URL = process.env.REDIS_URL;
-if (REDIS_URL === undefined || REDIS_URL === "") {
-  console.error("REDIS_URL env var required");
-  process.exit(1);
-}
-
 const run = async (): Promise<void> => {
   const site = await prisma.site.findUnique({
     select: { domain: true, id: true, vercelDeployHookUrl: true },
@@ -44,7 +38,6 @@ const run = async (): Promise<void> => {
         kind: JobKind.PUBLISH,
         payload: { postId: p.id },
         postId: p.id,
-        redisUrl: REDIS_URL,
         siteId: SITE_ID,
       });
       queued += 1;

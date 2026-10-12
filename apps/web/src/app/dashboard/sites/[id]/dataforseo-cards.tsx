@@ -1,6 +1,6 @@
-import { auditPage, DataForSeoError, domainRankOverview, rankedKeywords } from "@repo/dataforseo";
-import { LinkType, prisma } from "@repo/db";
-import { liveLinkWhere } from "@repo/links";
+import { prisma, type SiteLanguage } from "@repo/db";
+import { pbnBacklinkSummary } from "@repo/links";
+import { isConnected } from "@repo/search-console";
 import { Badge } from "@repo/ui/components/badge";
 import {
   Table,
@@ -13,9 +13,8 @@ import {
 import { CheckCircle2, ExternalLink, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { tryProvider } from "@/app/dashboard/lib/provider-result";
+import { auditPage, domainRankOverview, rankedKeywords } from "@/app/dashboard/lib/dataforseo";
 
-import { onPageCheckPassed, partitionFailingChecks } from "./audit-check-filter";
 import { ExternalBacklinksUpload } from "./external-backlinks-upload";
 import { FailingChecksList } from "./failing-checks-list";
 
@@ -50,8 +49,10 @@ const SectionError = ({ message, title }: { message: string; title: string }) =>
   </Section>
 );
 
-export const DomainRankCard = async ({ domain }: { domain: string }) => {
-  const outcome = await tryProvider(() => domainRankOverview(domain), [DataForSeoError]);
+type MarketProps = { domain: string; language: SiteLanguage };
+
+export const DomainRankCard = async ({ domain, language }: MarketProps) => {
+  const outcome = await domainRankOverview(domain, language);
   if (!outcome.ok) {
     return <SectionError message={outcome.error} title="Domain rank" />;
   }
@@ -73,8 +74,8 @@ export const DomainRankCard = async ({ domain }: { domain: string }) => {
       <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
         <Stat label="Organic keywords" value={overview.organicKeywords.toLocaleString()} />
         <Stat
-          label="Est. monthly traffic value"
-          value={`$${overview.organicTrafficValue.toFixed(0)}`}
+          label="Est. monthly organic traffic"
+          value={Math.round(overview.organicTraffic).toLocaleString()}
         />
         <Stat label="Position 1" value={overview.pos1.toLocaleString()} />
         <Stat label="Position 2–3" value={overview.pos2to3.toLocaleString()} />
@@ -86,7 +87,7 @@ export const DomainRankCard = async ({ domain }: { domain: string }) => {
 };
 
 export const OnPageAuditCard = async ({ siteId, url }: { siteId: string; url: string }) => {
-  const outcome = await tryProvider(() => auditPage(url), [DataForSeoError]);
+  const outcome = await auditPage(url);
   if (!outcome.ok) {
     return <SectionError message={outcome.error} title="Homepage audit" />;
   }
@@ -100,10 +101,9 @@ export const OnPageAuditCard = async ({ siteId, url }: { siteId: string; url: st
     );
   }
 
-  const checkEntries = Object.entries(audit.checks);
-  const failing = checkEntries.filter(([name, value]) => !onPageCheckPassed(name, value));
-  const passing = checkEntries.length - failing.length;
-  const { actionable, suppressed } = partitionFailingChecks(failing);
+  const { failed, passed } = audit.checks;
+  const actionable = failed.flatMap((check) => (check.actionable ? [check.name] : []));
+  const suppressed = failed.length - actionable.length;
 
   return (
     <Section
@@ -144,20 +144,20 @@ export const OnPageAuditCard = async ({ siteId, url }: { siteId: string; url: st
           <div className="flex items-center gap-3 text-sm">
             <span className="inline-flex items-center gap-1 text-primary">
               <CheckCircle2 className="size-3.5" />
-              {passing} passing
+              {passed} passing
             </span>
             <span className="inline-flex items-center gap-1 text-destructive">
               <XCircle className="size-3.5" />
-              {failing.length} failing
+              {failed.length} failing
             </span>
           </div>
           {actionable.length > 0 ? (
             <FailingChecksList failing={actionable} siteId={siteId} />
           ) : null}
-          {suppressed.length > 0 ? (
+          {suppressed > 0 ? (
             <p className="text-xs text-muted-foreground">
-              {suppressed.length} cosmetic / infra check{suppressed.length === 1 ? "" : "s"} hidden
-              (favicon, status codes, render-blocking, etc.)
+              {suppressed} cosmetic / infra check{suppressed === 1 ? "" : "s"} hidden (favicon,
+              status codes, render-blocking, etc.)
             </p>
           ) : null}
         </div>
@@ -166,8 +166,8 @@ export const OnPageAuditCard = async ({ siteId, url }: { siteId: string; url: st
   );
 };
 
-export const TopKeywordsCard = async ({ domain }: { domain: string }) => {
-  const outcome = await tryProvider(() => rankedKeywords(domain, 10), [DataForSeoError]);
+export const TopKeywordsCard = async ({ domain, language }: MarketProps) => {
+  const outcome = await rankedKeywords(domain, language, 10);
   if (!outcome.ok) {
     return <SectionError message={outcome.error} title="Top organic keywords" />;
   }
@@ -224,44 +224,26 @@ export const TopKeywordsCard = async ({ domain }: { domain: string }) => {
 };
 
 export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
-  const realLinkFilter = {
-    ...liveLinkWhere,
-    toPost: { siteId },
-    toPostId: { not: null },
-    type: LinkType.PBN,
-  };
-
-  // tsgo (TypeScript 7.0.2) widens a five-element Promise.all over Prisma delegates to any[],
-  // which turns every downstream callback parameter into an implicit any. Two smaller groups
-  // stay within its tuple inference and keep the five queries running in parallel.
-  const [[backlinks, rows], [externalRows, googleConnection, gscReferringSamples]] =
-    await Promise.all([
-      Promise.all([
-        prisma.link.count({ where: realLinkFilter }),
-        prisma.link.findMany({
-          include: { fromPost: { select: { siteId: true } } },
-          where: realLinkFilter,
-        }),
-      ]),
-      Promise.all([
-        prisma.externalBacklink.findMany({
-          orderBy: { linkingPages: "desc" },
-          select: { importedAt: true, linkingPages: true, source: true, sourceDomain: true },
-          where: { siteId },
-        }),
-        prisma.googleConnection.findFirst({ select: { id: true } }),
-        prisma.gscReferringUrl.findMany({
-          orderBy: { observedAt: "desc" },
-          select: { observedAt: true, referringUrl: true },
-          take: 10,
-          where: { siteId },
-        }),
-      ]),
-    ]);
-  const referringDomains = new Set(
-    rows.flatMap((r) => (r.fromPost.siteId ? [r.fromPost.siteId] : [])),
-  ).size;
-  const referringPages = new Set(rows.map((r) => r.fromPostId)).size;
+  const [
+    { backlinks, referringPosts, referringSites },
+    externalRows,
+    googleConnected,
+    gscReferringSamples,
+  ] = await Promise.all([
+    pbnBacklinkSummary(siteId),
+    prisma.externalBacklink.findMany({
+      orderBy: { linkingPages: "desc" },
+      select: { importedAt: true, linkingPages: true, source: true, sourceDomain: true },
+      where: { siteId },
+    }),
+    isConnected(),
+    prisma.gscReferringUrl.findMany({
+      orderBy: { observedAt: "desc" },
+      select: { observedAt: true, referringUrl: true },
+      take: 10,
+      where: { siteId },
+    }),
+  ]);
 
   const externalReferringDomains = externalRows.length;
   const externalLinkingPages = externalRows.reduce((sum, row) => sum + row.linkingPages, 0);
@@ -279,8 +261,8 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
           <h4 className="text-xs font-medium text-muted-foreground">Internal (PBN)</h4>
           <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
             <Stat label="Backlinks" value={backlinks.toLocaleString()} />
-            <Stat label="Referring sites" value={referringDomains.toLocaleString()} />
-            <Stat label="Referring posts" value={referringPages.toLocaleString()} />
+            <Stat label="Referring sites" value={referringSites.toLocaleString()} />
+            <Stat label="Referring posts" value={referringPosts.toLocaleString()} />
           </dl>
         </div>
 
@@ -328,7 +310,7 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
           ) : null}
         </div>
 
-        <ExternalBacklinksUpload hasGoogleConnection={Boolean(googleConnection)} siteId={siteId} />
+        <ExternalBacklinksUpload hasGoogleConnection={googleConnected} siteId={siteId} />
       </div>
     </Section>
   );

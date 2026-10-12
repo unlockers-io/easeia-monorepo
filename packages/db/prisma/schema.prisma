@@ -122,10 +122,8 @@ enum JobKind {
   BACKFILL_GSC_LINKS
   // Generates a brand-new post for a Site via LLM and stores it as a
   // DRAFT (Posts.create with publish=false) into the Site's bucket.
-  // Fanned out by the worker's hourly refill scan (see
-  // apps/worker/src/lib/scheduler-fanout.ts) or by manual "Refill now"
-  // server actions. Publishing is a separate hop; the scheduler picks
-  // the oldest DRAFT from the bucket on cadence and enqueues PUBLISH.
+  // Enqueued by @repo/auto-publish refills (AUTO_PUBLISH ticks or the
+  // manual "Refill now" actions). Publishing is a separate hop.
   GENERATE_POST
   // Illustrates a published post: an LLM pass picks 2-4 spots in the
   // finished body, each is generated with gpt-image-2, uploaded to R2 as
@@ -134,6 +132,13 @@ enum JobKind {
   // job triggers its own deploy when they do.
   GENERATE_BODY_IMAGES
   TRIGGER_DEPLOY
+  // Ticks produced by BullMQ job schedulers that the worker registers
+  // through Jobs.schedule; each run is one Job row.
+  AUTO_PUBLISH
+  AUDIT_SLUG_DRIFT
+  BACKFILL_HEROES
+  REAP_STUCK_JOBS
+  REQUEST_SNAPSHOTS
 }
 
 // Provenance for ExternalBacklink rows. Lets CSV-imported rows coexist
@@ -242,9 +247,9 @@ model Site {
   authorPhotoUrl String?
   authorUrl      String?
 
-  // Auto-publish scheduler. The hourly worker tick consumes one DRAFT
-  // from this Site's bucket whenever `lastAutoPublishedAt + cadenceDays`
-  // has passed (see apps/worker/src/lib/scheduler-fanout.ts).
+  // Auto-publish schedule (@repo/auto-publish). The hourly AUTO_PUBLISH
+  // tick consumes one DRAFT from this Site's bucket whenever
+  // `lastAutoPublishedAt + cadenceDays` has passed.
   // `topicHints` is a free-text prompt seed passed to the post generator:
   // "Focus on destination weddings in coastal Portugal" type guidance.
   autoPublishEnabled    Boolean   @default(false)
@@ -438,9 +443,8 @@ model Job {
   @@index([status, kind])
   @@index([postId])
   @@index([siteId])
-  // Covers the bucket refill scan's in-flight count
-  // (apps/worker/src/lib/scheduler-fanout.ts): per-site filter on
-  // kind=GENERATE_POST + status IN (QUEUED, RUNNING).
+  // Covers the bucket refill's in-flight count (@repo/auto-publish):
+  // per-site filter on kind=GENERATE_POST + status IN (QUEUED, RUNNING).
   @@index([siteId, kind, status])
 }
 

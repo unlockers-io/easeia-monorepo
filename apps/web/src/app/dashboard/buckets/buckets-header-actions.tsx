@@ -20,7 +20,7 @@ import { applyNetworkDefaultsAction, refillAllNeedyBucketsAction } from "./actio
 type RefillState =
   | { kind: "idle" }
   | { kind: "running" }
-  | { failed: number; kind: "done"; sitesTouched: number; total: number }
+  | { kind: "done"; sitesTouched: number; total: number }
   | { kind: "error"; message: string };
 
 type DefaultsState =
@@ -298,13 +298,9 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
           setState({ kind: "error", message: result.error });
           return;
         }
-        const total = Object.values(result.queuedPerSite).reduce((sum, n) => sum + n, 0);
-        setState({
-          failed: result.failed,
-          kind: "done",
-          sitesTouched: result.sitesTouched,
-          total,
-        });
+        const { queuedPerSite, sitesTouched } = result.data;
+        const total = Object.values(queuedPerSite).reduce((sum, n) => sum + n, 0);
+        setState({ kind: "done", sitesTouched, total });
       } catch (error) {
         setState({
           kind: "error",
@@ -333,8 +329,7 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
       {state.kind === "done" ? (
         <p aria-live="polite" className="text-xs text-muted-foreground">
           {state.total} draft{state.total === 1 ? "" : "s"} queued across {state.sitesTouched} site
-          {state.sitesTouched === 1 ? "" : "s"}
-          {state.failed > 0 ? ` · ${state.failed} failed` : ""}.
+          {state.sitesTouched === 1 ? "" : "s"}.
         </p>
       ) : null}
       {state.kind === "error" ? (

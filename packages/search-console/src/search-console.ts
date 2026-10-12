@@ -1,292 +1,230 @@
-import { searchconsole, type searchconsole_v1 } from "@googleapis/searchconsole";
+import type { searchconsole_v1 } from "@googleapis/searchconsole";
+import { prisma, type GoogleConnection } from "@repo/db";
 
-import { authedClient } from "./tokens";
+import { decryptSecret, encryptSecret } from "./crypto";
+import { GoogleAuthError } from "./errors";
+import { googleApis, type Google, type SearchConsoleApi } from "./google";
 
-type Ctx = {
-  redirectUri: string;
-  userId: string;
-};
+const REFRESH_LEEWAY_MS = 60_000;
 
-const sc = async (ctx: Ctx): Promise<searchconsole_v1.Searchconsole> => {
-  const auth = await authedClient(ctx);
-  return searchconsole({ auth, version: "v1" });
-};
-
-type SearchConsoleClient = {
-  searchanalytics: {
-    query: searchconsole_v1.Searchconsole["searchanalytics"]["query"];
-  };
-  sites: {
-    list: searchconsole_v1.Searchconsole["sites"]["list"];
-  };
-  urlInspection: {
-    index: {
-      inspect: searchconsole_v1.Searchconsole["urlInspection"]["index"]["inspect"];
-    };
-  };
-};
-
-type GetSearchConsoleClient = (ctx: Ctx) => Promise<SearchConsoleClient>;
-
-type SearchAnalyticsTotals = {
+type SearchMetrics = {
   clicks: number;
   ctr: number;
   impressions: number;
   position: number;
 };
 
-type TopQuery = {
-  clicks: number;
-  ctr: number;
-  impressions: number;
-  position: number;
-  query: string;
-};
+type TopQuery = SearchMetrics & { query: string };
 
-type TopPage = {
-  clicks: number;
-  ctr: number;
-  impressions: number;
-  page: string;
-  position: number;
-};
+type TopPage = SearchMetrics & { page: string };
 
 type UrlInspectionResult = {
   coverageState: string | null;
   referringUrls: ReadonlyArray<string>;
 };
 
-type PagePerformance = {
-  clicks: number;
-  ctr: number;
-  impressions: number;
-  position: number;
-};
-
-export type VerifiedSite = {
+type VerifiedSite = {
   permission: string;
   siteUrl: string;
 };
 
-const candidateSiteUrls = (domain: string): Array<string> => {
+type SearchWindow = { days: number; limit: number };
+
+type SiteSearchConsole = {
+  inspectUrl: (inspectionUrl: string) => Promise<UrlInspectionResult>;
+  pagePerformance: (pageUrl: string, days: number) => Promise<SearchMetrics | null>;
+  property: string;
+  topPages: (window: SearchWindow) => Promise<Array<TopPage>>;
+  topQueries: (window: SearchWindow) => Promise<Array<TopQuery>>;
+  totals: (days: number) => Promise<SearchMetrics | null>;
+};
+
+type SiteLookup =
+  | { status: "not_connected" }
+  | { status: "not_verified" }
+  | ({ status: "ok" } & SiteSearchConsole);
+
+const workspaceConnection = () =>
+  prisma.googleConnection.findFirst({ orderBy: { createdAt: "asc" } });
+
+const isConnected = async (): Promise<boolean> => (await workspaceConnection()) !== null;
+
+const candidateProperties = (domain: string): Array<string> => {
   const bare = domain.replace(/^https?:\/\//v, "").replace(/\/$/v, "");
   return [`sc-domain:${bare}`, `https://${bare}/`, `http://${bare}/`];
 };
 
 const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
 
-type DateRangeResultContract = { endDate: string; startDate: string };
-
-const dateRange = (days: number): DateRangeResultContract => {
+const dateRange = (days: number) => {
   const end = new Date();
   const start = new Date();
   start.setDate(start.getDate() - days);
   return { endDate: isoDay(end), startDate: isoDay(start) };
 };
 
-const createSearchConsoleOperations = (getClient: GetSearchConsoleClient) => {
-  const listVerifiedSites = async (ctx: Ctx): Promise<Array<VerifiedSite>> => {
-    const client = await getClient(ctx);
-    const res = await client.sites.list();
-    const entries = res.data.siteEntry ?? [];
-    return entries
-      .filter(
-        (s): s is { permissionLevel: string; siteUrl: string } =>
-          typeof s.siteUrl === "string" &&
-          s.siteUrl !== "" &&
-          typeof s.permissionLevel === "string" &&
-          s.permissionLevel !== "",
-      )
-      .map((s) => ({ permission: s.permissionLevel, siteUrl: s.siteUrl }));
-  };
+const toMetrics = (row: searchconsole_v1.Schema$ApiDataRow): SearchMetrics => ({
+  clicks: row.clicks ?? 0,
+  ctr: row.ctr ?? 0,
+  impressions: row.impressions ?? 0,
+  position: row.position ?? 0,
+});
 
-  const resolveSiteUrl = async (ctx: Ctx, domain: string): Promise<string | null> => {
-    const verified = await listVerifiedSites(ctx);
-    const verifiedSet = new Set(verified.map((v) => v.siteUrl));
-    for (const candidate of candidateSiteUrls(domain)) {
-      if (verifiedSet.has(candidate)) {
-        return candidate;
-      }
-    }
-    return null;
-  };
+const firstRow = (
+  response: searchconsole_v1.Schema$SearchAnalyticsQueryResponse,
+): SearchMetrics | null => {
+  const row = response.rows?.[0];
+  return row ? toMetrics(row) : null;
+};
 
-  // A missing row must stay null because position 0 would incorrectly improve
-  // the health score.
-  const totals = async (
-    ctx: Ctx,
-    siteUrl: string,
-    days: number,
-  ): Promise<SearchAnalyticsTotals | null> => {
-    const client = await getClient(ctx);
-    const res = await client.searchanalytics.query({
-      requestBody: { ...dateRange(days), rowLimit: 1 },
-      siteUrl,
-    });
-    const row = res.data.rows?.[0];
-    if (!row) {
-      return null;
-    }
-    return {
-      clicks: row.clicks ?? 0,
-      ctr: row.ctr ?? 0,
-      impressions: row.impressions ?? 0,
-      position: row.position ?? 0,
-    };
-  };
+const keyedRows = <T>(
+  response: searchconsole_v1.Schema$SearchAnalyticsQueryResponse,
+  build: (key: string, metrics: SearchMetrics) => T,
+): Array<T> =>
+  (response.rows ?? []).flatMap((row) => {
+    const key = row.keys?.[0];
+    return key === undefined || key === "" ? [] : [build(key, toMetrics(row))];
+  });
 
-  const topQueries = async (
-    ctx: Ctx,
-    siteUrl: string,
-    params: { days: number; limit: number },
-  ): Promise<Array<TopQuery>> => {
-    const client = await getClient(ctx);
-    const res = await client.searchanalytics.query({
-      requestBody: {
-        ...dateRange(params.days),
-        dimensions: ["query"],
-        rowLimit: params.limit,
-      },
-      siteUrl,
-    });
-    const rows = res.data.rows ?? [];
-    const out: Array<TopQuery> = [];
-    for (const r of rows) {
-      const query = r.keys?.[0];
-      if (query === undefined || query === "") {
-        continue;
-      }
-      out.push({
-        clicks: r.clicks ?? 0,
-        ctr: r.ctr ?? 0,
-        impressions: r.impressions ?? 0,
-        position: r.position ?? 0,
-        query,
-      });
-    }
-    return out;
-  };
+const verifiedSites = async (api: SearchConsoleApi): Promise<Array<VerifiedSite>> => {
+  const response = await api.listSites();
+  return (response.siteEntry ?? []).flatMap(({ permissionLevel, siteUrl }) =>
+    typeof siteUrl === "string" &&
+    siteUrl !== "" &&
+    typeof permissionLevel === "string" &&
+    permissionLevel !== ""
+      ? [{ permission: permissionLevel, siteUrl }]
+      : [],
+  );
+};
 
-  const topPages = async (
-    ctx: Ctx,
-    siteUrl: string,
-    params: { days: number; limit: number },
-  ): Promise<Array<TopPage>> => {
-    const client = await getClient(ctx);
-    const res = await client.searchanalytics.query({
-      requestBody: {
-        ...dateRange(params.days),
-        dimensions: ["page"],
-        rowLimit: params.limit,
-      },
-      siteUrl,
-    });
-    const rows = res.data.rows ?? [];
-    const out: Array<TopPage> = [];
-    for (const r of rows) {
-      const page = r.keys?.[0];
-      if (page === undefined || page === "") {
-        continue;
-      }
-      out.push({
-        clicks: r.clicks ?? 0,
-        ctr: r.ctr ?? 0,
-        impressions: r.impressions ?? 0,
-        page,
-        position: r.position ?? 0,
-      });
-    }
-    return out;
-  };
-
-  // Google has no public Links API. URL Inspection exposes a small referringUrls
-  // sample and permits about 600 calls per property per day.
-  const inspectUrl = async (
-    ctx: Ctx,
-    args: { inspectionUrl: string; languageCode?: string; sitePropertyUrl: string },
-  ): Promise<UrlInspectionResult> => {
-    const client = await getClient(ctx);
-    const res = await client.urlInspection.index.inspect({
-      requestBody: {
-        inspectionUrl: args.inspectionUrl,
-        languageCode: args.languageCode ?? "en-US",
-        siteUrl: args.sitePropertyUrl,
-      },
-    });
-    const idx = res.data.inspectionResult?.indexStatusResult;
-    return {
-      coverageState: idx?.coverageState ?? null,
-      referringUrls: idx?.referringUrls ?? [],
-    };
-  };
-
-  const pagePerformance = async (
-    ctx: Ctx,
-    siteUrl: string,
-    pageUrl: string,
-    days: number,
-  ): Promise<PagePerformance | null> => {
-    const client = await getClient(ctx);
-    const res = await client.searchanalytics.query({
-      requestBody: {
-        ...dateRange(days),
-        dimensionFilterGroups: [
-          { filters: [{ dimension: "page", expression: pageUrl, operator: "equals" }] },
-        ],
-        rowLimit: 1,
-      },
-      siteUrl,
-    });
-    const row = res.data.rows?.[0];
-    if (!row) {
-      return null;
-    }
-    return {
-      clicks: row.clicks ?? 0,
-      ctr: row.ctr ?? 0,
-      impressions: row.impressions ?? 0,
-      position: row.position ?? 0,
-    };
-  };
+const siteSearchConsole = (api: SearchConsoleApi, property: string): SiteSearchConsole => {
+  const searchAnalytics = (body: searchconsole_v1.Schema$SearchAnalyticsQueryRequest) =>
+    api.query(property, body);
 
   return {
-    inspectUrl,
-    listVerifiedSites,
-    pagePerformance,
-    resolveSiteUrl,
-    topPages,
-    topQueries,
-    totals,
+    inspectUrl: async (inspectionUrl) => {
+      const response = await api.inspect({
+        inspectionUrl,
+        languageCode: "en-US",
+        siteUrl: property,
+      });
+      const index = response.inspectionResult?.indexStatusResult;
+      return {
+        coverageState: index?.coverageState ?? null,
+        referringUrls: index?.referringUrls ?? [],
+      };
+    },
+    pagePerformance: async (pageUrl, days) =>
+      firstRow(
+        await searchAnalytics({
+          ...dateRange(days),
+          dimensionFilterGroups: [
+            { filters: [{ dimension: "page", expression: pageUrl, operator: "equals" }] },
+          ],
+          rowLimit: 1,
+        }),
+      ),
+    property,
+    topPages: async ({ days, limit }) =>
+      keyedRows(
+        await searchAnalytics({ ...dateRange(days), dimensions: ["page"], rowLimit: limit }),
+        (page, metrics) => ({ ...metrics, page }),
+      ),
+    topQueries: async ({ days, limit }) =>
+      keyedRows(
+        await searchAnalytics({ ...dateRange(days), dimensions: ["query"], rowLimit: limit }),
+        (query, metrics) => ({ ...metrics, query }),
+      ),
+    totals: async (days) => firstRow(await searchAnalytics({ ...dateRange(days), rowLimit: 1 })),
   };
 };
 
-const {
-  inspectUrl,
-  listVerifiedSites,
-  pagePerformance,
-  resolveSiteUrl,
-  topPages,
-  topQueries,
-  totals,
-} = createSearchConsoleOperations(sc);
+const createSearchConsole = (google: Google) => {
+  const refreshes = new Map<string, { accessToken: Promise<string>; staleExpiry: number }>();
 
-export {
-  createSearchConsoleOperations,
-  inspectUrl,
-  listVerifiedSites,
-  pagePerformance,
-  resolveSiteUrl,
-  topPages,
-  topQueries,
-  totals,
+  const refresh = async (connection: GoogleConnection): Promise<string> => {
+    if (connection.refreshToken === null || connection.refreshToken === "") {
+      throw new GoogleAuthError("Access token expired and no refresh token stored; reconnect");
+    }
+    const credentials = await google.refreshAccessToken(decryptSecret(connection.refreshToken));
+    if (
+      typeof credentials.access_token !== "string" ||
+      credentials.access_token === "" ||
+      typeof credentials.expiry_date !== "number"
+    ) {
+      throw new GoogleAuthError("Google did not return a refreshed access token; reconnect");
+    }
+    await prisma.googleConnection.update({
+      data: {
+        accessToken: encryptSecret(credentials.access_token),
+        expiresAt: new Date(credentials.expiry_date),
+      },
+      where: { id: connection.id },
+    });
+    return credentials.access_token;
+  };
+
+  const refreshOnce = async (connection: GoogleConnection, staleExpiry: number) => {
+    try {
+      return await refresh(connection);
+    } catch (error) {
+      if (refreshes.get(connection.id)?.staleExpiry === staleExpiry) {
+        refreshes.delete(connection.id);
+      }
+      throw error;
+    }
+  };
+
+  const accessToken = (connection: GoogleConnection): Promise<string> => {
+    const staleExpiry = connection.expiresAt.getTime();
+    if (staleExpiry - Date.now() > REFRESH_LEEWAY_MS) {
+      return Promise.resolve(decryptSecret(connection.accessToken));
+    }
+    const pending = refreshes.get(connection.id);
+    if (pending?.staleExpiry === staleExpiry) {
+      return pending.accessToken;
+    }
+    const refreshed = refreshOnce(connection, staleExpiry);
+    refreshes.set(connection.id, { accessToken: refreshed, staleExpiry });
+    return refreshed;
+  };
+
+  const forSite = async (domain: string): Promise<SiteLookup> => {
+    const connection = await workspaceConnection();
+    if (!connection) {
+      return { status: "not_connected" };
+    }
+    const api = google.searchConsole(await accessToken(connection));
+    const sites = await verifiedSites(api);
+    const verified = new Set(sites.map((site) => site.siteUrl));
+    const property = candidateProperties(domain).find((candidate) => verified.has(candidate));
+    if (property === undefined) {
+      return { status: "not_verified" };
+    }
+    return { status: "ok", ...siteSearchConsole(api, property) };
+  };
+
+  const listVerifiedSites = async (userId: string): Promise<Array<VerifiedSite>> => {
+    const connection = await prisma.googleConnection.findUnique({ where: { userId } });
+    if (!connection) {
+      return [];
+    }
+    return verifiedSites(google.searchConsole(await accessToken(connection)));
+  };
+
+  return { forSite, listVerifiedSites };
 };
+
+const { forSite, listVerifiedSites } = createSearchConsole(googleApis);
+
+export { createSearchConsole, forSite, isConnected, listVerifiedSites };
 export type {
-  Ctx,
-  GetSearchConsoleClient,
-  PagePerformance,
-  SearchAnalyticsTotals,
-  SearchConsoleClient,
+  SearchMetrics,
+  SiteLookup,
+  SiteSearchConsole,
   TopPage,
   TopQuery,
   UrlInspectionResult,
+  VerifiedSite,
 };

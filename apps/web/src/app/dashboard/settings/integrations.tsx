@@ -1,5 +1,4 @@
-import { prisma } from "@repo/db";
-import { hasUsableDeployHook } from "@repo/sites";
+import * as Sites from "@repo/sites";
 import {
   Card,
   CardHeader,
@@ -30,8 +29,8 @@ const FEATURES = {
 
 export const IntegrationsCard = async () => {
   const integrations = readIntegrations();
-  const sites = await prisma.site.findMany({ select: { vercelDeployHookUrl: true } });
-  const ready = sites.filter((site) => hasUsableDeployHook(site.vercelDeployHookUrl)).length;
+  const sites = await Sites.list();
+  const ready = sites.filter(Sites.hasDeployHook).length;
   return (
     <Card id="integrations">
       <CardHeader>

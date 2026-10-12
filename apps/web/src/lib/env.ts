@@ -54,6 +54,4 @@ const getEnv = (): Env => {
   return env;
 };
 
-const redisUrl = (): string => getEnv().REDIS_URL;
-
-export { getEnv, parseEnv, redisUrl };
+export { getEnv, parseEnv };

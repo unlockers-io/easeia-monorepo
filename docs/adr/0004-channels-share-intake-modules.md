@@ -1,6 +1,6 @@
 # ADR-0004: Channels share intake Modules
 
-**Status:** accepted (2026-05-05)
+**Status:** accepted (2026-05-05); `@repo/sites` responsibilities restated by [ADR-0007](./0009-site-module-owns-redeploy.md); Post transitions and their consequences restated by [ADR-0008](./0011-post-intake-owns-transition-consequences.md)
 
 ## Context
 

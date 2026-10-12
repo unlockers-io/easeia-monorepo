@@ -1,3 +1,4 @@
+import { AiNotConfiguredError } from "@repo/ai";
 import { PostNotFoundError, PostValidationError } from "@repo/posts";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -115,6 +116,18 @@ describe("errorHandler", () => {
         },
       },
       400,
+    );
+  });
+
+  it("should answer 503 AI_UNAVAILABLE while AI is unavailable", () => {
+    const c = createMockContext();
+    const err = new AiNotConfiguredError();
+
+    errorHandler(err, c);
+
+    expect(c.json).toHaveBeenCalledWith(
+      { error: { code: "AI_UNAVAILABLE", message: err.message } },
+      503,
     );
   });
 
