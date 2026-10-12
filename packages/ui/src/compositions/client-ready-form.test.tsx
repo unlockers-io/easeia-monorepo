@@ -12,7 +12,7 @@ const Form = () => (
   </ClientReadyForm>
 );
 
-it("keeps server-rendered form controls disabled until the form hydrates", () => {
+it("keeps every control of a server-rendered form disabled until it hydrates", () => {
   const container = document.createElement("div");
   container.innerHTML = renderToString(<Form />);
   const input = container.querySelector("input");
