@@ -8,7 +8,7 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 
 **Deployable**: a Site that is enabled and whose deploy hook parses as an http(s) URL. Only deployable Sites publish or redeploy.
 
-**Redeploy**: a request to rebuild a Site, `Sites.requestRedeploy`. Ends as `queued`, `coalesced` (a deploy is already QUEUED), `disabled` or `no-deploy-hook`. Every change to a Site's built content requests one.
+**Redeploy**: a request to rebuild a Site, `Sites.requestRedeploy`. Ends as `queued`, `coalesced` (a deploy is already QUEUED), `disabled` or `no-deploy-hook`. The deploy waits a 60-second window, so a burst of writes costs one build. Every change to a Site's built content requests one.
 
 **Money site**: an external site the network links to. Owned by `@repo/money-sites`.
 

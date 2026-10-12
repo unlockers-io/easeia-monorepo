@@ -1,5 +1,6 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
 import { closeJobs, consume, countJobs, listJobs } from "@repo/jobs";
+import { runDelayedJobsNow } from "@repo/jobs/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deploy, requestRedeploy } from "./index";
@@ -30,6 +31,8 @@ const settled = (siteId: string, count: number, timeout = 5000) =>
 
 const ok = () => Promise.resolve(new Response("ok"));
 
+const windowElapses = () => runDelayedJobsNow(JobKind.TRIGGER_DEPLOY);
+
 describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
   "Sites redeploy",
   () => {
@@ -39,6 +42,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     beforeAll(async () => {
       const fixtures = {
         badHook: { vercelDeployHookUrl: "file:///etc/passwd" },
+        burst: { vercelDeployHookUrl: HOOK },
         coalesce: { vercelDeployHookUrl: HOOK },
         disabled: { isEnabled: false, vercelDeployHookUrl: HOOK },
         noHook: { vercelDeployHookUrl: null },
@@ -88,10 +92,28 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       expect(await deploys(siteId)).toBe(1);
 
       const worker = consumeDeploys(postHook);
+      await windowElapses();
       await settled(siteId, 1);
       await worker.close();
 
       expect(postHook).toHaveBeenCalledExactlyOnceWith(new URL(HOOK), expect.anything());
+    });
+
+    it("coalesces a burst of requests into one deploy while a worker is running", async () => {
+      const siteId = sites.burst ?? "";
+      const postHook = vi.fn<PostHook>(ok);
+      const worker = consumeDeploys(postHook);
+
+      const outcomes = [];
+      for (const _ of [1, 2, 3]) {
+        outcomes.push(await requestRedeploy(siteId));
+      }
+      await windowElapses();
+      await settled(siteId, 1);
+      await worker.close();
+
+      expect(outcomes).toEqual(["queued", "coalesced", "coalesced"]);
+      expect(postHook).toHaveBeenCalledOnce();
     });
 
     it("follows a request made while a deploy is running with exactly one more deploy", async () => {
@@ -106,6 +128,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const worker = consumeDeploys(postHook);
 
       expect(await requestRedeploy(siteId)).toBe("queued");
+      await windowElapses();
       await vi.waitFor(() => {
         expect(postHook).toHaveBeenCalledOnce();
       });
@@ -113,6 +136,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       const duringRun = await Promise.all([requestRedeploy(siteId), requestRedeploy(siteId)]);
       release(undefined);
+      await windowElapses();
       await settled(siteId, 2);
       await worker.close();
 
@@ -129,6 +153,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const worker = consumeDeploys(postHook);
 
       expect(await requestRedeploy(siteId)).toBe("queued");
+      await windowElapses();
       await vi.waitFor(async () => {
         const { data } = await listJobs({ kinds: [JobKind.TRIGGER_DEPLOY], limit: 1, siteId });
         expect(data[0]).toMatchObject({
