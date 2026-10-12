@@ -37,11 +37,8 @@ jobs:
       # on every authed API request from browser tests.
       REDIS_URL: redis://localhost:6379
       WP_ENCRYPTION_KEY: deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-      # Gates the `tests/e2e/auth-email/` suite. When unset (forks, contributors
-      # without secret access), those specs `test.skip()` themselves and the
-      # rest of the suite still runs.
-      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY_TEST }}
-      # Required only for the optional mail integration suite.
+      RESEND_API_KEY: re_e2e_stub
+      RESEND_BASE_URL: http://127.0.0.1:3999
       FROM_EMAIL: "Easeia <noreply@email.easeia.com>"
     services:
       postgres:

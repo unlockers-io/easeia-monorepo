@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { expect, test as setup } from "@playwright/test";
 
 import { webUrl } from "../../../playwright.config";
+import { verification } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
 
 const TEST_USER = {
@@ -23,6 +24,11 @@ setup("create and authenticate test user", async ({ page, request }) => {
     },
   });
   expect([200, 201, 409, 422]).toContain(signUpResponse.status());
+  if (process.env.RESEND_API_KEY) {
+    const { url } = await verification.forVerifyEmail(TEST_USER.email);
+    const verified = await request.get(url);
+    expect(verified.ok()).toBe(true);
+  }
 
   await page.goto("/login");
   await page.getByLabel("Email").fill(TEST_USER.email);
