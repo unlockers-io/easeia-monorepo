@@ -30,6 +30,22 @@ describe("toMarkdown", () => {
     expect(toMarkdown(html)).toBe("## Title\n\nParagraph.");
   });
 
+  it("converts an HTML table to a Markdown table", () => {
+    const html =
+      "<h2>Custos</h2><table><thead><tr><th>Item</th><th>Custo</th></tr></thead><tbody><tr><td>Aluguel</td><td>1.000</td></tr></tbody></table>";
+    expect(toMarkdown(html)).toBe(
+      "## Custos\n\n| Item | Custo |\n| --- | --- |\n| Aluguel | 1.000 |",
+    );
+  });
+
+  it("converts a WordPress table block to a Markdown table", () => {
+    const wp =
+      '<!-- wp:table -->\n<figure class="wp-block-table"><table><thead><tr><th>Tipo</th><th>Vantagem</th></tr></thead><tbody><tr><td>Casa</td><td>Janelas <a href="https://example.com/casa">grandes</a></td></tr></tbody></table></figure>\n<!-- /wp:table -->';
+    expect(toMarkdown(wp)).toBe(
+      "| Tipo | Vantagem |\n| --- | --- |\n| Casa | Janelas [grandes](https://example.com/casa) |",
+    );
+  });
+
   it("preserves image references in figures", () => {
     const html =
       '<figure><img src="https://example.com/a.jpg" alt="Alt text"/><figcaption>Caption</figcaption></figure>';

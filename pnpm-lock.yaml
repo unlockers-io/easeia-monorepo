@@ -1073,6 +1073,9 @@ importers:
       '@repo/sites':
         specifier: workspace:*
         version: link:../sites
+      '@truto/turndown-plugin-gfm':
+        specifier: ^1.0.5
+        version: 1.0.5(turndown@7.2.4)
       turndown:
         specifier: ^7.2.0
         version: 7.2.4
@@ -3891,6 +3894,12 @@ packages:
       rollup:
         optional: true
 
+  '@rollup/rollup-linux-x64-gnu@4.59.1':
+    resolution: {integrity: sha512-NQ9KyU1Anuy59L8+HHOKM++CoUxrQWrZWXRik4BJFm+7i5NP6q/SW43xIBr80zzt+PDBJ7LeNmloQGfa0JGk0w==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
   '@scalar/asyncapi-upgrader@0.1.5':
     resolution: {integrity: sha512-JXBvcMJUKhVQXmIPiyqAJ3UAiSEQjhkPaz987Lhb4x7I7KaWvbp88YRHDS1aCZWAK8IENKXZskKIUyCkoT92YQ==}
     engines: {node: '>=22'}
@@ -4244,6 +4253,12 @@ packages:
 
   '@total-typescript/ts-reset@0.6.1':
     resolution: {integrity: sha512-cka47fVSo6lfQDIATYqb/vO1nvFfbPw7uWLayIXIhGETj0wcOOlrlkobOMDNQOFr9QOafegUPq13V2+6vtD7yg==}
+
+  '@truto/turndown-plugin-gfm@1.0.5':
+    resolution: {integrity: sha512-h/xbPeTGLlFsKR9WTUEtdZwaM42N0CSy0bUUtyzSWSSUS7YUnOY9d5MkZKI/bsZ2mbfBih9A7by05GJoAeT8tQ==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      turndown: ^7.0.0
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
@@ -10689,6 +10704,9 @@ snapshots:
 
   '@rollup/plugin-alias@6.0.0': {}
 
+  '@rollup/rollup-linux-x64-gnu@4.59.1':
+    optional: true
+
   '@scalar/asyncapi-upgrader@0.1.5':
     dependencies:
       '@scalar/helpers': 0.10.0
@@ -11111,6 +11129,12 @@ snapshots:
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
   '@total-typescript/ts-reset@0.6.1': {}
+
+  '@truto/turndown-plugin-gfm@1.0.5(turndown@7.2.4)':
+    dependencies:
+      turndown: 7.2.4
+    optionalDependencies:
+      '@rollup/rollup-linux-x64-gnu': 4.59.1
 
   '@ts-morph/common@0.27.0':
     dependencies:

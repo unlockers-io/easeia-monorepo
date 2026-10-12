@@ -1,3 +1,4 @@
+import { gfm } from "@truto/turndown-plugin-gfm";
 import TurndownService from "turndown";
 
 const GUTENBERG = /<!--\s*\/?wp:/v;
@@ -5,11 +6,6 @@ const GUTENBERG = /<!--\s*\/?wp:/v;
 const BLOCK_TAGS =
   "p|div|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|figure|figcaption|section|article|blockquote|main|header|footer|nav|aside";
 
-// generator embeds its anchors as `<a href="…">…</a>`, and CommonMark renders
-// raw inline HTML as-is), so a generic `</[a-zA-Z]` test would hand a Markdown
-// body to Turndown, which escapes its `*`/`#` and collapses every line break
-// into one unreadable block. Markdown autolinks (`<https://…>`) and stray `<`
-// in prose match nothing here either.
 const HTML_STRUCTURE = new RegExp(`</(?:${BLOCK_TAGS})\\s*>|<(?:${BLOCK_TAGS})[\\s\\/>]`, "iv");
 
 const MARKDOWN_BLOCK = /^(?:#{1,6} |[\-*] |\d+\. )/mv;
@@ -28,10 +24,11 @@ const buildTurndown = (): TurndownService => {
     linkStyle: "inlined",
     strongDelimiter: "**",
   });
+  td.use(gfm);
 
   td.addRule("figure", {
     filter: "figure",
-    replacement: (_content, node) => {
+    replacement: (content, node) => {
       // SAFETY: Turndown passes parsed DOM elements here, but its Node type omits querySelector.
       // oxlint-disable-next-line no-unsafe-type-assertion, anti-slop/no-chained-type-assertions -- Turndown's Node type omits the DOM methods its runtime elements carry
       const el = node as unknown as {
@@ -41,9 +38,12 @@ const buildTurndown = (): TurndownService => {
         };
       };
       const img = el.querySelector("img");
+      if (!img) {
+        return `\n\n${content}\n\n`;
+      }
       const captionEl = el.querySelector("figcaption");
-      const src = img?.getAttribute("src") ?? "";
-      const alt = img?.getAttribute("alt") ?? "";
+      const src = img.getAttribute("src") ?? "";
+      const alt = img.getAttribute("alt") ?? "";
       const caption = captionEl?.textContent?.trim() ?? "";
       const imgMd = `![${alt}](${src})`;
       return caption ? `${imgMd}\n\n*${caption}*` : imgMd;
