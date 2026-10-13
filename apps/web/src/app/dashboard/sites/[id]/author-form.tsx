@@ -10,6 +10,7 @@ import {
 } from "@repo/ui/components/card";
 import { Input } from "@repo/ui/components/input";
 import { Textarea } from "@repo/ui/components/textarea";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { useState, useTransition } from "react";
 
 import { updateSiteAuthorAction } from "./actions";
@@ -48,7 +49,8 @@ const AuthorForm = (props: AuthorFormProps) => {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const handleSave = () => {
+  const handleSave = (event: React.SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
     startTransition(async () => {
       await updateSiteAuthorAction(siteId, { bio, name, photoUrl, url });
       setSavedAt(new Date());
@@ -56,7 +58,7 @@ const AuthorForm = (props: AuthorFormProps) => {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <ClientReadyForm className="flex flex-col gap-3" noValidate onSubmit={handleSave}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium" htmlFor={`author-name-${siteId}`}>
@@ -120,10 +122,10 @@ const AuthorForm = (props: AuthorFormProps) => {
             ? `Saved ${savedAt.toLocaleTimeString("en-US")}. Changes reach the live site on its next build.`
             : "Leave the name blank to publish posts without a byline."}
         </p>
-        <Button disabled={pending} onClick={handleSave} size="sm" type="button">
+        <Button disabled={pending} size="sm" type="submit">
           {pending ? "Saving…" : "Save"}
         </Button>
       </div>
-    </div>
+    </ClientReadyForm>
   );
 };

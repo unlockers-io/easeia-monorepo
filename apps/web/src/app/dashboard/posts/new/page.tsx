@@ -16,8 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
-import { Switch } from "@repo/ui/components/switch";
 import { Textarea } from "@repo/ui/components/textarea";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 
 import { Banner } from "@/components/banner";
 
@@ -25,6 +25,7 @@ import { createPostAction } from "../../actions";
 import { SiteCreateDialog } from "../../sites/site-create-dialog";
 
 import { NicheSelector } from "./niche-selector";
+import { PublishSwitch } from "./publish-switch";
 
 const NICHE_OPTIONS = Object.values(Niche);
 
@@ -65,7 +66,7 @@ const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: s
 
       {error !== undefined && error !== "" ? <Banner tone="error">{error}</Banner> : null}
 
-      <form action={createPostAction} className="flex flex-col gap-6">
+      <ClientReadyForm action={createPostAction} className="flex flex-col gap-6">
         <Card>
           <CardHeader>
             <CardTitle>
@@ -196,7 +197,7 @@ const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: s
                     Skips Drafts; goes straight to Scheduled, then the worker pushes.
                   </p>
                 </div>
-                <Switch id="publish" name="publish" value="on" />
+                <PublishSwitch />
               </div>
               <Field>
                 <FieldLabel htmlFor="scheduledAt">Scheduled at (optional)</FieldLabel>
@@ -212,7 +213,7 @@ const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: s
         <div className="flex items-center justify-end gap-2">
           <Button type="submit">Save</Button>
         </div>
-      </form>
+      </ClientReadyForm>
     </div>
   );
 };

@@ -12,6 +12,8 @@ import {
   DialogTrigger,
 } from "@repo/ui/components/dialog";
 import { Input } from "@repo/ui/components/input";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Loader2, Settings2, Sparkles } from "lucide-react";
 import { useId, useReducer, useState, useTransition } from "react";
 
@@ -90,6 +92,7 @@ const NetworkDefaultsDialog = () => {
 
   const [form, dispatch] = useReducer(dialogFormReducer, DIALOG_INITIAL_STATE);
   const [pending, startTransition] = useTransition();
+  const ready = useClientReady();
 
   const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -134,6 +137,7 @@ const NetworkDefaultsDialog = () => {
       open={form.open}
     >
       <DialogTrigger
+        disabled={!ready}
         render={
           <Button size="sm" type="button" variant="outline">
             <Settings2 aria-hidden="true" className="size-4" />
@@ -150,7 +154,7 @@ const NetworkDefaultsDialog = () => {
           </DialogDescription>
         </DialogHeader>
 
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <ClientReadyForm className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <fieldset className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
             <legend className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
               Cadence
@@ -279,7 +283,7 @@ const NetworkDefaultsDialog = () => {
               Apply
             </Button>
           </DialogFooter>
-        </form>
+        </ClientReadyForm>
       </DialogContent>
     </Dialog>
   );
@@ -288,6 +292,7 @@ const NetworkDefaultsDialog = () => {
 const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
   const [state, setState] = useState<RefillState>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
+  const ready = useClientReady();
 
   const handleClick = () => {
     setState({ kind: "running" });
@@ -313,7 +318,7 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
   return (
     <div className="flex flex-col items-end gap-1">
       <Button
-        disabled={pending || !aiConfigured}
+        disabled={!ready || pending || !aiConfigured}
         onClick={handleClick}
         size="sm"
         type="button"

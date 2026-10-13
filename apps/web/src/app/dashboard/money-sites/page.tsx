@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@repo/ui/components/button";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -84,7 +85,8 @@ const MoneySitesPage = () => {
     },
   });
 
-  const handleCreate = () => {
+  const handleCreate = (event: React.SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!form.domain || !form.sitemapUrl || !form.name) {
       return;
     }
@@ -104,7 +106,7 @@ const MoneySitesPage = () => {
         money site; the rewriter picks topically-relevant money-site pages as link targets.
       </p>
 
-      <div className="mt-6 grid gap-2 rounded border p-4">
+      <ClientReadyForm className="mt-6 grid gap-2 rounded border p-4" onSubmit={handleCreate}>
         <div className="text-sm font-medium">Add money site</div>
         <input
           aria-label="Name"
@@ -142,10 +144,10 @@ const MoneySitesPage = () => {
           placeholder="Content path prefix (optional, e.g., /spaces/)"
           value={form.contentPathPrefix}
         />
-        <Button disabled={isCreating} onClick={handleCreate}>
+        <Button disabled={isCreating} type="submit">
           Add
         </Button>
-      </div>
+      </ClientReadyForm>
 
       {isError ? (
         <div className="mt-6 flex flex-col items-start gap-3">

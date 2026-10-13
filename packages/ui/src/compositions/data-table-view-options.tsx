@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/dropdown-menu";
+import { useClientReady } from "../hooks/use-client-ready";
 import type { DataTableColumn, DataTableInstance } from "../lib/data-table-features";
 
 type DataTableViewOptionsProps<TData extends RowData> = {
@@ -22,6 +23,7 @@ type DataTableViewOptionsProps<TData extends RowData> = {
 const DataTableViewOptions = <TData extends RowData>({
   table,
 }: DataTableViewOptionsProps<TData>) => {
+  const ready = useClientReady();
   const items = table.getAllColumns().flatMap((column: DataTableColumn<TData>) => {
     // getCanHide() alone, matching the "Hide" item in DataTableColumnHeader.
     // Also requiring an accessorFn excluded display columns, so a labelled
@@ -44,7 +46,10 @@ const DataTableViewOptions = <TData extends RowData>({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button className="ml-auto" size="default" variant="outline" />}>
+      <DropdownMenuTrigger
+        disabled={!ready}
+        render={<Button className="ml-auto" size="default" variant="outline" />}
+      >
         <Settings2Icon className="size-4" />
         View
       </DropdownMenuTrigger>

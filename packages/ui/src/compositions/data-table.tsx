@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/table";
+import { useClientReady } from "../hooks/use-client-ready";
 import {
   type ColumnDef,
   type DataTableInstance,
@@ -124,12 +125,16 @@ type DataTableResetButtonProps = {
   onReset: () => void;
 };
 
-const DataTableResetButton = ({ onReset }: DataTableResetButtonProps) => (
-  <Button onClick={onReset} size="default" variant="ghost">
-    Reset
-    <XIcon className="ml-1 size-4" />
-  </Button>
-);
+const DataTableResetButton = ({ onReset }: DataTableResetButtonProps) => {
+  const ready = useClientReady();
+
+  return (
+    <Button disabled={!ready} onClick={onReset} size="default" variant="ghost">
+      Reset
+      <XIcon className="ml-1 size-4" />
+    </Button>
+  );
+};
 
 export type { ColumnDef, DataTableColumn, DataTableInstance } from "../lib/data-table-features";
 export { DataTableColumnHeader } from "./data-table-column-header";

@@ -3,6 +3,7 @@
 import type { Niche } from "@repo/db";
 import { Badge } from "@repo/ui/components/badge";
 import { Checkbox } from "@repo/ui/components/checkbox";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useState } from "react";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 
 const NicheSelector = ({ niches }: Props) => {
   const [selected, setSelected] = useState<Set<Niche>>(new Set());
+  const ready = useClientReady();
 
   const toggle = (n: Niche) => {
     setSelected((prev) => {
@@ -44,7 +46,12 @@ const NicheSelector = ({ niches }: Props) => {
             type="button"
           >
             <Badge className="cursor-pointer select-none" variant={active ? "default" : "outline"}>
-              <Checkbox checked={active} className="pointer-events-none" tabIndex={-1} />
+              <Checkbox
+                checked={active}
+                className="pointer-events-none"
+                disabled={!ready}
+                tabIndex={-1}
+              />
               {n}
             </Badge>
           </button>

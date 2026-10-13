@@ -15,6 +15,7 @@ import {
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
 import { Switch } from "@repo/ui/components/switch";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Plus, Settings2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -52,6 +53,7 @@ const rowsToMap = (rows: ReadonlyArray<MapRow>) => {
 
 const SiteEditDialog = ({ allNiches, site }: Props) => {
   const [open, setOpen] = useState(false);
+  const ready = useClientReady();
   const [pending, startTransition] = useTransition();
   const [isEnabled, setIsEnabled] = useState(site.isEnabled);
   const [niches, setNiches] = useState<Set<Niche>>(() => new Set(site.niches));
@@ -101,6 +103,7 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger
+        disabled={!ready}
         render={
           <Button aria-label={`Edit ${site.domain}`} size="icon-sm" variant="ghost">
             <Settings2 className="size-4" />

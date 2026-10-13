@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/select";
+import { useClientReady } from "../hooks/use-client-ready";
 import type { DataTableInstance } from "../lib/data-table-features";
 
 const PAGE_SIZES = [10, 25, 50, 100];
@@ -25,6 +26,7 @@ type DataTablePaginationProps<TData extends RowData> = {
 };
 
 const DataTablePagination = <TData extends RowData>({ table }: DataTablePaginationProps<TData>) => {
+  const ready = useClientReady();
   const { pageIndex, pageSize } = table.state.pagination;
   const pageCount = table.getPageCount();
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -40,6 +42,7 @@ const DataTablePagination = <TData extends RowData>({ table }: DataTablePaginati
         <div className="flex items-center gap-2">
           <p className="text-xs text-muted-foreground">Rows per page</p>
           <Select
+            disabled={!ready}
             onValueChange={(value) => {
               if (value !== null) {
                 table.setPageSize(Number(value));
@@ -65,7 +68,7 @@ const DataTablePagination = <TData extends RowData>({ table }: DataTablePaginati
         <div className="flex items-center gap-1">
           <Button
             aria-label="First page"
-            disabled={!table.getCanPreviousPage()}
+            disabled={!ready || !table.getCanPreviousPage()}
             onClick={() => {
               table.setPageIndex(0);
             }}
@@ -76,7 +79,7 @@ const DataTablePagination = <TData extends RowData>({ table }: DataTablePaginati
           </Button>
           <Button
             aria-label="Previous page"
-            disabled={!table.getCanPreviousPage()}
+            disabled={!ready || !table.getCanPreviousPage()}
             onClick={() => {
               table.previousPage();
             }}
@@ -87,7 +90,7 @@ const DataTablePagination = <TData extends RowData>({ table }: DataTablePaginati
           </Button>
           <Button
             aria-label="Next page"
-            disabled={!table.getCanNextPage()}
+            disabled={!ready || !table.getCanNextPage()}
             onClick={() => {
               table.nextPage();
             }}
@@ -98,7 +101,7 @@ const DataTablePagination = <TData extends RowData>({ table }: DataTablePaginati
           </Button>
           <Button
             aria-label="Last page"
-            disabled={!table.getCanNextPage()}
+            disabled={!ready || !table.getCanNextPage()}
             onClick={() => {
               table.setPageIndex(pageCount - 1);
             }}

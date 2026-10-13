@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup } from "@repo/ui/components/field";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,7 +44,7 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
 
   return (
-    <form
+    <ClientReadyForm
       action={async () => {
         await form.handleSubmit();
       }}
@@ -75,7 +76,7 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
           </FieldDescription>
         </Field>
       </FieldGroup>
-    </form>
+    </ClientReadyForm>
   );
 };
 

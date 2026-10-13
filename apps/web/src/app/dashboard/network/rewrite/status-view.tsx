@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ export const NetworkRewritePage = ({
 }) => {
   const queryClient = useQueryClient();
   const [force, setForce] = useState(false);
+  const ready = useClientReady();
 
   const { data: status, isError } = useQuery({
     queryFn: loadStatus,
@@ -58,7 +60,7 @@ export const NetworkRewritePage = ({
 
       <div className="mt-6 flex items-center gap-3">
         <Button
-          disabled={busy || status?.active === true}
+          disabled={!ready || busy || status?.active === true}
           onClick={() => {
             runRewrite();
           }}
@@ -68,6 +70,7 @@ export const NetworkRewritePage = ({
         <label className="flex items-center gap-2 text-sm">
           <input
             checked={force}
+            disabled={!ready}
             onChange={(e) => {
               setForce(e.target.checked);
             }}

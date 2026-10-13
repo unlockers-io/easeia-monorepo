@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ export const RewriteTriggerButton = ({
   postId: string;
 }) => {
   const [state, setState] = useState<State>({ kind: "idle" });
+  const ready = useClientReady();
 
   const handleClick = async () => {
     setState({ kind: "pending" });
@@ -37,7 +39,7 @@ export const RewriteTriggerButton = ({
   return (
     <Button
       aria-busy={state.kind === "pending"}
-      disabled={!aiConfigured || state.kind === "pending"}
+      disabled={!ready || !aiConfigured || state.kind === "pending"}
       onClick={() => {
         void handleClick();
       }}

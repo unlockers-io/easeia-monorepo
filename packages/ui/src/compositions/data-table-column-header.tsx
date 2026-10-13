@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/dropdown-menu";
+import { useClientReady } from "../hooks/use-client-ready";
 import type { DataTableColumn } from "../lib/data-table-features";
 import { cn } from "../lib/utils";
 
@@ -35,6 +36,8 @@ const DataTableColumnHeader = <TData extends RowData, TValue extends CellData>({
   column,
   title,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
+  const ready = useClientReady();
+
   if (!column.getCanSort()) {
     return <div className={cn(className)}>{title}</div>;
   }
@@ -44,7 +47,10 @@ const DataTableColumnHeader = <TData extends RowData, TValue extends CellData>({
   return (
     <div className={cn("flex items-center gap-1", className)}>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button className="-ml-2" size="sm" variant="ghost" />}>
+        <DropdownMenuTrigger
+          disabled={!ready}
+          render={<Button className="-ml-2" size="sm" variant="ghost" />}
+        >
           <span>{title}</span>
           <SortIcon sorted={sorted} />
         </DropdownMenuTrigger>

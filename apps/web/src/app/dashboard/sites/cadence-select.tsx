@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Loader2 } from "lucide-react";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ export const CadenceSelect = ({
   const propValue = toSelectValue(autoPublishEnabled, cadenceDays);
   const [optimisticValue, setOptimisticValue] = useOptimistic(propValue, (_, next: string) => next);
   const [pending, startPending] = useTransition();
+  const ready = useClientReady();
 
   const handleChange = (next: string | null) => {
     if (next === null || next === optimisticValue) {
@@ -81,7 +83,7 @@ export const CadenceSelect = ({
 
   return (
     <Select
-      disabled={disabled === true || pending}
+      disabled={!ready || disabled === true || pending}
       onValueChange={handleChange}
       value={optimisticValue}
     >

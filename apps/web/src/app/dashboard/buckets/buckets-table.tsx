@@ -3,6 +3,7 @@
 import type { Niche } from "@repo/db";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronDown, ChevronRight, Loader2, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -121,6 +122,7 @@ const RowActions = ({
   siteId: string;
 }) => {
   const [pending, startTransition] = useTransition();
+  const ready = useClientReady();
   const [message, setMessage] = useState<string | null>(null);
 
   const handleRefill = () => {
@@ -154,7 +156,7 @@ const RowActions = ({
     });
   };
 
-  const refillDisabled = pending || !aiConfigured || bucketTarget === null;
+  const refillDisabled = !ready || pending || !aiConfigured || bucketTarget === null;
   const refillTitle =
     bucketTarget === null ? "Set a bucket target on the site detail page" : "Refill to target";
 
@@ -177,7 +179,7 @@ const RowActions = ({
           Refill
         </Button>
         <Button
-          disabled={pending || draftsCount === 0}
+          disabled={!ready || pending || draftsCount === 0}
           onClick={handlePublishNext}
           size="sm"
           title={draftsCount === 0 ? "Bucket is empty" : "Publish the oldest draft now"}
@@ -273,6 +275,7 @@ export const BucketsTable = ({
   rows: ReadonlyArray<BucketRow>;
 }) => {
   const [expanded, setExpanded] = useState<ExpandedState>(new Set());
+  const ready = useClientReady();
 
   if (rows.length === 0) {
     return (
@@ -305,6 +308,7 @@ export const BucketsTable = ({
                 aria-expanded={isOpen}
                 aria-label={`Drafts for ${row.siteDomain}`}
                 className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+                disabled={!ready}
                 onClick={() => {
                   setExpanded((s) => toggleExpanded(s, row.siteId));
                 }}

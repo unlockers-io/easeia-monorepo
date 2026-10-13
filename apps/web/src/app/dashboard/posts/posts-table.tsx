@@ -17,6 +17,7 @@ import {
   DataTableFacetedFilter,
   DataTableViewOptions,
 } from "@repo/ui/compositions/data-table";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowUpRight, SearchIcon, XIcon } from "lucide-react";
 import Link from "next/link";
@@ -68,6 +69,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
   const searchParams = useSearchParams();
 
   const [searchInput, setSearchInput] = useState(initialFilters.q);
+  const ready = useClientReady();
   const lastPushedQ = useRef(initialFilters.q);
 
   useEffect(() => {
@@ -251,6 +253,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
           <div className={cn("flex items-center gap-2", "h-8 w-full sm:max-w-xs")}>
             <SearchIcon />
             <Input
+              disabled={!ready}
               onChange={(e) => {
                 setSearchInput(e.target.value);
               }}
@@ -265,7 +268,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
             title="Niche"
             value={selectedNiches}
           />
-          <Select onValueChange={handleSiteChange} value={selectedSite}>
+          <Select disabled={!ready} onValueChange={handleSiteChange} value={selectedSite}>
             <SelectTrigger size="default">
               <SelectValue>
                 {(value: string) => {
@@ -286,7 +289,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
             </SelectContent>
           </Select>
           {hasFilters && (
-            <Button onClick={handleReset} size="default" variant="ghost">
+            <Button disabled={!ready} onClick={handleReset} size="default" variant="ghost">
               Reset
               <XIcon className="ml-1 size-4" />
             </Button>
