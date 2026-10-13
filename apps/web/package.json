@@ -30,6 +30,7 @@
     "@repo/money-sites": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/policy": "workspace:*",
+    "@repo/portless-env": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
@@ -49,7 +50,6 @@
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
-    "@repo/portless-env": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/react": "^16.3.3",

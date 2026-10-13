@@ -26,7 +26,7 @@ describe("envSchema", () => {
     const result = envSchema.safeParse(validEnv);
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.PORT).toBe("4000");
+      expect(result.data.PORT).toBe(4000);
       expect(result.data.HOST).toBe("0.0.0.0");
       expect(result.data.NODE_ENV).toBe("development");
       expect(result.data.CORS_ORIGINS).toBe(

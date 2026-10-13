@@ -1,9 +1,9 @@
 import type { APIRequestContext } from "@playwright/test";
 
-import { webUrl } from "../../../playwright.config";
 import { expect, test } from "../fixtures/auth.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
 import { extractLink, waitForEmail } from "../helpers/resend";
+import { webUrl } from "../urls";
 
 const PASSWORD = "TestPassword123!";
 

@@ -163,7 +163,7 @@ app.notFound(notFound);
 
 app.onError(errorHandler);
 
-const port = Number(env.PORT) || 4000;
+const port = env.PORT;
 const hostname = env.HOST || "0.0.0.0";
 
 log.info({

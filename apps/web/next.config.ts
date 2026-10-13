@@ -3,9 +3,7 @@ import path from "node:path";
 import { applyPortlessUrls } from "@repo/portless-env";
 import type { NextConfig } from "next";
 
-applyPortlessUrls({
-  WEB_APP_URL: ["easeia.web"],
-});
+applyPortlessUrls(["WEB_APP_URL"]);
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["easeia.web.localhost", "*.easeia.web.localhost", "*.vercel.app"],

@@ -1,4 +1,5 @@
 import { DEFAULT_CORS_ORIGINS } from "@repo/auth/env-config";
+import { apps } from "@repo/portless-env/apps";
 import { senderAddressSchema } from "@repo/transactional";
 import { z } from "zod";
 
@@ -15,7 +16,7 @@ export const envSchema = z
     ),
     HOST: z.string().default("0.0.0.0"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-    PORT: z.string().default("4000"),
+    PORT: z.coerce.number().int().positive().default(apps.api.port),
     REDIS_URL: z.string().min(1),
     RESEND_API_KEY: z.preprocess(
       (value) => (value === "" ? undefined : value),

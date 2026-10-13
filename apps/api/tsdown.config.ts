@@ -5,10 +5,7 @@ import alias from "@rollup/plugin-alias";
 import { defineConfig } from "tsdown";
 import zodCompiler from "zod-compiler/rolldown";
 
-applyPortlessUrls({
-  CORS_ORIGINS: ["easeia.web", "easeia.landing"],
-  WEB_APP_URL: ["easeia.web"],
-});
+applyPortlessUrls(["CORS_ORIGINS", "WEB_APP_URL"]);
 
 const srcDir = path.resolve(process.cwd(), "src");
 

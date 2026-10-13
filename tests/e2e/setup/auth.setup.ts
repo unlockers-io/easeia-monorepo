@@ -2,9 +2,9 @@ import { mkdir } from "node:fs/promises";
 
 import { expect, test as setup } from "@playwright/test";
 
-import { webUrl } from "../../../playwright.config";
 import { verification } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { webUrl } from "../urls";
 
 const TEST_USER = {
   email: "e2e-test@easeia.localhost",

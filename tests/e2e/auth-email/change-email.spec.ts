@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { prisma } from "@repo/db";
 
-import { webUrl } from "../../../playwright.config";
 import { verification } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
 import { extractLink, waitForEmail } from "../helpers/resend";
 import { makeTestEmail, makeTestUsername } from "../helpers/test-email";
+import { webUrl } from "../urls";
 
 test.skip(!process.env.RESEND_API_KEY, "needs RESEND_API_KEY (test mode)");
 

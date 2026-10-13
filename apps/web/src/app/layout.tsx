@@ -1,5 +1,7 @@
 import "@/styles/globals.css";
 
+import { webAppUrl } from "@repo/auth/env-config";
+import { canonicalUrl } from "@repo/portless-env/apps";
 import { Toaster } from "@repo/ui/components/sonner";
 import { ThemeProvider } from "@repo/ui/compositions/theme-provider";
 import type { Metadata, Viewport } from "next";
@@ -14,8 +16,7 @@ const schibsted = Schibsted_Grotesk({
   variable: "--font-sans-face",
 });
 
-const metadataBase =
-  URL.parse(process.env.WEB_APP_URL ?? "") ?? new URL("https://easeia.web.localhost");
+const metadataBase = new URL(webAppUrl() ?? canonicalUrl("web"));
 
 export const metadata: Metadata = {
   authors: [{ name: "Easeia Team" }],
