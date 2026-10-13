@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { prisma } from "@repo/db";
 
-import { landingUrl } from "../../../playwright.config";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { landingUrl } from "../urls";
 
 test.use({ baseURL: landingUrl, storageState: { cookies: [], origins: [] } });
 

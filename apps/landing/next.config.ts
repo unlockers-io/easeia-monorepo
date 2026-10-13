@@ -1,7 +1,7 @@
 import { applyPortlessUrls } from "@repo/portless-env";
 import type { NextConfig } from "next";
 
-applyPortlessUrls({ NEXT_PUBLIC_API_URL: ["easeia.api"], NEXT_PUBLIC_WEB_APP_URL: ["easeia.web"] });
+applyPortlessUrls(["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_WEB_APP_URL"]);
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["easeia.landing.localhost", "*.easeia.landing.localhost", "*.vercel.app"],

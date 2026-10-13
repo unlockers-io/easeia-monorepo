@@ -60,6 +60,7 @@
     "@repo/db": "workspace:*",
     "@repo/hero": "workspace:*",
     "@repo/jobs": "workspace:*",
+    "@repo/portless-env": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
     "@shadcn/lint": "0.2.0",

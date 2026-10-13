@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { EvlogVariables } from "@repo/observability/hono";
+import { loopbackUrl } from "@repo/portless-env/apps";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Env } from "hono";
 
@@ -39,7 +40,7 @@ const apiDocConfig = {
   },
   servers: [
     { description: "This instance", url: "/" },
-    { description: "Local development server", url: "http://localhost:4000" },
+    { description: "Local development server", url: loopbackUrl("api", "localhost") },
     { description: "Production server", url: "https://api.easeia.com" },
   ],
   tags: [

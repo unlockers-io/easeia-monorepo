@@ -1,4 +1,5 @@
 import { prisma } from "@repo/db";
+import { loopbackUrl } from "@repo/portless-env/apps";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { createAuth } from "./server";
@@ -61,7 +62,7 @@ describe("Auth Server Configuration", () => {
       throw new Error("expected dynamic baseURL object");
     }
     expect(baseURL.protocol).toBe("auto");
-    expect(baseURL.fallback).toBe("http://localhost:4000");
+    expect(baseURL.fallback).toBe(loopbackUrl("api", "localhost"));
   });
 
   it("should take baseURL.allowedHosts from config", () => {
