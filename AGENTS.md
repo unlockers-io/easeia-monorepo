@@ -2,6 +2,14 @@
 
 Guidance for AI coding agents working in this repository. `CLAUDE.md` is a symlink to this file.
 
+## Friction Log
+
+- Log papercuts and friction (tooling, docs, APIs, tests, conventions) as you hit them with `npx frog log`.
+- Do not add global, system, or internal friction.
+- Run `npx frog list` first to see what is already known.
+
+Entries live in `.agents/friction-log/`, one directory each. A GitHub Action reports them as issues and deletes the entry once the issue closes, so anything still in that directory is still outstanding.
+
 ## What this repo is
 
 **Easeia**: central admin + API for generating and publishing posts across a network of money sites (Astro). Generates post content with AI, uploads images to Cloudflare R2, stores posts in Postgres, and exposes a build-time REST API consumed by each Astro site's CI. External tools (e.g. N8N) can author posts programmatically via the public REST API. Workers handle the heavy lifting: publish, sync, crawl, hero generation, link suggestion.

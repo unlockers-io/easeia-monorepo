@@ -70,7 +70,6 @@ logs/
 *.rdb
 
 # agent output
-.agents/
 .context/
 /agents/
 .fallow/
