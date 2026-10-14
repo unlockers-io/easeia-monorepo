@@ -12,17 +12,58 @@ import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm } from "@tanstack/react-form";
+import { createFormHook, createFormHookContexts, useSelector } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
 import { changePasswordSchema } from "@/lib/form-schemas";
 
+type PasswordFieldProps = {
+  autoComplete: "current-password" | "new-password";
+  label: string;
+};
+
+const { fieldContext, formContext, useFieldContext } = createFormHookContexts();
+
+const PasswordField = ({ autoComplete, label }: PasswordFieldProps) => {
+  const field = useFieldContext<string>();
+  const isSubmitted = useSelector(field.form.store, (state) => state.submissionAttempts > 0);
+  const isInvalid = !field.state.meta.isValid && (field.state.meta.isBlurred || isSubmitted);
+  const inputId = `account-${field.name}`;
+  const errorId = `${inputId}-error`;
+
+  return (
+    <Field data-invalid={isInvalid || undefined}>
+      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
+      <Input
+        aria-describedby={isInvalid ? errorId : undefined}
+        aria-invalid={isInvalid}
+        autoComplete={autoComplete}
+        id={inputId}
+        onBlur={field.handleBlur}
+        onChange={(event) => {
+          field.handleChange(event.target.value);
+        }}
+        type="password"
+        value={field.state.value}
+      />
+      {isInvalid && <FormFieldError errors={field.state.meta.errors} id={errorId} />}
+    </Field>
+  );
+};
+
+const { useAppForm } = createFormHook({
+  fieldComponents: { PasswordField },
+  fieldContext,
+  formComponents: {},
+  formContext,
+});
+
 export const PasswordForm = () => {
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const form = useForm({
+  const form = useAppForm({
     defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
     onSubmit: async ({ value }) => {
       setMessage(null);
@@ -45,8 +86,12 @@ export const PasswordForm = () => {
       setMessage("Password changed. Your other sessions have been signed out.");
       router.refresh();
     },
-    validators: { onBlur: changePasswordSchema, onChange: changePasswordSchema },
+    validators: { onChangeAsync: changePasswordSchema },
   });
+  const submit = async () => {
+    await form.validate("submit");
+    await form.handleSubmit();
+  };
   return (
     <Card>
       <CardHeader>
@@ -61,83 +106,24 @@ export const PasswordForm = () => {
         <ClientReadyForm
           onSubmit={(event) => {
             event.preventDefault();
-            void form.handleSubmit();
+            event.stopPropagation();
+            void submit();
           }}
         >
           <FieldGroup>
-            <form.Field name="currentPassword">
+            <form.AppField name="currentPassword">
               {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="account-currentPassword">Current password</FieldLabel>
-                  <Input
-                    aria-describedby={
-                      field.state.meta.errors.length > 0
-                        ? "account-currentPassword-error"
-                        : undefined
-                    }
-                    autoComplete="current-password"
-                    id="account-currentPassword"
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    type="password"
-                    value={field.state.value}
-                  />
-                  <FormFieldError
-                    errors={field.state.meta.errors}
-                    id="account-currentPassword-error"
-                  />
-                </Field>
+                <field.PasswordField autoComplete="current-password" label="Current password" />
               )}
-            </form.Field>
-            <form.Field name="newPassword">
+            </form.AppField>
+            <form.AppField name="newPassword">
+              {(field) => <field.PasswordField autoComplete="new-password" label="New password" />}
+            </form.AppField>
+            <form.AppField name="confirmPassword">
               {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="account-newPassword">New password</FieldLabel>
-                  <Input
-                    aria-describedby={
-                      field.state.meta.errors.length > 0 ? "account-newPassword-error" : undefined
-                    }
-                    autoComplete="new-password"
-                    id="account-newPassword"
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    type="password"
-                    value={field.state.value}
-                  />
-                  <FormFieldError errors={field.state.meta.errors} id="account-newPassword-error" />
-                </Field>
+                <field.PasswordField autoComplete="new-password" label="Confirm new password" />
               )}
-            </form.Field>
-            <form.Field name="confirmPassword">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="account-confirmPassword">Confirm new password</FieldLabel>
-                  <Input
-                    aria-describedby={
-                      field.state.meta.errors.length > 0
-                        ? "account-confirmPassword-error"
-                        : undefined
-                    }
-                    autoComplete="new-password"
-                    id="account-confirmPassword"
-                    onBlur={field.handleBlur}
-                    onChange={(event) => {
-                      field.handleChange(event.target.value);
-                    }}
-                    type="password"
-                    value={field.state.value}
-                  />
-                  <FormFieldError
-                    errors={field.state.meta.errors}
-                    id="account-confirmPassword-error"
-                  />
-                </Field>
-              )}
-            </form.Field>
+            </form.AppField>
             {message !== null && (
               <p aria-live="polite" className="text-sm">
                 {message}
