@@ -215,7 +215,7 @@ Four workflows are checked in:
 - `react-doctor.yml`: React Doctor on pull requests only.
 - `release.yml`: runs on pushes to `main`. The Changesets action opens the "chore: version packages" PR or, once that PR merges, publishes `@easeia/astro-content` through npm trusted publishing and confirms the version reached the registry. It dispatches every workflow that declares both `pull_request` and `workflow_dispatch` (`check.yml` and `e2e.yml`) onto the version PR, whose own `pull_request` runs never execute.
 
-`check.yml` and `e2e.yml` run on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `orchestrator standards --for .github/workflows/check.yml` prints the rules they follow.
+`check.yml` and `e2e.yml` run on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `keel standards --for .github/workflows/check.yml` prints the rules they follow.
 
 ## References
 
