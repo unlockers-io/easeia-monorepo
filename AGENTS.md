@@ -12,11 +12,11 @@ Entries live in `.agents/friction-log/`, one directory each. A GitHub Action rep
 
 ## Standards
 
-This repo follows the fleet's shared standards, checked by `keel` (`~/dev/keel`).
+This repo follows the fleet's shared standards, checked by `standy` (`~/dev/standy`).
 
-- Before editing, run `keel standards --for <paths>` for the rules that apply to the files you will touch.
-- Before finishing, run `keel check --changed --fix-hints` and fix what fails. It only sees tracked files, so run `git add -N` on new files first.
-- When a failure is unclear, `keel explain <rule>` prints what the rule asserts, why, and how to fix it.
+- Before editing, run `standy standards --for <paths>` for the rules that apply to the files you will touch.
+- Before finishing, run `standy check --changed --fix-hints` and fix what fails. It only sees tracked files, so run `git add -N` on new files first.
+- When a failure is unclear, `standy explain <rule>` prints what the rule asserts, why, and how to fix it.
 
 ## What this repo is
 
@@ -223,7 +223,7 @@ Four workflows are checked in:
 - `react-doctor.yml`: React Doctor on pull requests only.
 - `release.yml`: runs on pushes to `main`. The Changesets action opens the "chore: version packages" PR or, once that PR merges, publishes `@easeia/astro-content` through npm trusted publishing and confirms the version reached the registry. It dispatches every workflow that declares both `pull_request` and `workflow_dispatch` (`check.yml` and `e2e.yml`) onto the version PR, whose own `pull_request` runs never execute.
 
-`check.yml` and `e2e.yml` run on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `keel standards --for .github/workflows/check.yml` prints the rules they follow.
+`check.yml` and `e2e.yml` run on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `standy standards --for .github/workflows/check.yml` prints the rules they follow.
 
 ## References
 
