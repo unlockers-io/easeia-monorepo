@@ -10,6 +10,14 @@ Guidance for AI coding agents working in this repository. `CLAUDE.md` is a symli
 
 Entries live in `.agents/friction-log/`, one directory each. A GitHub Action reports them as issues and deletes the entry once the issue closes, so anything still in that directory is still outstanding.
 
+## Standards
+
+This repo follows the fleet's shared standards, checked by `keel` (`~/dev/keel`).
+
+- Before editing, run `keel standards --for <paths>` for the rules that apply to the files you will touch.
+- Before finishing, run `keel check --changed --fix-hints` and fix what fails. It only sees tracked files, so run `git add -N` on new files first.
+- When a failure is unclear, `keel explain <check>` prints what the check asserts and how to fix it.
+
 ## What this repo is
 
 **Easeia**: central admin + API for generating and publishing posts across a network of money sites (Astro). Generates post content with AI, uploads images to Cloudflare R2, stores posts in Postgres, and exposes a build-time REST API consumed by each Astro site's CI. External tools (e.g. N8N) can author posts programmatically via the public REST API. Workers handle the heavy lifting: publish, sync, crawl, hero generation, link suggestion.
