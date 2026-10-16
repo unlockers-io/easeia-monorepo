@@ -24,11 +24,11 @@ The current dev scripts use [portless](https://github.com/vercel-labs/portless):
 ```bash
 npm install -g portless
 sudo portless proxy start --https
-pnpm seed
+pnpm db:seed
 pnpm dev
 ```
 
-`pnpm seed` reads `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, and `SEED_ADMIN_NAME`.
+`pnpm db:seed` reads `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, and `SEED_ADMIN_NAME`.
 Outside production, omitted values use development defaults from
 `tools/seed/admin.ts`. Production requires all three values. Existing accounts
 are preserved. Use the configured email and password to sign in.
