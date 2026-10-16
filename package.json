@@ -14,7 +14,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "db:generate": "turbo run db:generate",
     "db:push": "turbo run db:push",
-    "seed": "tsx tools/seed/index.ts",
+    "db:seed": "tsx tools/seed/index.ts",
     "strip:em-dashes": "tsx tools/strip-em-dashes/index.ts",
     "seed:money-site": "tsx tools/seed-money-site/src/index.ts",
     "aggregate:site-niches": "tsx tools/aggregate-site-niches/src/index.ts",

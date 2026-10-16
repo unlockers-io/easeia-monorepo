@@ -119,8 +119,8 @@ pnpm test:e2e:ui
 # Database
 pnpm db:generate
 pnpm db:push
-pnpm seed                  # SEED_ADMIN_*; development defaults outside production
-pnpm seed <sites.json>     # admin user + Site upserts from domain list
+pnpm db:seed               # SEED_ADMIN_*; development defaults outside production
+pnpm db:seed <sites.json>  # admin user + Site upserts from domain list
 pnpm seed:money-site
 
 # Backfills + evals (rare)
