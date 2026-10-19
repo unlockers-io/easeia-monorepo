@@ -43,7 +43,7 @@
     "@repo/typescript-config": "workspace:*",
     "@rollup/plugin-alias": "^6.0.0",
     "@types/node": "^26.2.0",
-    "tsdown": "^0.22.14",
+    "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1",
     "zod-compiler": "^1.27.0"

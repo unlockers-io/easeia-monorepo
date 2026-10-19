@@ -51,7 +51,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^26.2.0",
     "astro": "^7.2.8",
-    "tsdown": "^0.22.14",
+    "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   },
