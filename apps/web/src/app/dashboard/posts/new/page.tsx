@@ -18,6 +18,7 @@ import {
 } from "@repo/ui/components/select";
 import { Textarea } from "@repo/ui/components/textarea";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { connection } from "next/server";
 
 import { Banner } from "@/components/banner";
 
@@ -30,6 +31,7 @@ import { PublishSwitch } from "./publish-switch";
 const NICHE_OPTIONS = Object.values(Niche);
 
 const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: string }> }) => {
+  await connection();
   const [{ error }, sites] = await Promise.all([
     searchParams,
     prisma.site.findMany({ orderBy: { domain: "asc" }, where: { isEnabled: true } }),

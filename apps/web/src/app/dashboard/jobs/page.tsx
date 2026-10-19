@@ -20,9 +20,11 @@ import {
 } from "@repo/ui/components/table";
 import { ArrowUpRight, CheckCircle2, Clock, Hash, Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 const JobsTable = async () => {
+  await connection();
   const { data: jobs } = await listJobs({ limit: 100 });
 
   if (jobs.length === 0) {

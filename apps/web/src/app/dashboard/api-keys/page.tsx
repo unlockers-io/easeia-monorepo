@@ -18,11 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/table";
+import { connection } from "next/server";
 
 import { revokeApiKeyAction } from "./actions";
 import { CreateKeyDialog } from "./create-key-dialog";
 
 const ApiKeysPage = async () => {
+  await connection();
   const [keys, sites] = await Promise.all([
     listApiKeys(),
     prisma.site.findMany({
