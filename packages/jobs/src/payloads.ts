@@ -1,60 +1,62 @@
 import type { JobKind, Prisma } from "@repo/db";
+import { z } from "zod";
 
-type BackfillGscLinksPayload = {
-  cursor?: number;
-  initialFanoutDone?: boolean;
-  postIds?: ReadonlyArray<string>;
-  siteId: string;
-};
+const tick = z.record(z.string(), z.never());
+const postTarget = z.object({ postId: z.string() });
+const siteTarget = z.object({ siteId: z.string() });
 
-type JobPayloadMap<T extends Record<JobKind, Prisma.InputJsonObject>> = T;
+const backfillGscLinksPayload = z.object({
+  cursor: z.number().optional(),
+  initialFanoutDone: z.boolean().optional(),
+  postIds: z.array(z.string()).readonly().optional(),
+  siteId: z.string(),
+});
 
-type TickPayload = Record<string, never>;
+const jobPayloadSchemas = {
+  AUDIT_SLUG_DRIFT: tick,
+  AUTO_PUBLISH: tick,
+  BACKFILL_GSC_LINKS: backfillGscLinksPayload,
+  BACKFILL_HEROES: tick,
+  BACKFILL_NETWORK: z.object({
+    initialFanoutDone: z.boolean().optional(),
+    phase: z.enum(["CLASSIFY_EMBED", "SUGGEST_LINKS"]),
+    startedAt: z.string(),
+  }),
+  BACKFILL_REWRITE: z.object({
+    force: z.boolean(),
+    initialFanoutDone: z.boolean().optional(),
+    initialPostsEligible: z.number(),
+    phase: z.enum(["CRAWL_MONEY_SITE", "REWRITE_POST"]),
+    startedAt: z.string(),
+  }),
+  CLASSIFY: postTarget,
+  CRAWL_GSC_LINKS: postTarget,
+  CRAWL_LINKS: postTarget,
+  CRAWL_MONEY_SITE: z.object({ moneySiteId: z.string() }),
+  CRAWL_MONEY_SITE_PAGE: z.object({ moneySitePageId: z.string() }),
+  EMBED: postTarget,
+  GENERATE_BODY_IMAGES: postTarget,
+  GENERATE_IMAGE: postTarget,
+  GENERATE_POST: siteTarget,
+  PUBLISH: postTarget,
+  REAP_STUCK_JOBS: tick,
+  REQUEST_SNAPSHOTS: tick,
+  REWRITE_POST: z.object({ force: z.boolean().optional(), postId: z.string() }),
+  SNAPSHOT_SITE: siteTarget,
+  SUGGEST_LINKS: postTarget,
+  TRIGGER_DEPLOY: siteTarget,
+} satisfies Record<JobKind, z.ZodType<Prisma.InputJsonObject>>;
 
-type JobPayloads = JobPayloadMap<{
-  AUDIT_SLUG_DRIFT: TickPayload;
-  AUTO_PUBLISH: TickPayload;
-  BACKFILL_GSC_LINKS: BackfillGscLinksPayload;
-  BACKFILL_HEROES: TickPayload;
-  BACKFILL_NETWORK: {
-    initialFanoutDone?: boolean;
-    phase: "CLASSIFY_EMBED" | "SUGGEST_LINKS";
-    startedAt: string;
-  };
-  BACKFILL_REWRITE: {
-    force: boolean;
-    initialFanoutDone?: boolean;
-    initialPostsEligible: number;
-    phase: "CRAWL_MONEY_SITE" | "REWRITE_POST";
-    startedAt: string;
-  };
-  CLASSIFY: { postId: string };
-  CRAWL_GSC_LINKS: { postId: string };
-  CRAWL_LINKS: { postId: string };
-  CRAWL_MONEY_SITE: { moneySiteId: string };
-  CRAWL_MONEY_SITE_PAGE: { moneySitePageId: string };
-  EMBED: { postId: string };
-  GENERATE_BODY_IMAGES: { postId: string };
-  GENERATE_IMAGE: { postId: string };
-  GENERATE_POST: { siteId: string };
-  PUBLISH: { postId: string };
-  REAP_STUCK_JOBS: TickPayload;
-  REQUEST_SNAPSHOTS: TickPayload;
-  REWRITE_POST: { force?: boolean; postId: string };
-  SNAPSHOT_SITE: { siteId: string };
-  SUGGEST_LINKS: { postId: string };
-  TRIGGER_DEPLOY: { siteId: string };
-}>;
+type JobPayloads = { [K in JobKind]: z.infer<(typeof jobPayloadSchemas)[K]> };
 
-/**
- * Read-side boundary for Job.payload. `enqueue` and `consume` are the only
- * writers and both type their input per kind, so the stored JSON matches
- * JobPayloads[K]; this is the single place that assertion lives.
- */
-const getJobPayload = <K extends JobKind>(_kind: K, payload: Prisma.JsonValue): JobPayloads[K] =>
-  // SAFETY: enqueue and consume are the only writers and statically bind each payload to its JobKind.
-  // oxlint-disable-next-line no-unsafe-type-assertion -- Prisma types the stored JSON as JsonValue
-  payload as JobPayloads[K];
+type BackfillGscLinksPayload = JobPayloads["BACKFILL_GSC_LINKS"];
+
+type JobPayloadSchemas = { [K in JobKind]: z.ZodType<JobPayloads[K]> };
+
+const payloadSchemas: JobPayloadSchemas = jobPayloadSchemas;
+
+const getJobPayload = <K extends JobKind>(kind: K, payload: Prisma.JsonValue): JobPayloads[K] =>
+  payloadSchemas[kind].parse(payload);
 
 export { getJobPayload };
 export type { BackfillGscLinksPayload, JobPayloads };

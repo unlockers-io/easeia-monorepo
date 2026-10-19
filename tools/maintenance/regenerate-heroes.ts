@@ -81,8 +81,7 @@ const main = async (): Promise<number> => {
     `${posts.length} posts across ${bySite.size} sites, created after ${since.toISOString().slice(0, 10)} (${APPLY ? "APPLY" : "dry run"}).`,
   );
   console.log(`Estimated spend: $${(posts.length * USD_PER_IMAGE).toFixed(2)}\n`);
-  // oxlint-disable-next-line no-array-sort -- sorts a fresh copy of the Map entries; nothing shared is mutated
-  const perSite = [...bySite.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const perSite = [...bySite.entries()].toSorted(([a], [b]) => a.localeCompare(b));
   for (const [domain, count] of perSite) {
     console.log(`  ${domain.padEnd(26)} ${count}`);
   }

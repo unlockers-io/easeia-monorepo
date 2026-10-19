@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import { gfm } from "@truto/turndown-plugin-gfm";
 import TurndownService from "turndown";
 
@@ -29,22 +31,14 @@ const buildTurndown = (): TurndownService => {
   td.addRule("figure", {
     filter: "figure",
     replacement: (content, node) => {
-      // SAFETY: Turndown passes parsed DOM elements here, but its Node type omits querySelector.
-      // oxlint-disable-next-line no-unsafe-type-assertion, anti-slop/no-chained-type-assertions -- Turndown's Node type omits the DOM methods its runtime elements carry
-      const el = node as unknown as {
-        querySelector: (sel: string) => null | {
-          getAttribute: (name: string) => string | null;
-          textContent?: string;
-        };
-      };
-      const img = el.querySelector("img");
+      const img = node.querySelector("img");
       if (!img) {
         return `\n\n${content}\n\n`;
       }
-      const captionEl = el.querySelector("figcaption");
+      const captionEl = node.querySelector("figcaption");
       const src = img.getAttribute("src") ?? "";
       const alt = img.getAttribute("alt") ?? "";
-      const caption = captionEl?.textContent?.trim() ?? "";
+      const caption = captionEl?.textContent.trim() ?? "";
       const imgMd = `![${alt}](${src})`;
       return caption ? `${imgMd}\n\n*${caption}*` : imgMd;
     },

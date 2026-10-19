@@ -134,8 +134,7 @@ const main = async () => {
   for (const [siteId, byCat] of catMapBySite) {
     const out: Record<string, string> = {};
     for (const [cat, votes] of byCat) {
-      // oxlint-disable-next-line unicorn/no-array-sort -- default-project lib predates es2023's toSorted; the spread already copies
-      const best = [...votes.entries()].sort((a, b) => b[1] - a[1]).at(0);
+      const best = [...votes.entries()].toSorted((a, b) => b[1] - a[1]).at(0);
       if (best) {
         out[cat] = best[0];
       }

@@ -1,4 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/card";
+import { connection } from "next/server";
 
 import { StatGrid, type StatItem } from "@/components/stat-grid";
 
@@ -7,6 +8,7 @@ import { loadNetworkGraphData } from "./data";
 import { NetworkGraph, type MoneySiteOption } from "./network-graph";
 
 const NetworkPage = async () => {
+  await connection();
   const data = await loadNetworkGraphData();
   const { edges, nodes } = buildGraph(data);
 

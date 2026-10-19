@@ -35,26 +35,24 @@ const PostActionsMenu = ({ domain, postId, publicPageUrl }: Props) => {
       <DropdownMenuContent align="end" className="w-max max-w-(--available-width)">
         <DropdownMenuItem
           render={
-            // eslint-disable-next-line jsx-a11y/control-has-associated-label, react-doctor/control-has-associated-label -- base-ui forwards the menu item children into the rendered anchor
-            <a href={publicPageUrl} rel="noreferrer" target="_blank" />
+            <a href={publicPageUrl} rel="noreferrer" target="_blank">
+              <ExternalLink className="size-4" />
+              View on {domain}
+            </a>
           }
-        >
-          <ExternalLink className="size-4" />
-          View on {domain}
-        </DropdownMenuItem>
+        />
         <DropdownMenuSeparator />
         <form action={deletePostAction}>
           <input name="id" type="hidden" value={postId} />
           <DropdownMenuItem
             render={
-              // eslint-disable-next-line jsx-a11y/control-has-associated-label -- base-ui forwards the menu item children into the rendered button
-              <button className="w-full" type="submit" />
+              <button className="w-full" type="submit">
+                <Trash2 className="size-4" />
+                Delete post
+              </button>
             }
             variant="destructive"
-          >
-            <Trash2 className="size-4" />
-            Delete post
-          </DropdownMenuItem>
+          />
         </form>
       </DropdownMenuContent>
     </DropdownMenu>

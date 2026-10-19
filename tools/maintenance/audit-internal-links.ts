@@ -167,8 +167,7 @@ const main = async () => {
   console.log(`posts affected:   ${postsWithBroken.size}`);
 
   console.log(`\n=== per site ===`);
-  // oxlint-disable-next-line unicorn/no-array-sort -- default-project lib predates es2023's toSorted; the spread already copies
-  for (const [domain, s] of [...summaryBySite.entries()].sort(
+  for (const [domain, s] of [...summaryBySite.entries()].toSorted(
     (a, b) => b[1].broken - a[1].broken,
   )) {
     console.log(

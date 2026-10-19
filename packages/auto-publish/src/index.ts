@@ -5,6 +5,7 @@ export type TickResult = Omit<PublishDueResult, "failed"> & { refills: Array<Ref
 
 export const tick = async (now = new Date()): Promise<TickResult> => {
   const { failed, ...published } = await publishDue(now);
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await -- not independent: refillAll counts the bucket drafts publishDue just claimed
   const refills = await refillAll();
   if (failed.length > 0) {
     throw new AggregateError(

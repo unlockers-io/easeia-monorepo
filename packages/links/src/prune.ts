@@ -2,9 +2,6 @@ import { LinkType } from "@repo/db";
 
 import type { ResolvedLink } from "./classify";
 
-// oxlint-disable-next-line eslint/require-unicode-regexp -- v-mode rejects this class
-const escapeRegex = (s: string): string => s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-
 export const fabricatedHrefs = (resolved: ReadonlyArray<ResolvedLink>): Set<string> => {
   const out = new Set<string>();
   for (const link of resolved) {
@@ -25,7 +22,7 @@ export const fabricatedHrefs = (resolved: ReadonlyArray<ResolvedLink>): Set<stri
  * as plain prose. Handles markdown `[text](href)` and html `<a href=…>…</a>`.
  */
 const stripAnchor = (body: string, href: string): string => {
-  const h = escapeRegex(href);
+  const h = RegExp.escape(href);
   const mdRe = new RegExp(`\\[([^\\]]+)\\]\\(${h}(?:\\s+"[^"]*")?\\)`, "gv");
   let out = body.replace(mdRe, (_full, anchor: string) => anchor);
   const htmlRe = new RegExp(`<a\\s[^>]*href=["']${h}["'][^>]*>([\\s\\S]*?)</a>`, "giv");
