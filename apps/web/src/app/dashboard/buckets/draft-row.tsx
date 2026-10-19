@@ -40,7 +40,7 @@ const ARM_WINDOW_MS = 4000;
 export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
   const [pending, startTransition] = useTransition();
   const [armed, setArmed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
     if (!armed) {
@@ -55,13 +55,12 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
   }, [armed]);
 
   const runAction = (label: string, action: () => Promise<void>) => {
-    setError(null);
+    setFailure(null);
     startTransition(async () => {
       try {
         await action();
-        // eslint-disable-next-line unicorn/catch-error-name -- `error` shadows the state setter scope
-      } catch (thrown) {
-        setError(thrown instanceof Error ? thrown.message : `${label} failed`);
+      } catch (error) {
+        setFailure(error instanceof Error ? error.message : `${label} failed`);
       }
     });
   };
@@ -120,9 +119,9 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
           </Button>
         </div>
       </div>
-      {error === null ? null : (
+      {failure === null ? null : (
         <p aria-live="polite" className="text-xs text-destructive">
-          {error}
+          {failure}
         </p>
       )}
     </li>

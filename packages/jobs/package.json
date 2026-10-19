@@ -17,7 +17,8 @@
   "dependencies": {
     "@repo/db": "workspace:*",
     "bullmq": "^6.0.9",
-    "ioredis": "6.0.0"
+    "ioredis": "6.0.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",

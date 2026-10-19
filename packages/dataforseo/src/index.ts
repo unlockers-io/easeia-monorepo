@@ -9,7 +9,8 @@ import {
   serpOrganicResultSchema,
 } from "./schemas";
 
-export { DataForSeoError, DataForSeoNotConfiguredError, isDataForSeoConfigured } from "./client";
+export { DataForSeoNotConfiguredError, isDataForSeoConfigured } from "./credentials";
+export { DataForSeoError } from "./error";
 
 type PageAudit = {
   checks: AuditChecks;
