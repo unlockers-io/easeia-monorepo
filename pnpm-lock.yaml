@@ -710,6 +710,9 @@ importers:
       '@repo/config-vitest':
         specifier: workspace:*
         version: link:../config-vitest
+      '@repo/jobs':
+        specifier: workspace:*
+        version: link:../jobs
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../config-typescript
@@ -1660,6 +1663,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/posts':
+        specifier: workspace:*
+        version: link:../../packages/posts
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1735,6 +1741,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/posts':
+        specifier: workspace:*
+        version: link:../../packages/posts
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

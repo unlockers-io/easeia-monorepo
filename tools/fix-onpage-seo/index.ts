@@ -8,9 +8,7 @@ import { generateSeoSuggestions } from "@repo/ai";
 import { PostStatus, prisma } from "@repo/db";
 import { classifyDescriptionLength, classifyTitleLength, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
-import { stripHtml } from "@repo/posts";
-
-import { redeploySites } from "../_shared/redeploy";
+import { stripHtml, update } from "@repo/posts";
 
 import { applyInboundFix, type ListedPost, planInboundFixes } from "./inbound";
 
@@ -98,10 +96,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
   }
 
   if (APPLY) {
-    await prisma.post.update({
-      data: { excerpt: nextExcerpt, title: nextTitle },
-      where: { id: post.id },
-    });
+    await update(post.id, { excerpt: nextExcerpt, title: nextTitle });
   }
   return { id: post.id, siteId: post.siteId, status: "fixed" };
 };
@@ -119,7 +114,6 @@ const printSummary = (label: string, counts: ReturnType<typeof summarizeOnPage>)
 const runInboundPass = async (
   posts: ReadonlyArray<ListedPost>,
   inbound: ReadonlyMap<string, number>,
-  affected: Set<string>,
 ): Promise<void> => {
   const orphans = posts.filter((p) => (inbound.get(p.id) ?? 0) === 0);
   console.log(`\nInbound pass: ${orphans.length} posts with 0 in-content inbound links`);
@@ -130,7 +124,6 @@ const runInboundPass = async (
   }
   for (const fix of planned) {
     await applyInboundFix(fix);
-    affected.add(fix.siteId);
   }
   console.log(`  wrote ${planned.length} inbound links`);
 };
@@ -138,7 +131,6 @@ const runInboundPass = async (
 const settleMetaBatch = (
   batch: ReadonlyArray<MetaTarget>,
   settled: ReadonlyArray<PromiseSettledResult<MetaOutcome>>,
-  affected: Set<string>,
 ) => {
   let fixed = 0;
   let skipped = 0;
@@ -149,7 +141,6 @@ const settleMetaBatch = (
     }
     if (res.status === "fulfilled" && res.value.status === "fixed") {
       fixed += 1;
-      affected.add(target.siteId);
       continue;
     }
     skipped += 1;
@@ -160,10 +151,7 @@ const settleMetaBatch = (
   return { fixed, skipped };
 };
 
-const runMetaPass = async (
-  posts: ReadonlyArray<ListedPost>,
-  affected: Set<string>,
-): Promise<void> => {
+const runMetaPass = async (posts: ReadonlyArray<ListedPost>): Promise<void> => {
   const targets = metaTargets(posts);
   console.log(`\nMeta pass: ${targets.length} posts with title/excerpt out of range`);
   if (!APPLY) {
@@ -185,7 +173,7 @@ const runMetaPass = async (
   for (let i = 0; i < targets.length; i += META_BATCH) {
     const batch = targets.slice(i, i + META_BATCH);
     const settled = await Promise.allSettled(batch.map(fixMetaOne));
-    const step = settleMetaBatch(batch, settled, affected);
+    const step = settleMetaBatch(batch, settled);
     fixed += step.fixed;
     skipped += step.skipped;
     console.log(`  processed ${Math.min(i + META_BATCH, targets.length)}/${targets.length}`);
@@ -219,17 +207,14 @@ const main = async (): Promise<number> => {
     ),
   );
 
-  const affected = new Set<string>();
   if (!SKIP_LINKS) {
-    await runInboundPass(posts, inbound, affected);
+    await runInboundPass(posts, inbound);
   }
   if (!SKIP_META) {
-    await runMetaPass(posts, affected);
+    await runMetaPass(posts);
   }
 
-  if (APPLY) {
-    await redeploySites(affected);
-  } else {
+  if (!APPLY) {
     console.log("\nDry run — no writes. Re-run with --apply to persist.");
   }
   return 0;

@@ -6,8 +6,8 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import { update } from "@repo/posts";
 
-import { redeploySites } from "../_shared/redeploy";
 import { slugify } from "../_shared/slugify";
 
 const APPLY = process.argv.includes("--apply");
@@ -98,10 +98,9 @@ const main = async (): Promise<void> => {
   }
 
   for (const post of planned) {
-    await prisma.post.update({ data: { categories: post.next }, where: { id: post.id } });
+    await update(post.id, { categories: post.next });
   }
   console.log(`\nupdated ${planned.length} posts`);
-  await redeploySites(planned.map((p) => p.siteId));
 };
 
 await main();
