@@ -49,7 +49,7 @@ const REPUBLISHABLE: ReadonlyArray<PostStatus> = [
 
 const BUCKET: ReadonlyArray<PostStatus> = [PostStatus.DRAFT];
 
-const AWAITING_PUBLISH: ReadonlyArray<PostStatus> = [PostStatus.SCHEDULED, PostStatus.PUBLISHED];
+const AWAITING_PUBLISH: ReadonlyArray<PostStatus> = [PostStatus.SCHEDULED];
 
 const requireState = (post: Post, accepted: ReadonlyArray<PostStatus>, action: string): void => {
   if (!accepted.includes(post.status)) {
@@ -63,102 +63,112 @@ const mayBeDeployed = (post: Post): boolean =>
 const delayUntil = (scheduledAt: Date | null): number =>
   scheduledAt === null ? 0 : Math.max(0, scheduledAt.getTime() - Date.now());
 
-const enqueueForPost = (postId: string, kinds: ReadonlyArray<JobKind>) =>
-  Promise.all(kinds.map((kind) => enqueue({ kind, payload: { postId }, postId })));
+const lockedPost = async (id: string, tx: Prisma.TransactionClient) => {
+  await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${id} FOR UPDATE`;
+  return requirePost(id, tx);
+};
 
-const settleLiveChange = async (post: Post, contentChanged: boolean): Promise<void> => {
+const enqueueForPost = (
+  postId: string,
+  kinds: ReadonlyArray<JobKind>,
+  tx: Prisma.TransactionClient,
+) => Promise.all(kinds.map((kind) => enqueue({ kind, payload: { postId }, postId }, tx)));
+
+const settleLiveChange = async (
+  post: Post,
+  contentChanged: boolean,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
   if (post.status !== PostStatus.PUBLISHED) {
     return;
   }
-  await Sites.requestRedeploy(post.siteId);
+  await Sites.requestRedeploy(post.siteId, tx);
   if (contentChanged) {
-    await enqueueForPost(post.id, [JobKind.EMBED, JobKind.CRAWL_LINKS]);
+    await enqueueForPost(post.id, [JobKind.EMBED, JobKind.CRAWL_LINKS], tx);
   }
 };
 
-const sendToPublish = async (post: Post): Promise<PublishResult> => {
-  const [claimed] = await prisma.post.updateManyAndReturn({
+const sendToPublish = async (post: Post, tx: Prisma.TransactionClient): Promise<PublishResult> => {
+  const claimed = await tx.post.update({
     data: { status: PostStatus.SCHEDULED },
-    where: { id: post.id, status: post.status },
+    where: { id: post.id },
   });
-  if (claimed === undefined) {
-    throw new PostStateError(`Post ${post.id} changed state while being published`);
-  }
-  try {
-    const job = await enqueue({
+  const job = await enqueue(
+    {
       delayMs: delayUntil(claimed.scheduledAt),
       kind: JobKind.PUBLISH,
       payload: { postId: claimed.id },
       postId: claimed.id,
-    });
-    return { job: { id: job.id }, post: claimed };
-  } catch (error) {
-    await prisma.post.updateMany({
-      data: { status: post.status },
-      where: { id: post.id, status: PostStatus.SCHEDULED },
-    });
-    throw error;
-  }
+    },
+    tx,
+  );
+  return { job: { id: job.id }, post: claimed };
 };
 
-const claimPublish = async (
-  id: string,
-  accepted: ReadonlyArray<PostStatus>,
-): Promise<PublishResult> => {
-  const post = await requirePost(id);
-  requireState(post, accepted, "publish");
-  await Sites.requirePublishable(post.siteId);
-  return sendToPublish(post);
-};
-
-const storedBody = async (siteId: string, body: string | undefined) => {
-  if (body === undefined) {
-    return {};
-  }
-  const { language } = await Sites.load(siteId);
-  return { body: normalizeBody(body, language) };
-};
-
-const write = async (
-  before: Post,
-  { body, ...data }: Prisma.PostUpdateManyMutationInput & { body?: string },
-): Promise<Post> => {
-  const stored = await storedBody(before.siteId, body);
-  const [post] = await prisma.post.updateManyAndReturn({
-    data: { ...data, ...stored },
-    where: body === undefined ? { id: before.id } : { body: before.body, id: before.id },
+const claimPublish = (id: string, accepted: ReadonlyArray<PostStatus>): Promise<PublishResult> =>
+  prisma.$transaction(async (tx) => {
+    const post = await lockedPost(id, tx);
+    requireState(post, accepted, "publish");
+    await Sites.requirePublishable(post.siteId);
+    return sendToPublish(post, tx);
   });
-  if (post === undefined) {
-    throw new PostStateError(`Post ${before.id} changed while being written`);
-  }
-  await settleLiveChange(post, post.body !== before.body || post.title !== before.title);
-  return post;
-};
+
+const buildProjection = (post: Post) => [
+  post.body,
+  post.title,
+  post.excerpt,
+  post.slug,
+  post.categories,
+  post.tags,
+  post.featuredImage,
+  post.focusKeyword,
+];
+
+const write = (
+  id: string,
+  { body, ...data }: Prisma.PostUpdateManyMutationInput & { body?: string },
+  from?: string,
+): Promise<Post> =>
+  prisma.$transaction(async (tx) => {
+    const before = await lockedPost(id, tx);
+    if (from !== undefined && before.body !== from) {
+      throw new PostStateError(`Post ${id} body changed since it was read`);
+    }
+    const site =
+      body === undefined ? null : await tx.site.findUniqueOrThrow({ where: { id: before.siteId } });
+    const post = await tx.post.update({
+      data: {
+        ...data,
+        ...(site === null || body === undefined
+          ? {}
+          : { body: normalizeBody(body, site.language) }),
+      },
+      where: { id },
+    });
+    if (JSON.stringify(buildProjection(before)) !== JSON.stringify(buildProjection(post))) {
+      await settleLiveChange(post, post.body !== before.body || post.title !== before.title, tx);
+    }
+    return post;
+  });
 
 export const create = async (input: PostCreateInput): Promise<CreateResult> => {
   const { publish, ...data } = parseOrThrow(postCreateSchema, input);
   const site = await (publish
     ? Sites.requirePublishable(data.siteId)
     : Sites.requireEnabled(data.siteId));
-  const post = await prisma.post.create({
-    data: { ...data, body: normalizeBody(data.body, site.language) },
+  return prisma.$transaction(async (tx) => {
+    const post = await tx.post.create({
+      data: { ...data, body: normalizeBody(data.body, site.language) },
+    });
+    return publish ? sendToPublish(post, tx) : { post };
   });
-  return publish ? sendToPublish(post) : { post };
 };
 
 export const update = async (id: string, input: PostUpdateInput): Promise<Post> =>
-  write(await requirePost(id), parseOrThrow(postUpdateSchema, input));
+  write(id, parseOrThrow(postUpdateSchema, input));
 
-export const reviseBody = async (
-  id: string,
-  { from, ...revision }: BodyRevision,
-): Promise<Post> => {
-  const before = await requirePost(id);
-  if (before.body !== from) {
-    throw new PostStateError(`Post ${id} body changed since it was read`);
-  }
-  return write(before, revision);
-};
+export const reviseBody = (id: string, { from, ...revision }: BodyRevision): Promise<Post> =>
+  write(id, revision, from);
 
 export const publish = (id: string): Promise<PublishResult> => claimPublish(id, REPUBLISHABLE);
 
@@ -172,23 +182,25 @@ export const removeBucketDraft = async (id: string): Promise<void> => {
   }
 };
 
-export const unpublish = async (id: string): Promise<{ post: Post }> => {
-  const before = await requirePost(id);
-  const post = await prisma.post.update({ data: { status: PostStatus.ARCHIVED }, where: { id } });
-  if (mayBeDeployed(before)) {
-    await Sites.requestRedeploy(post.siteId);
-  }
-  return { post };
-};
+export const unpublish = (id: string): Promise<{ post: Post }> =>
+  prisma.$transaction(async (tx) => {
+    const before = await lockedPost(id, tx);
+    const post = await tx.post.update({ data: { status: PostStatus.ARCHIVED }, where: { id } });
+    if (mayBeDeployed(before)) {
+      await Sites.requestRedeploy(post.siteId, tx);
+    }
+    return { post };
+  });
 
-export const remove = async (id: string): Promise<Post> => {
-  const post = await requirePost(id);
-  await prisma.post.delete({ where: { id } });
-  if (mayBeDeployed(post)) {
-    await Sites.requestRedeploy(post.siteId);
-  }
-  return post;
-};
+export const remove = (id: string): Promise<Post> =>
+  prisma.$transaction(async (tx) => {
+    const post = await lockedPost(id, tx);
+    await tx.post.delete({ where: { id } });
+    if (mayBeDeployed(post)) {
+      await Sites.requestRedeploy(post.siteId, tx);
+    }
+    return post;
+  });
 
 export const requestRewrite = async (
   id: string,
@@ -218,22 +230,24 @@ export const startPublish = async (id: string): Promise<PublishTarget | null> =>
   return { post: await prisma.post.update({ data: { categories }, where: { id } }), site };
 };
 
-export const completePublish = async (
+export const completePublish = (
   id: string,
   { bodyImages }: { bodyImages: boolean },
-): Promise<void> => {
-  const [post] = await prisma.post.updateManyAndReturn({
-    data: { publishedAt: new Date(), status: PostStatus.PUBLISHED },
-    where: { id, status: { in: [...AWAITING_PUBLISH] } },
+): Promise<void> =>
+  prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${id} FOR UPDATE`;
+    const [post] = await tx.post.updateManyAndReturn({
+      data: { publishedAt: new Date(), status: PostStatus.PUBLISHED },
+      where: { id, status: { in: [...AWAITING_PUBLISH] } },
+    });
+    if (post === undefined) {
+      return;
+    }
+    await settleLiveChange(post, true, tx);
+    if (bodyImages) {
+      await enqueueForPost(id, [JobKind.GENERATE_BODY_IMAGES], tx);
+    }
   });
-  if (post === undefined) {
-    return;
-  }
-  await settleLiveChange(post, true);
-  if (bodyImages) {
-    await enqueueForPost(id, [JobKind.GENERATE_BODY_IMAGES]);
-  }
-};
 
 export const failPublish = async (id: string): Promise<void> => {
   await prisma.post.updateMany({

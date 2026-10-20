@@ -9,7 +9,7 @@ vi.hoisted(() => {
 });
 
 import { AiBudgetExceededError, AiNotConfiguredError } from "@repo/ai";
-import { JobKind } from "@repo/jobs";
+import { JobKind, JobSkippedError } from "@repo/jobs";
 
 import { isRetryable, skipOptionalAiWhenUnconfigured } from "./ai-unavailable";
 
@@ -33,7 +33,7 @@ describe("skipOptionalAiWhenUnconfigured", () => {
       JobKind.EMBED,
       failingWith(new AiNotConfiguredError()),
     );
-    await expect(handle(ctx)).resolves.toBeUndefined();
+    await expect(handle(ctx)).rejects.toBeInstanceOf(JobSkippedError);
   });
 
   it("fails an optional-AI Job when the budget is exhausted", async () => {

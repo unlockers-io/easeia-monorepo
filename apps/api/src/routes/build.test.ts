@@ -130,17 +130,20 @@ describe("build routes", () => {
     expect(after.body.contentHash).not.toBe(before.body.contentHash);
   });
 
-  it("changes the hash when the site author changes", async () => {
-    findSite.mockResolvedValue(makeSite());
-    findPosts.mockResolvedValue([makePost()]);
-    const before = await manifest();
+  it.each(["authorName", "authorBio", "authorPhotoUrl", "authorUrl"] as const)(
+    "changes the hash when %s changes",
+    async (field) => {
+      findSite.mockResolvedValue(makeSite({ authorName: "Author" }));
+      findPosts.mockResolvedValue([makePost()]);
+      const before = await manifest();
 
-    findSite.mockResolvedValue(makeSite({ authorName: "Marina Duarte" }));
-    findPosts.mockResolvedValue([makePost()]);
-    const after = await manifest();
+      findSite.mockResolvedValue(makeSite({ authorName: "Author", [field]: "Changed" }));
+      findPosts.mockResolvedValue([makePost()]);
+      const after = await manifest();
 
-    expect(after.body.contentHash).not.toBe(before.body.contentHash);
-  });
+      expect(after.body.contentHash).not.toBe(before.body.contentHash);
+    },
+  );
 
   it("attaches the site author to every post's frontmatter", async () => {
     findSite.mockResolvedValue(

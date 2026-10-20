@@ -321,21 +321,16 @@ const buildNetworkRollup = (cards: Array<SiteCardModel>, backlinksTotal: number)
 
 type StatusMark = { className: string; label: string };
 
-const jobStatusMark = (status: JobStatus): StatusMark => {
-  if (status === JobStatus.DONE) {
-    return { className: "text-success", label: "Done" };
-  }
-  if (status === JobStatus.FAILED) {
-    return { className: "text-destructive", label: "Failed" };
-  }
-  if (status === JobStatus.RUNNING) {
-    return { className: "text-warning motion-safe:animate-pulse", label: "Running" };
-  }
-  return { className: "text-muted-foreground", label: "Queued" };
+const jobStatusMarks: Record<JobStatus, StatusMark> = {
+  DONE: { className: "text-success", label: "Done" },
+  FAILED: { className: "text-destructive", label: "Failed" },
+  QUEUED: { className: "text-muted-foreground", label: "Queued" },
+  RUNNING: { className: "text-warning motion-safe:animate-pulse", label: "Running" },
+  SKIPPED: { className: "text-muted-foreground", label: "Skipped" },
 };
 
 const JobStatusMark = ({ status }: { status: JobStatus }) => {
-  const mark = jobStatusMark(status);
+  const mark = jobStatusMarks[status];
   return (
     <span className={`text-xs font-extrabold tracking-wide uppercase ${mark.className}`}>
       {mark.label}

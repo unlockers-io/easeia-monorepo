@@ -27,6 +27,7 @@ export const handleCrawlMoneySite = async (
         await enqueue({
           kind: JobKind.CRAWL_MONEY_SITE_PAGE,
           payload: { moneySitePageId: p.id },
+          ...(ctx.run === undefined ? {} : { run: { ...ctx.run, member: p.id } }),
         });
       },
     })),

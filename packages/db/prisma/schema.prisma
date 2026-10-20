@@ -150,7 +150,15 @@ enum ExternalBacklinkSource {
   GSC_API
 }
 
+enum BackfillPhase {
+  CLASSIFY_EMBED
+  SUGGEST_LINKS
+  CRAWL_MONEY_SITE
+  REWRITE_POST
+}
+
 enum JobStatus {
+  SKIPPED
   QUEUED
   RUNNING
   DONE
@@ -429,6 +437,12 @@ model Job {
   siteId String?
   site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
 
+  runId String?
+  run BackfillRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  phase BackfillPhase?
+  availableAt DateTime @default(now())
+  dispatchedAt DateTime?
+
   attempts  Int     @default(0)
   lastError String?
   payload   Json
@@ -440,6 +454,8 @@ model Job {
   startedAt   DateTime?
   finishedAt  DateTime?
 
+  @@index([runId, phase])
+  @@index([status, dispatchedAt])
   @@index([status, kind])
   @@index([postId])
   @@index([siteId])
@@ -593,4 +609,19 @@ model WaitlistSignup {
   email     String   @unique
   source    String?
   createdAt DateTime @default(now())
+}
+
+model BackfillRun {
+  id           String        @id @default(cuid())
+  kind         JobKind
+  status       JobStatus     @default(RUNNING)
+  phase        BackfillPhase
+  postIds      String[]
+  moneySiteIds String[]
+  force        Boolean       @default(false)
+  startedAt    DateTime      @default(now())
+  finishedAt   DateTime?
+  jobs         Job[]
+
+  @@index([kind, startedAt])
 }

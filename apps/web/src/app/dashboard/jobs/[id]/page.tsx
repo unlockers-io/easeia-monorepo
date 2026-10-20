@@ -1,4 +1,3 @@
-import { JobStatus } from "@repo/db";
 import { getJob } from "@repo/jobs";
 import { Badge } from "@repo/ui/components/badge";
 import { buttonVariants } from "@repo/ui/components/button";
@@ -10,9 +9,11 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowLeft, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { JobStatusBadge } from "@/components/job-status-badge";
 
 const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
@@ -40,7 +41,7 @@ const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) =>
 
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <StatusBadge status={job.status} />
+          <JobStatusBadge status={job.status} />
           <Badge variant="outline">
             <span className="inline-flex items-center gap-1 font-mono">{job.kind}</span>
           </Badge>
@@ -125,39 +126,6 @@ const JobTitle = ({
     return site.domain;
   }
   return "Job";
-};
-
-const StatusBadge = ({ status }: { status: JobStatus }) => {
-  if (status === JobStatus.DONE) {
-    return (
-      <Badge variant="default">
-        <CheckCircle2 aria-hidden="true" className="size-3" />
-        Done
-      </Badge>
-    );
-  }
-  if (status === JobStatus.FAILED) {
-    return (
-      <Badge variant="destructive">
-        <XCircle aria-hidden="true" className="size-3" />
-        Failed
-      </Badge>
-    );
-  }
-  if (status === JobStatus.RUNNING) {
-    return (
-      <Badge variant="secondary">
-        <Loader2 aria-hidden="true" className="size-3 motion-safe:animate-spin" />
-        Running
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline">
-      <Clock aria-hidden="true" className="size-3" />
-      Queued
-    </Badge>
-  );
 };
 
 const Term = ({ children, label }: { children: React.ReactNode; label: string }) => (

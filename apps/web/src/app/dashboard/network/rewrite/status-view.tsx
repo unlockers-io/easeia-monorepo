@@ -5,23 +5,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { RunProgress } from "../run-progress";
+
 import type { Status } from "./controller";
 
 const QUERY_KEY = ["rewrite-status"] as const;
 
 const POLL_MS = 5000;
-
-const Row = ({ done, label, total }: { done: number; label: string; total: number }) => {
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-1">
-      <span className="text-sm">{label}</span>
-      <span className="font-mono text-sm tabular-nums">
-        {done} / {total} ({pct}%)
-      </span>
-    </div>
-  );
-};
 
 export const NetworkRewritePage = ({
   loadStatus,
@@ -87,22 +77,23 @@ export const NetworkRewritePage = ({
       ) : null}
 
       {status?.counts ? (
-        <div className="mt-6 rounded border p-4">
-          <div className="mb-2 text-sm font-medium">Phase: {status.phase}</div>
-          <Row
-            done={status.counts.moneySitePagesCrawled}
-            label="Money-site catalog (pages)"
-            total={status.counts.moneySitePagesTotal}
-          />
-          <Row
-            done={status.counts.postsRewritten}
-            label="Posts rewritten"
-            total={status.counts.postsEligible}
-          />
-          {status.counts.failed > 0 ? (
-            <div className="mt-2 text-sm text-destructive">Failed jobs: {status.counts.failed}</div>
-          ) : null}
-        </div>
+        <RunProgress
+          counts={status.counts}
+          ended={status.ended}
+          phase={status.phase}
+          rows={[
+            {
+              done: status.counts.moneySitePagesCrawled,
+              label: "Money-site catalog (pages)",
+              total: status.counts.moneySitePagesTotal,
+            },
+            {
+              done: status.counts.postsRewritten,
+              label: "Posts rewritten",
+              total: status.counts.postsEligible,
+            },
+          ]}
+        />
       ) : null}
     </section>
   );

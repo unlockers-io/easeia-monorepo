@@ -24,16 +24,12 @@ export const idParamSchema = z.object({
     .openapi({ example: "ckxxx0001abc", param: { in: "path", name: "id" } }),
 });
 
+export const startedRunSchema = z.object({ runId: z.string() });
 export const queuedJobSchema = z.object({ jobId: z.string() });
 export const okSchema = z.object({ ok: z.boolean() });
 export const forceBodySchema = z.object({ force: z.boolean().optional() });
-export const orchestratorStatusSchema = z.object({
-  active: z.boolean(),
-  counts: z.record(z.string(), z.number()).optional(),
-  ended: z.enum(["done", "failed"]).nullable().optional(),
-  phase: z.string().optional(),
-  startedAt: z.string().optional(),
-});
+export { backfillRunStatusSchema as orchestratorStatusSchema } from "@repo/api-types";
+
 const moneySiteSchema = z.object({
   contentPathPrefix: z.string().nullable(),
   createdAt: z.coerce.date(),

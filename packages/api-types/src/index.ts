@@ -10,3 +10,5 @@ export {
   type MoneySiteCreate,
   type MoneySiteUpdate,
 } from "./money-sites";
+
+export { backfillRunStatusSchema } from "./backfill";

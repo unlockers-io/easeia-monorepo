@@ -17,10 +17,12 @@
     "@repo/ai": "workspace:*",
     "@repo/blob": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/sites": "workspace:*",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^26.2.0",
     "typescript": "^7.0.2",

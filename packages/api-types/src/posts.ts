@@ -7,8 +7,8 @@ const nicheFilterSchema = z.union([nicheSchema, z.array(nicheSchema)]);
 const postFields = {
   body: z.string().min(1),
   categories: z.array(z.string()),
-  excerpt: z.string().max(300).optional(),
-  focusKeyword: z.string().max(80).optional(),
+  excerpt: z.string().max(300).nullable().optional(),
+  focusKeyword: z.string().max(80).nullable().optional(),
   niches: z.array(nicheSchema),
   scheduledAt: z.coerce.date().optional(),
   slug: z

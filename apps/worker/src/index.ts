@@ -1,10 +1,11 @@
 import "zod/compile";
 import "dotenv/config";
 
-import { networkBackfill, rewriteBackfill } from "@repo/backfill";
+import { forPublishedMember, networkBackfill, rewriteBackfill } from "@repo/backfill";
 import { prisma } from "@repo/db";
 import {
   consume,
+  dispatchPendingJobs,
   type ConsumerContext,
   JobKind,
   reapStuckJobs,
@@ -35,6 +36,7 @@ import { isRetryable, skipOptionalAiWhenUnconfigured } from "./lib/ai-unavailabl
 import { env } from "./lib/env";
 import { backfillHeroes } from "./lib/hero-backfill-fanout";
 import { log } from "./lib/logger";
+import { startMaintenance } from "./lib/maintenance";
 import { auditSlugDrift } from "./lib/slug-drift-audit";
 
 initWorkerLogger({ service: "worker" });
@@ -51,7 +53,7 @@ const startConsumer = <K extends JobKind>(
 ): Worker =>
   consume({
     concurrency,
-    handler: skipOptionalAiWhenUnconfigured(kind, handler),
+    handler: skipOptionalAiWhenUnconfigured(kind, forPublishedMember(handler)),
     isRetryable,
     kind,
   });
@@ -153,8 +155,20 @@ await Promise.all(
   ),
 );
 
+const stopMaintenance = startMaintenance(
+  {
+    "job dispatch": dispatchPendingJobs,
+    "network backfill": networkBackfill.tick,
+    "rewrite backfill": rewriteBackfill.tick,
+  },
+  (activity, error) => {
+    log.error({ activity, err: error, message: "worker maintenance failed" });
+  },
+);
+
 const shutdown = async (signal: string) => {
   log.info({ message: "shutting down workers", signal });
+  await stopMaintenance();
   await Promise.allSettled(workers.map((w) => w.close()));
   await prisma.$disconnect();
   process.exit(0);

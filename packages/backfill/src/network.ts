@@ -1,80 +1,58 @@
-import { JobKind, JobStatus, PostStatus, prisma } from "@repo/db";
-import { countJobs, enqueue, type JobPayloads } from "@repo/jobs";
+import { JobKind, PostStatus, prisma } from "@repo/db";
 
-import { createBackfill } from "./backfill";
-
-type NetworkPhase = JobPayloads["BACKFILL_NETWORK"]["phase"];
-
-export type NetworkCounts = {
-  classifiedPosts: number;
-  embeddedPosts: number;
-  posts: number;
-  sites: number;
-  suggestDone: number;
-};
-
-export const nextNetworkPhase = (
-  phase: NetworkPhase,
-  counts: NetworkCounts,
-): NetworkPhase | "DONE" => {
-  if (phase === "CLASSIFY_EMBED") {
-    return counts.classifiedPosts >= counts.posts && counts.embeddedPosts >= counts.posts
-      ? "SUGGEST_LINKS"
-      : "CLASSIFY_EMBED";
-  }
-  return counts.suggestDone >= counts.posts ? "DONE" : "SUGGEST_LINKS";
-};
-
-const readNetworkCounts = async ({
-  startedAt,
-}: JobPayloads["BACKFILL_NETWORK"]): Promise<NetworkCounts> => {
-  const [posts, classifiedPosts, embeddedRows, suggestDone, sites] = await Promise.all([
-    prisma.post.count({ where: { status: PostStatus.PUBLISHED } }),
-    prisma.post.count({ where: { niches: { isEmpty: false }, status: PostStatus.PUBLISHED } }),
-    prisma.$queryRaw<Array<{ c: bigint }>>`
-      SELECT COUNT(*)::bigint AS c FROM "Post" WHERE status = 'PUBLISHED' AND embedding IS NOT NULL
-    `,
-    countJobs({
-      createdSince: new Date(startedAt),
-      kinds: [JobKind.SUGGEST_LINKS],
-      status: JobStatus.DONE,
-    }),
-    prisma.site.count({ where: { isEnabled: true } }),
-  ]);
-  return {
-    classifiedPosts,
-    embeddedPosts: Number(embeddedRows[0]?.c ?? 0),
-    posts,
-    sites,
-    suggestDone,
-  };
-};
-
-const PHASE_KINDS = {
-  CLASSIFY_EMBED: [JobKind.CLASSIFY, JobKind.EMBED],
-  SUGGEST_LINKS: [JobKind.SUGGEST_LINKS],
-} as const;
+import { completed, createBackfill } from "./backfill";
+import { enqueuePostMember } from "./members";
 
 export const networkBackfill = createBackfill({
-  failureKinds: [JobKind.BACKFILL_NETWORK, JobKind.CLASSIFY, JobKind.EMBED, JobKind.SUGGEST_LINKS],
-  fanout: async (phase) => {
+  counts: (run, jobs) => ({
+    classifiedPosts: completed(jobs, JobKind.CLASSIFY),
+    embeddedPosts: completed(jobs, JobKind.EMBED),
+    posts: run.postIds.length,
+    suggestDone: completed(jobs, JobKind.SUGGEST_LINKS),
+  }),
+  kind: JobKind.BACKFILL_NETWORK,
+  label: "network backfill",
+  members: async () => {
     const posts = await prisma.post.findMany({
       select: { id: true },
       where: { status: PostStatus.PUBLISHED },
     });
-    return posts.flatMap((post) =>
-      PHASE_KINDS[phase].map((kind) => ({
-        id: post.id,
-        run: async () => {
-          await enqueue({ kind, payload: { postId: post.id }, postId: post.id });
-        },
-      })),
-    );
+    return { moneySiteIds: [], postIds: posts.map((post) => post.id) };
   },
-  initialPayload: () =>
-    Promise.resolve({ phase: "CLASSIFY_EMBED", startedAt: new Date().toISOString() }),
-  kind: JobKind.BACKFILL_NETWORK,
-  label: "network backfill",
-  nextPhase: nextNetworkPhase,
-  readCounts: readNetworkCounts,
+  phases: [
+    {
+      enqueue: async (run, tx) => {
+        for (const postId of run.postIds) {
+          for (const kind of [JobKind.CLASSIFY, JobKind.EMBED]) {
+            await enqueuePostMember(
+              {
+                kind,
+                payload: { postId },
+                postId,
+                run: { id: run.id, member: postId, phase: "CLASSIFY_EMBED" },
+              },
+              tx,
+            );
+          }
+        }
+      },
+      name: "CLASSIFY_EMBED",
+    },
+    {
+      enqueue: async (run, tx) => {
+        for (const postId of run.postIds) {
+          await enqueuePostMember(
+            {
+              kind: JobKind.SUGGEST_LINKS,
+              payload: { postId },
+              postId,
+              run: { id: run.id, member: postId, phase: "SUGGEST_LINKS" },
+            },
+            tx,
+          );
+        }
+      },
+      name: "SUGGEST_LINKS",
+    },
+  ],
 });

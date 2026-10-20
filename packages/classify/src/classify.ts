@@ -1,6 +1,6 @@
 import { generateStructured } from "@repo/ai";
 import { Niche, prisma } from "@repo/db";
-import { stripHtml } from "@repo/posts";
+import { stripHtml, update } from "@repo/posts";
 import { z } from "zod";
 
 import { buildClassifyPrompt } from "./prompt";
@@ -76,7 +76,10 @@ export const classifyContent = async (
   return { niches: output.niches, tags: output.tags };
 };
 
-export const classifyPost = async (postId: string): Promise<void> => {
+export const classifyPost = async (
+  postId: string,
+  classify: typeof classifyContent = classifyContent,
+): Promise<void> => {
   const post = await prisma.post.findUnique({
     include: { site: { select: { domain: true, niches: true } } },
     where: { id: postId },
@@ -84,15 +87,12 @@ export const classifyPost = async (postId: string): Promise<void> => {
   if (!post) {
     return;
   }
-  const result = await classifyContent({
+  const result = await classify({
     body: post.body,
     siteDomain: post.site.domain,
     siteNiches: post.site.niches,
     title: post.title,
   });
   const mergedTags = mergeTags(post.tags, result.tags);
-  await prisma.post.update({
-    data: { niches: result.niches, tags: mergedTags },
-    where: { id: postId },
-  });
+  await update(postId, { niches: result.niches, tags: mergedTags });
 };

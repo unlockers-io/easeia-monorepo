@@ -1,14 +1,17 @@
-import { type JobKind, JobStatus, prisma } from "@repo/db";
+import { type BackfillPhase, type Job, type JobKind, JobStatus, prisma } from "@repo/db";
 import { UnrecoverableError, Worker, type Job as BullJob } from "bullmq";
 
 import type { JobPayloads } from "./payloads";
 import { describeError, QUEUE_NAMES, redisConnection } from "./queue";
+
+export class JobSkippedError extends Error {}
 
 export type ConsumerContext<K extends JobKind> = {
   attemptsMade: number;
   finalAttempt: boolean;
   jobId: string;
   payload: JobPayloads[K];
+  run?: { id: string; phase: BackfillPhase };
 };
 
 type ConsumeOptions<K extends JobKind> = {
@@ -16,6 +19,36 @@ type ConsumeOptions<K extends JobKind> = {
   handler: (ctx: ConsumerContext<K>) => Promise<void>;
   isRetryable?: (cause: unknown) => boolean;
   kind: K;
+};
+
+const runFor = (row: Pick<Job, "runId" | "phase">): ConsumerContext<JobKind>["run"] => {
+  if (row.runId === null) {
+    return undefined;
+  }
+  if (row.phase === null) {
+    throw new Error("Run child is missing its phase");
+  }
+  return { id: row.runId, phase: row.phase };
+};
+
+const recordFailure = async (jobId: string, error: unknown, retry: boolean): Promise<void> => {
+  if (error instanceof JobSkippedError) {
+    await prisma.job.update({
+      data: { finishedAt: new Date(), lastError: error.message, status: JobStatus.SKIPPED },
+      where: { id: jobId },
+    });
+    return;
+  }
+  const lastError = describeError(error);
+  await prisma.job.update({
+    data: {
+      finishedAt: retry ? null : new Date(),
+      lastError,
+      status: retry ? JobStatus.QUEUED : JobStatus.FAILED,
+    },
+    where: { id: jobId },
+  });
+  throw retry ? error : new UnrecoverableError(lastError);
 };
 
 export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =>
@@ -30,7 +63,7 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       const finalAttempt = attemptsMade + 1 >= (bull.opts.attempts ?? 1);
 
       const startedAt = new Date();
-      await prisma.job.upsert({
+      const row = await prisma.job.upsert({
         create: {
           attempts: 1,
           id: jobId,
@@ -45,19 +78,20 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       });
 
       try {
-        await options.handler({ attemptsMade, finalAttempt, jobId, payload: bull.data });
+        const context: ConsumerContext<K> = {
+          attemptsMade,
+          finalAttempt,
+          jobId,
+          payload: bull.data,
+        };
+        const run = runFor(row);
+        if (run !== undefined) {
+          context.run = run;
+        }
+        await options.handler(context);
       } catch (error) {
-        const lastError = describeError(error);
-        const retry = !finalAttempt && (options.isRetryable?.(error) ?? true);
-        await prisma.job.update({
-          data: {
-            finishedAt: retry ? null : new Date(),
-            lastError,
-            status: retry ? JobStatus.QUEUED : JobStatus.FAILED,
-          },
-          where: { id: jobId },
-        });
-        throw retry ? error : new UnrecoverableError(lastError);
+        await recordFailure(jobId, error, !finalAttempt && (options.isRetryable?.(error) ?? true));
+        return;
       }
 
       await prisma.job.update({

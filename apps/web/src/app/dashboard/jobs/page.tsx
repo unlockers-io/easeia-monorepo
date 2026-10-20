@@ -1,4 +1,3 @@
-import { JobStatus } from "@repo/db";
 import type { JobKind } from "@repo/db";
 import { listJobs } from "@repo/jobs";
 import { Badge } from "@repo/ui/components/badge";
@@ -18,10 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/table";
-import { ArrowUpRight, CheckCircle2, Clock, Hash, Loader2, XCircle } from "lucide-react";
+import { ArrowUpRight, Hash } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+
+import { JobStatusBadge } from "@/components/job-status-badge";
 
 const JobsTable = async () => {
   await connection();
@@ -51,7 +52,7 @@ const JobsTable = async () => {
                 <KindBadge kind={job.kind} />
               </TableCell>
               <TableCell>
-                <StatusBadge status={job.status} />
+                <JobStatusBadge status={job.status} />
               </TableCell>
               <TableCell className="max-w-md truncate text-sm">
                 <TargetCell job={job} />
@@ -144,39 +145,6 @@ const KindBadge = ({ kind }: { kind: JobKind }) => (
     </span>
   </Badge>
 );
-
-const StatusBadge = ({ status }: { status: JobStatus }) => {
-  if (status === JobStatus.DONE) {
-    return (
-      <Badge variant="default">
-        <CheckCircle2 aria-hidden="true" className="size-3" />
-        Done
-      </Badge>
-    );
-  }
-  if (status === JobStatus.FAILED) {
-    return (
-      <Badge variant="destructive">
-        <XCircle aria-hidden="true" className="size-3" />
-        Failed
-      </Badge>
-    );
-  }
-  if (status === JobStatus.RUNNING) {
-    return (
-      <Badge variant="secondary">
-        <Loader2 aria-hidden="true" className="size-3 motion-safe:animate-spin" />
-        Running
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline">
-      <Clock aria-hidden="true" className="size-3" />
-      Queued
-    </Badge>
-  );
-};
 
 /** @public Next.js app-router reads the instant segment config via the module loader */
 export const instant = true;

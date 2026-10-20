@@ -14,7 +14,7 @@ import { createRewriteRoutes } from "./rewrite";
 import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
 
 const requestRewrite = vi.fn(() => Promise.resolve({ id: "job_1" }));
-const start = vi.fn(() => Promise.resolve({ jobId: "job_2" }));
+const start = vi.fn(() => Promise.resolve({ runId: "run_2" }));
 const rewriteRoutes = createRewriteRoutes({
   apiAuth: bypassMiddleware,
   audit: () => Promise.resolve(),

@@ -4,6 +4,7 @@ import { prisma, type Site } from "@repo/db";
 import { parseDeployHook } from "./deploy-hook";
 import { SiteDisabledError } from "./disabled-error";
 import { SiteDeployHookMissingError, SiteNotFoundError } from "./errors";
+import { requestRedeploy } from "./redeploy";
 
 export {
   type ExternalBacklinkRow,
@@ -105,10 +106,23 @@ export type SiteUpdatePatch = ApiSiteUpdatePatch &
     >
   >;
 
+const buildProjection = (site: Site) => [
+  site.domain,
+  site.language,
+  site.authorName === null || site.authorName === ""
+    ? null
+    : [site.authorName, site.authorBio, site.authorPhotoUrl, site.authorUrl],
+];
+
 export const update = (siteId: string, patch: SiteUpdatePatch): Promise<Site> =>
-  prisma.site.update({
-    data: patch,
-    where: { id: siteId },
+  prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "Site" WHERE id = ${siteId} FOR UPDATE`;
+    const before = await tx.site.findUniqueOrThrow({ where: { id: siteId } });
+    const site = await tx.site.update({ data: patch, where: { id: siteId } });
+    if (JSON.stringify(buildProjection(before)) !== JSON.stringify(buildProjection(site))) {
+      await requestRedeploy(siteId, tx);
+    }
+    return site;
   });
 
 type NetworkDefaults = {

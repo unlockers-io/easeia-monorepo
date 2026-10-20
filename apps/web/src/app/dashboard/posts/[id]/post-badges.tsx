@@ -1,42 +1,6 @@
-import { JobStatus } from "@repo/db";
 import type { PostStatus } from "@repo/db";
-import { Badge } from "@repo/ui/components/badge";
-import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 
 import { describePostState } from "../post-state";
-
-const JobStatusBadge = ({ status }: { status: JobStatus }) => {
-  if (status === JobStatus.DONE) {
-    return (
-      <Badge variant="default">
-        <CheckCircle2 aria-hidden="true" className="size-3" />
-        Done
-      </Badge>
-    );
-  }
-  if (status === JobStatus.FAILED) {
-    return (
-      <Badge variant="destructive">
-        <XCircle aria-hidden="true" className="size-3" />
-        Failed
-      </Badge>
-    );
-  }
-  if (status === JobStatus.RUNNING) {
-    return (
-      <Badge variant="secondary">
-        <Loader2 aria-hidden="true" className="size-3 motion-safe:animate-spin" />
-        Running
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline">
-      <Clock aria-hidden="true" className="size-3" />
-      Queued
-    </Badge>
-  );
-};
 
 const at = (d: Date) => new Date(d).toLocaleString();
 
@@ -70,4 +34,5 @@ const PostTimingLabel = ({
   return `Created ${at(post.createdAt)}`;
 };
 
-export { JobStatusBadge, PostTimingLabel };
+export { JobStatusBadge } from "@/components/job-status-badge";
+export { PostTimingLabel };

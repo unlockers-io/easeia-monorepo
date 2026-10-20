@@ -1,4 +1,4 @@
-import { JobKind, type Site } from "@repo/db";
+import { JobKind, prisma, type Prisma, type Site } from "@repo/db";
 import { enqueueUnlessQueued } from "@repo/jobs";
 
 import { parseDeployHook } from "./deploy-hook";
@@ -18,19 +18,34 @@ type PostDeployHook = (hook: URL, init: RequestInit) => Promise<Response>;
 const deployTarget = (site: Site): URL | Undeployable =>
   site.isEnabled ? (parseDeployHook(site.vercelDeployHookUrl) ?? "no-deploy-hook") : "disabled";
 
-export const requestRedeploy = async (siteId: string): Promise<RedeployOutcome> => {
-  const target = deployTarget(await load(siteId));
+const recordRedeploy = async (
+  siteId: string,
+  tx: Prisma.TransactionClient,
+): Promise<RedeployOutcome> => {
+  const site = await tx.site.findUniqueOrThrow({ where: { id: siteId } });
+  const target = deployTarget(site);
   if (!(target instanceof URL)) {
     return target;
   }
-  const job = await enqueueUnlessQueued({
-    delayMs: REDEPLOY_WINDOW_MS,
-    kind: JobKind.TRIGGER_DEPLOY,
-    payload: { siteId },
-    siteId,
-  });
+  const job = await enqueueUnlessQueued(
+    {
+      delayMs: REDEPLOY_WINDOW_MS,
+      kind: JobKind.TRIGGER_DEPLOY,
+      payload: { siteId },
+      siteId,
+    },
+    tx,
+  );
   return job === null ? "coalesced" : "queued";
 };
+
+export const requestRedeploy = (
+  siteId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<RedeployOutcome> =>
+  tx === undefined
+    ? prisma.$transaction((db) => recordRedeploy(siteId, db))
+    : recordRedeploy(siteId, tx);
 
 export const deploy = async (siteId: string, postHook: PostDeployHook): Promise<DeployOutcome> => {
   const target = deployTarget(await load(siteId));

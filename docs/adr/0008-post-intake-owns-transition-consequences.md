@@ -1,8 +1,9 @@
 # ADR-0008: Post intake owns what each transition sets off
 
 **Status:** accepted (2026-10-07); amends ADR-0004; `completeRewrite` and body writes restated by
-[ADR-0009](./0012-post-intake-owns-storing-a-body.md); bucket drafts amended by
-[ADR-0010](./0013-ticks-are-scheduled-jobs.md)
+[ADR-0009](./0009-post-intake-owns-storing-a-body.md); bucket drafts amended by
+[ADR-0010](./0010-ticks-are-scheduled-jobs.md); atomic consequences and publish retries amended by
+[ADR-0011](./0011-atomic-intents-and-backfill-runs.md)
 
 ## Context
 

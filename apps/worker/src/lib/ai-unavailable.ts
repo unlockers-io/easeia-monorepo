@@ -1,5 +1,5 @@
 import { AiNotConfiguredError, AiUnavailableError } from "@repo/ai";
-import { type ConsumerContext, JobKind } from "@repo/jobs";
+import { type ConsumerContext, JobKind, JobSkippedError } from "@repo/jobs";
 
 import { log } from "./logger";
 
@@ -29,6 +29,7 @@ export const skipOptionalAiWhenUnconfigured = <K extends JobKind>(
         throw error;
       }
       log.warn({ jobId: ctx.jobId, kind, message: "AI is not configured; job skipped" });
+      throw new JobSkippedError("AI is not configured");
     }
   };
 };

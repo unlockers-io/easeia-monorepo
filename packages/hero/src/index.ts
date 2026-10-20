@@ -1,4 +1,5 @@
 import { prisma } from "@repo/db";
+import { requestRedeploy } from "@repo/sites";
 
 import { generatePostImage } from "./generate-image";
 import type { GeneratePostImageDeps } from "./generate-image";
@@ -148,8 +149,8 @@ export type GenerateHeroDeps = GeneratePostImageDeps & {
 };
 
 const defaultWriteHero = async (input: WriteHeroInput): Promise<void> => {
-  await prisma.$transaction([
-    prisma.postImage.upsert({
+  await prisma.$transaction(async (tx) => {
+    await tx.postImage.upsert({
       create: {
         alt: null,
         blobKey: input.blobKey,
@@ -170,12 +171,16 @@ const defaultWriteHero = async (input: WriteHeroInput): Promise<void> => {
         width: input.width,
       },
       where: { postId_filename: { filename: input.filename, postId: input.postId } },
-    }),
-    prisma.post.update({
+    });
+    await tx.post.update({
       data: { featuredImage: input.blobUrl },
       where: { id: input.postId },
-    }),
-  ]);
+    });
+    const post = await tx.post.findUniqueOrThrow({ where: { id: input.postId } });
+    if (post.status === "PUBLISHED") {
+      await requestRedeploy(post.siteId, tx);
+    }
+  });
 };
 
 export const generateHero = async (

@@ -92,3 +92,6 @@ export const findLatestJob = async <K extends JobKind>(kind: K): Promise<LatestJ
   const job = await prisma.job.findFirst({ orderBy: { createdAt: "desc" }, where: { kind } });
   return job === null ? null : { ...job, payload: getJobPayload(kind, job.payload) };
 };
+
+export const listRunJobs = (runId: string, tx: Prisma.TransactionClient = prisma) =>
+  tx.job.findMany({ orderBy: { createdAt: "asc" }, where: { runId } });

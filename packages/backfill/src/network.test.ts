@@ -1,152 +1,152 @@
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { JobKind, JobStatus, PostStatus, prisma } from "@repo/db";
-import {
-  closeJobs,
-  consume,
-  countJobs,
-  findLatestJob,
-  getJob,
-  type ConsumerContext,
-} from "@repo/jobs";
-import type { Worker } from "bullmq";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { closeJobs, consume, dispatchPendingJobs, enqueue, listRunJobs } from "@repo/jobs";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { forPublishedMember } from "./members";
 
 import { BackfillAlreadyRunningError, networkBackfill } from "./index";
 
-type Handler = (ctx: ConsumerContext<typeof JobKind.BACKFILL_NETWORK>) => Promise<void>;
+describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfill", () => {
+  let siteId = "";
+  const runIds: Array<string> = [];
+  const fixture = async () => {
+    const site = await prisma.site.create({ data: { domain: `run-${crypto.randomUUID()}.test` } });
+    siteId = site.id;
+    return prisma.post.create({
+      data: { body: "Body", siteId, slug: "post", status: PostStatus.PUBLISHED, title: "Post" },
+    });
+  };
+  const start = async () => {
+    const { runId } = await networkBackfill.start();
+    runIds.push(runId);
+    return runId;
+  };
+  afterEach(async () => {
+    await prisma.job.deleteMany({ where: { runId: { in: runIds } } });
+    await prisma.backfillRun.deleteMany({ where: { id: { in: runIds } } });
+    await prisma.job.deleteMany({ where: { post: { siteId } } });
+    await prisma.site.deleteMany({ where: { id: siteId } });
+    await closeJobs();
+  });
 
-const until = async <T>(read: () => Promise<T>, holds: (value: T) => boolean): Promise<T> => {
-  const deadline = Date.now() + 20_000;
-  for (;;) {
-    const value = await read();
-    if (holds(value)) {
-      return value;
-    }
-    if (Date.now() > deadline) {
-      throw new Error("condition never held");
-    }
-    await sleep(50);
-  }
-};
+  it("allows one run and finishes honestly after an exhausted child, releasing the guard", async () => {
+    await fixture();
+    const results = await Promise.allSettled([start(), start()]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((result) => result.status === "rejected")?.reason).toBeInstanceOf(
+      BackfillAlreadyRunningError,
+    );
+    const id = runIds.at(-1) ?? "";
+    await prisma.job.updateMany({ data: { status: JobStatus.DONE }, where: { runId: id } });
+    const [child] = await listRunJobs(id);
+    await prisma.job.update({
+      data: { attempts: 5, status: JobStatus.FAILED },
+      where: { id: child?.id },
+    });
+    await networkBackfill.tick();
+    expect(await networkBackfill.readStatus()).toMatchObject({
+      active: false,
+      counts: { failed: 1 },
+      ended: "failed",
+    });
+    await expect(start()).resolves.toBeTypeOf("string");
+  });
 
-const settled = (jobId: string) =>
-  until(
-    () => getJob(jobId),
-    (job) => job?.status === JobStatus.DONE || job?.status === JobStatus.FAILED,
+  it("uses frozen members, treats optional-AI skips as terminal, and ignores unrelated work", async () => {
+    const original = await fixture();
+    const id = await start();
+    const late = await prisma.post.create({
+      data: { body: "new", siteId, slug: "new", status: PostStatus.PUBLISHED, title: "New" },
+    });
+    await prisma.job.updateMany({ data: { status: JobStatus.SKIPPED }, where: { runId: id } });
+    await enqueue({ kind: JobKind.SUGGEST_LINKS, payload: { postId: late.id }, postId: late.id });
+    await networkBackfill.tick();
+    await networkBackfill.tick();
+    const jobs = await listRunJobs(id);
+    expect(
+      jobs.filter((job) => job.kind === JobKind.SUGGEST_LINKS).map((job) => job.postId),
+    ).toContain(original.id);
+    expect(jobs.some((job) => job.postId === late.id)).toBe(false);
+    expect(await networkBackfill.readStatus()).toMatchObject({
+      active: true,
+      counts: { skipped: 2 },
+    });
+    await prisma.job.updateMany({
+      data: { status: JobStatus.DONE },
+      where: { phase: "SUGGEST_LINKS", runId: id },
+    });
+    await networkBackfill.tick();
+    expect(await networkBackfill.readStatus()).toMatchObject({ active: false, ended: "done" });
+  });
+
+  it("skips deleted or archived members and makes repeated fan-out idempotent", async () => {
+    const post = await fixture();
+    const id = await start();
+    const [child] = await listRunJobs(id);
+    const input = {
+      kind: JobKind.CLASSIFY,
+      payload: { postId: post.id },
+      postId: post.id,
+      run: { id, member: post.id, phase: "CLASSIFY_EMBED" },
+    } as const;
+    await Promise.all([enqueue(input), enqueue(input)]);
+    expect(await listRunJobs(id)).toHaveLength(2);
+    await prisma.post.delete({ where: { id: post.id } });
+    await prisma.job.updateMany({ data: { status: JobStatus.SKIPPED }, where: { runId: id } });
+    await Promise.all([networkBackfill.tick(), networkBackfill.tick()]);
+    expect(await listRunJobs(id)).toHaveLength(3);
+    const afterDeletion = await listRunJobs(id);
+    expect(afterDeletion.find((job) => job.kind === JobKind.SUGGEST_LINKS)?.status).toBe(
+      JobStatus.SKIPPED,
+    );
+    expect(child?.id).toBeDefined();
+    await networkBackfill.tick();
+    expect(await networkBackfill.readStatus()).toMatchObject({
+      active: false,
+      counts: { skipped: 3 },
+      ended: "done",
+    });
+  });
+
+  it.runIf(process.env.TEST_REDIS === "true")(
+    "skips members removed or archived before consumption",
+    async () => {
+      const archived = await fixture();
+      const deleted = await prisma.post.create({
+        data: { body: "Body", siteId, slug: "deleted", status: "PUBLISHED", title: "Deleted" },
+      });
+      const id = await start();
+      await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: archived.id } });
+      await prisma.post.delete({ where: { id: deleted.id } });
+      const handler = vi.fn().mockResolvedValue(undefined);
+      const workers = [JobKind.CLASSIFY, JobKind.EMBED].map((kind) =>
+        consume({ handler: forPublishedMember(handler), kind }),
+      );
+      try {
+        await dispatchPendingJobs();
+        await vi.waitFor(async () => {
+          const jobs = await listRunJobs(id);
+          expect(jobs.every((job) => job.status === JobStatus.SKIPPED)).toBe(true);
+        });
+        expect(handler).not.toHaveBeenCalled();
+        await networkBackfill.tick();
+        await networkBackfill.tick();
+        expect(await networkBackfill.readStatus()).toMatchObject({
+          active: false,
+          counts: { skipped: 6 },
+          ended: "done",
+        });
+      } finally {
+        await Promise.all(workers.map((worker) => worker.close()));
+      }
+    },
   );
 
-describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
-  "networkBackfill on Postgres and Redis",
-  () => {
-    const run = `backfill-${Date.now()}`;
-    const runStartedAt = new Date();
-    const workers: Array<Worker> = [];
-    let siteId = "";
-
-    const serve = (handler: Handler, isRetryable?: (cause: unknown) => boolean) => {
-      workers.push(
-        consume({ concurrency: 1, handler, isRetryable, kind: JobKind.BACKFILL_NETWORK }),
-      );
-    };
-    const stopServing = async () => {
-      await Promise.all(workers.splice(0).map((worker) => worker.close()));
-    };
-
-    beforeAll(async () => {
-      const site = await prisma.site.create({ data: { domain: `${run}.test` } });
-      siteId = site.id;
-      await prisma.post.create({
-        data: { body: "Body", siteId, slug: run, status: PostStatus.PUBLISHED, title: run },
-      });
-    });
-
-    afterEach(stopServing);
-
-    afterAll(async () => {
-      const drain = [JobKind.BACKFILL_NETWORK, JobKind.CLASSIFY, JobKind.EMBED].map((kind) =>
-        consume({ handler: () => Promise.resolve(), kind }),
-      );
-      await until(
-        () =>
-          countJobs({
-            createdSince: runStartedAt,
-            kinds: [JobKind.CLASSIFY, JobKind.EMBED],
-            status: JobStatus.QUEUED,
-          }),
-        (queued) => queued === 0,
-      );
-      await Promise.all(drain.map((worker) => worker.close()));
-      await prisma.site.delete({ where: { id: siteId } });
-      await closeJobs();
-    }, 30_000);
-
-    it("starts one run at a time and reports it active", async () => {
-      const starts = await Promise.allSettled([networkBackfill.start(), networkBackfill.start()]);
-
-      expect(starts.filter((start) => start.status === "fulfilled")).toHaveLength(1);
-      expect(starts.find((start) => start.status === "rejected")?.reason).toBeInstanceOf(
-        BackfillAlreadyRunningError,
-      );
-      expect(await networkBackfill.readStatus()).toMatchObject({
-        active: true,
-        counts: { failed: 0 },
-        ended: null,
-        phase: "CLASSIFY_EMBED",
-      });
-    });
-
-    it("frees the guard once the run fails", async () => {
-      const failing = await findLatestJob(JobKind.BACKFILL_NETWORK);
-      serve(
-        () => Promise.reject(new Error("tick failed")),
-        () => false,
-      );
-      await settled(failing?.id ?? "");
-      await stopServing();
-
-      expect(await networkBackfill.readStatus()).toMatchObject({
-        active: false,
-        counts: { failed: 1 },
-        ended: "failed",
-      });
-      await expect(networkBackfill.start()).resolves.toEqual({ jobId: expect.any(String) });
-    });
-
-    it("fans out to every published post, then schedules its next tick", async () => {
-      const first = await findLatestJob(JobKind.BACKFILL_NETWORK);
-      serve(networkBackfill.tick);
-      await settled(first?.id ?? "");
-
-      const next = await findLatestJob(JobKind.BACKFILL_NETWORK);
-      const since = new Date(next?.payload.startedAt ?? "");
-      const published = await prisma.post.count({ where: { status: PostStatus.PUBLISHED } });
-
-      expect(next).toMatchObject({
-        payload: { initialFanoutDone: true, phase: "CLASSIFY_EMBED" },
-        status: JobStatus.QUEUED,
-      });
-      expect(next?.id).not.toBe(first?.id);
-      expect(published).toBeGreaterThan(0);
-      expect(await countJobs({ createdSince: since, kinds: [JobKind.CLASSIFY] })).toBe(published);
-      expect(await countJobs({ createdSince: since, kinds: [JobKind.EMBED] })).toBe(published);
-      await expect(networkBackfill.start()).rejects.toBeInstanceOf(BackfillAlreadyRunningError);
-    });
-
-    it("reports a chain that ends without a successor as done", async () => {
-      const last = await findLatestJob(JobKind.BACKFILL_NETWORK);
-      serve(() => Promise.resolve());
-      await settled(last?.id ?? "");
-      await stopServing();
-
-      expect(await networkBackfill.readStatus()).toMatchObject({
-        active: false,
-        ended: "done",
-        phase: "DONE",
-      });
-      const { jobId } = await networkBackfill.start();
-      serve(() => Promise.resolve());
-      await settled(jobId);
-    }, 30_000);
-  },
-);
+  it("finishes an empty member set without polling rows", async () => {
+    const id = await start();
+    await networkBackfill.tick();
+    await networkBackfill.tick();
+    expect(await listRunJobs(id)).toHaveLength(0);
+    expect(await networkBackfill.readStatus()).toMatchObject({ active: false, ended: "done" });
+  });
+});

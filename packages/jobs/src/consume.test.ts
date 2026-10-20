@@ -7,7 +7,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { QUEUE_NAMES } from "./queue";
 
-import { closeJobs, consume, enqueue, type ConsumerContext } from "./index";
+import {
+  closeJobs,
+  consume,
+  dispatchPendingJobs,
+  enqueue,
+  JobSkippedError,
+  type ConsumerContext,
+} from "./index";
 
 const KIND = JobKind.SNAPSHOT_SITE;
 
@@ -47,10 +54,15 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       worker = consume({ handler, isRetryable, kind: KIND });
       const { id } = await enqueue({ kind: KIND, payload: { siteId: "site_unused" } });
       createdIds.push(id);
+      await dispatchPendingJobs();
       for (let tick = 0; tick < 400; tick += 1) {
         await queue.promoteJobs();
         const job = await prisma.job.findUniqueOrThrow({ where: { id } });
-        if (job.status === JobStatus.DONE || job.status === JobStatus.FAILED) {
+        if (
+          job.status === JobStatus.DONE ||
+          job.status === JobStatus.FAILED ||
+          job.status === JobStatus.SKIPPED
+        ) {
           return job;
         }
         await sleep(25);
@@ -90,6 +102,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       expect(calls.map((call) => call.attemptsMade)).toEqual([0, 1, 2, 3, 4]);
       expect(calls.map((call) => call.finalAttempt)).toEqual([false, false, false, false, true]);
     }, 30_000);
+
+    it("records an explicit skip as a terminal outcome", async () => {
+      const job = await run(() => Promise.reject(new JobSkippedError("AI unavailable")));
+      expect(job.status).toBe(JobStatus.SKIPPED);
+    });
 
     it("fails a non-retryable error after one attempt", async () => {
       let calls = 0;
