@@ -24,7 +24,9 @@ also the BullMQ id. `availableAt` preserves the intended delay across producer r
 submission and queue-id recording can be repeated safely. Queue entries are rechecked every
 30 seconds, including entries with no attempts; a missing entry is submitted again. A queue
 submission failure leaves the intent QUEUED with its error. BullMQ still owns execution retries,
-backoff, concurrency, and scheduling. The reaper handles stale RUNNING attempts only.
+backoff, concurrency, and scheduling. Backfill advancement and dispatch run independently, with
+one in-flight pass per activity, so a slow or failed backfill cannot stop unrelated dispatch.
+Shutdown waits for each in-flight pass. The reaper handles stale RUNNING attempts only.
 
 `BackfillRun` owns a frozen set of eligible Post and money-site ids, current phase, and terminal
 result. Its child Jobs carry the run and phase, with deterministic ids for each member and kind.

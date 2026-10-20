@@ -36,6 +36,7 @@ import { isRetryable, skipOptionalAiWhenUnconfigured } from "./lib/ai-unavailabl
 import { env } from "./lib/env";
 import { backfillHeroes } from "./lib/hero-backfill-fanout";
 import { log } from "./lib/logger";
+import { startMaintenance } from "./lib/maintenance";
 import { auditSlugDrift } from "./lib/slug-drift-audit";
 
 initWorkerLogger({ service: "worker" });
@@ -154,29 +155,20 @@ await Promise.all(
   ),
 );
 
-let dispatching: Promise<void> | undefined;
-const dispatch = () => {
-  if (dispatching !== undefined) {
-    return;
-  }
-  dispatching = (async () => {
-    try {
-      await Promise.all([networkBackfill.tick(), rewriteBackfill.tick()]);
-      await dispatchPendingJobs();
-    } catch (error) {
-      log.error({ err: error, message: "durable job dispatch failed" });
-    } finally {
-      dispatching = undefined;
-    }
-  })();
-};
-dispatch();
-const dispatchTimer = setInterval(dispatch, 1000);
+const stopMaintenance = startMaintenance(
+  {
+    "job dispatch": dispatchPendingJobs,
+    "network backfill": networkBackfill.tick,
+    "rewrite backfill": rewriteBackfill.tick,
+  },
+  (activity, error) => {
+    log.error({ activity, err: error, message: "worker maintenance failed" });
+  },
+);
 
 const shutdown = async (signal: string) => {
   log.info({ message: "shutting down workers", signal });
-  clearInterval(dispatchTimer);
-  await dispatching;
+  await stopMaintenance();
   await Promise.allSettled(workers.map((w) => w.close()));
   await prisma.$disconnect();
   process.exit(0);
