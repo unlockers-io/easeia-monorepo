@@ -1,6 +1,5 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
-import type { Prisma } from "@repo/db";
-import { Queue, type JobsOptions } from "bullmq";
+import { type BackfillPhase, JobKind, JobStatus, prisma, type Prisma } from "@repo/db";
+import { Queue } from "bullmq";
 import { Redis } from "ioredis";
 
 import type { JobPayloads } from "./payloads";
@@ -83,74 +82,67 @@ export const closeQueues = async (): Promise<void> => {
 export const describeError = (cause: unknown): string =>
   cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
 
-type EnqueueInput<K extends JobKind = JobKind> = {
+export type RunTarget = { id: string; member: string; phase: BackfillPhase };
+
+export type EnqueueInput<K extends JobKind = JobKind> = {
   delayMs?: number;
   kind: K;
   payload: JobPayloads[K];
   postId?: string;
+  run?: RunTarget;
   siteId?: string;
 };
 
-type EnqueuedJob = {
-  id: string;
-  queueJobId: string | undefined;
-};
-
 const rowFor = <K extends JobKind>(input: EnqueueInput<K>): Prisma.JobUncheckedCreateInput => ({
+  availableAt: new Date(Date.now() + Math.max(0, input.delayMs ?? 0)),
   kind: input.kind,
   payload: input.payload,
+  phase: input.run?.phase,
   postId: input.postId,
+  runId: input.run?.id,
   siteId: input.siteId,
   status: JobStatus.QUEUED,
 });
 
-const push = async <K extends JobKind>(
-  queue: Queue,
-  jobId: string,
+export const enqueue = async <K extends JobKind>(
   input: EnqueueInput<K>,
-): Promise<EnqueuedJob> => {
-  const jobOptions: JobsOptions = { jobId };
-  if (input.delayMs !== undefined && input.delayMs > 0) {
-    jobOptions.delay = input.delayMs;
+  tx: Prisma.TransactionClient = prisma,
+) => {
+  const data = rowFor(input);
+  if (input.run === undefined) {
+    return tx.job.create({ data });
   }
-  let queueJobId: string | undefined;
-  try {
-    const bullJob = await queue.add(input.kind.toLowerCase(), input.payload, jobOptions);
-    queueJobId = bullJob.id;
-  } catch (error) {
-    await prisma.job.update({
-      data: { finishedAt: new Date(), lastError: describeError(error), status: JobStatus.FAILED },
-      where: { id: jobId },
-    });
-    throw error;
+  if (input.postId !== undefined) {
+    await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${input.postId} FOR SHARE`;
+    const post = await tx.post.findUnique({ where: { id: input.postId } });
+    if (post?.status !== "PUBLISHED") {
+      data.postId = undefined;
+      data.status = JobStatus.SKIPPED;
+      data.finishedAt = new Date();
+      data.lastError = "Post is no longer published";
+    }
   }
-  await prisma.job.update({ data: { queueJobId: queueJobId ?? null }, where: { id: jobId } });
-  return { id: jobId, queueJobId };
+  const id = `${input.run.id}-${input.run.phase}-${input.kind}-${input.run.member}`;
+  return tx.job.upsert({ create: { ...data, id }, update: {}, where: { id } });
 };
 
-export const enqueue = async <K extends JobKind>(input: EnqueueInput<K>): Promise<EnqueuedJob> => {
-  const queue = queueFor(input.kind);
-  const job = await prisma.job.create({ data: rowFor(input) });
-  return push(queue, job.id, input);
-};
-
-const enqueueUnless =
-  (blocking: Prisma.JobWhereInput) =>
-  async <K extends JobKind>(input: EnqueueInput<K>): Promise<EnqueuedJob | null> => {
-    const queue = queueFor(input.kind);
+const enqueueUnless = (blocking: Prisma.JobWhereInput) => {
+  const insert = async <K extends JobKind>(
+    input: EnqueueInput<K>,
+    tx: Prisma.TransactionClient,
+  ) => {
     const lockKey = `${input.kind}:${input.siteId ?? ""}`;
-    const job = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-      const busy = await tx.job.count({
-        where: { ...blocking, kind: input.kind, siteId: input.siteId },
-      });
-      return busy > 0 ? null : tx.job.create({ data: rowFor(input) });
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+    const busy = await tx.job.count({
+      where: { ...blocking, kind: input.kind, siteId: input.siteId },
     });
-    return job === null ? null : push(queue, job.id, input);
+    return busy > 0 ? null : enqueue(input, tx);
   };
+  return <K extends JobKind>(input: EnqueueInput<K>, tx?: Prisma.TransactionClient) =>
+    tx === undefined ? prisma.$transaction((db) => insert(input, db)) : insert(input, tx);
+};
 
 export const enqueueUnlessInFlight = enqueueUnless(inFlight);
-
 export const enqueueUnlessQueued = enqueueUnless({ status: JobStatus.QUEUED });
 
 type ScheduleInput<K extends JobKind> = {

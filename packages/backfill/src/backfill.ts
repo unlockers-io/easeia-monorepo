@@ -1,130 +1,121 @@
-import { type JobKind, JobStatus } from "@repo/db";
 import {
-  countJobs,
-  enqueue,
-  enqueueUnlessInFlight,
-  findLatestJob,
-  settleFanout,
-  type ConsumerContext,
-  type FanoutTask,
-  type JobPayloads,
-} from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
+  type BackfillPhase,
+  type BackfillRun,
+  type Job,
+  type JobKind,
+  JobStatus,
+  type Prisma,
+  prisma,
+} from "@repo/db";
+import { listRunJobs } from "@repo/jobs";
 
 import { BackfillAlreadyRunningError } from "./errors";
 
-const POLL_DELAY_MS = 10_000;
+type Phase = {
+  enqueue: (run: BackfillRun, tx: Prisma.TransactionClient) => Promise<void>;
+  name: BackfillPhase;
+};
 
-type BackfillKind = typeof JobKind.BACKFILL_NETWORK | typeof JobKind.BACKFILL_REWRITE;
-type Phase<K extends BackfillKind> = JobPayloads[K]["phase"];
-type Counts = Record<string, number>;
-
-type BackfillSpec<K extends BackfillKind, Args extends ReadonlyArray<unknown>, C extends Counts> = {
-  failureKinds: ReadonlyArray<JobKind>;
-  fanout: (phase: Phase<K>, payload: JobPayloads[K]) => Promise<ReadonlyArray<FanoutTask>>;
-  initialPayload: (...args: Args) => Promise<JobPayloads[K]>;
-  kind: K;
+type Spec<Args extends ReadonlyArray<unknown>> = {
+  counts: (run: BackfillRun, jobs: ReadonlyArray<Job>) => Record<string, number>;
+  kind: JobKind;
   label: string;
-  nextPhase: (phase: Phase<K>, counts: C) => Phase<K> | "DONE";
-  readCounts: (payload: JobPayloads[K]) => Promise<C>;
+  members: (
+    ...args: Args
+  ) => Promise<{ force?: boolean; moneySiteIds: Array<string>; postIds: Array<string> }>;
+  phases: readonly [Phase, ...Array<Phase>];
 };
 
-type BackfillStatus = {
-  active: boolean;
-  counts?: Counts;
-  ended?: "done" | "failed" | null;
-  phase?: string;
-  startedAt?: string;
-};
-
-type Backfill<K extends BackfillKind, Args extends ReadonlyArray<unknown>> = {
-  readStatus: () => Promise<BackfillStatus>;
-  start: (...args: Args) => Promise<{ jobId: string }>;
-  tick: (ctx: ConsumerContext<K>) => Promise<void>;
-};
-
-const endedBy = (status: JobStatus): BackfillStatus["ended"] => {
-  if (status === JobStatus.FAILED) {
-    return "failed";
-  }
-  return status === JobStatus.DONE ? "done" : null;
-};
-
-export const createBackfill = <
-  K extends BackfillKind,
-  Args extends ReadonlyArray<unknown>,
-  C extends Counts,
->(
-  spec: BackfillSpec<K, Args, C>,
-): Backfill<K, Args> => {
+export const createBackfill = <Args extends ReadonlyArray<unknown>>(spec: Spec<Args>) => {
   const start = async (...args: Args) => {
-    const job = await enqueueUnlessInFlight({
-      kind: spec.kind,
-      payload: await spec.initialPayload(...args),
-    });
-    if (job === null) {
-      throw new BackfillAlreadyRunningError(spec.label);
-    }
-    return { jobId: job.id };
+    const members = await spec.members(...args);
+    const first = spec.phases[0];
+    return prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${spec.kind}))`;
+        const active = await tx.backfillRun.count({
+          where: { kind: spec.kind, status: JobStatus.RUNNING },
+        });
+        if (active > 0) {
+          throw new BackfillAlreadyRunningError(spec.label);
+        }
+        const run = await tx.backfillRun.create({
+          data: { ...members, kind: spec.kind, phase: first.name },
+        });
+        await first.enqueue(run, tx);
+        return { runId: run.id };
+      },
+      { timeout: 60_000 },
+    );
   };
 
-  const readStatus = async (): Promise<BackfillStatus> => {
-    const latest = await findLatestJob(spec.kind);
-    if (latest === null) {
+  const tick = async (): Promise<void> => {
+    const active = await prisma.backfillRun.findMany({
+      where: { kind: spec.kind, status: JobStatus.RUNNING },
+    });
+    for (const { id } of active) {
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT id FROM "BackfillRun" WHERE id = ${id} FOR UPDATE`;
+          const run = await tx.backfillRun.findUniqueOrThrow({ where: { id } });
+          if (run.status !== JobStatus.RUNNING) {
+            return;
+          }
+          const children = await listRunJobs(run.id, tx);
+          const jobs = children.filter((job) => job.phase === run.phase);
+          if (
+            jobs.some((job) => job.status === JobStatus.QUEUED || job.status === JobStatus.RUNNING)
+          ) {
+            return;
+          }
+          const failed = jobs.some((job) => job.status === JobStatus.FAILED);
+          const next = spec.phases[spec.phases.findIndex((phase) => phase.name === run.phase) + 1];
+          if (failed || next === undefined) {
+            await tx.backfillRun.update({
+              data: { finishedAt: new Date(), status: failed ? JobStatus.FAILED : JobStatus.DONE },
+              where: { id },
+            });
+            return;
+          }
+          await tx.backfillRun.update({ data: { phase: next.name }, where: { id } });
+          await next.enqueue(run, tx);
+        },
+        { timeout: 60_000 },
+      );
+    }
+  };
+
+  const readStatus = async () => {
+    const run = await prisma.backfillRun.findFirst({
+      orderBy: { startedAt: "desc" },
+      where: { kind: spec.kind },
+    });
+    if (run === null) {
       return { active: false };
     }
-    const { payload } = latest;
-    const [counts, failed] = await Promise.all([
-      spec.readCounts(payload),
-      countJobs({
-        createdSince: new Date(payload.startedAt),
-        kinds: spec.failureKinds,
-        status: JobStatus.FAILED,
-      }),
-    ]);
-    const ended = endedBy(latest.status);
+    const jobs = await listRunJobs(run.id);
+    let ended: "done" | "failed" | null = null;
+    if (run.status === JobStatus.DONE) {
+      ended = "done";
+    } else if (run.status === JobStatus.FAILED) {
+      ended = "failed";
+    }
     return {
       active: ended === null,
-      counts: { ...counts, failed },
+      counts: {
+        ...spec.counts(run, jobs),
+        failed: jobs.filter((job) => job.status === JobStatus.FAILED).length,
+        skipped: jobs.filter((job) => job.status === JobStatus.SKIPPED).length,
+      },
       ended,
-      phase: ended === "done" ? "DONE" : payload.phase,
-      startedAt: payload.startedAt,
+      phase: ended === "done" ? "DONE" : run.phase,
+      runId: run.id,
+      startedAt: run.startedAt.toISOString(),
     };
-  };
-
-  const tick = async ({ jobId, payload }: ConsumerContext<K>): Promise<void> => {
-    const log = createJobLogger({ jobId, queue: spec.label });
-    const fanout = async (phase: Phase<K>) => {
-      const tasks = await spec.fanout(phase, payload);
-      await settleFanout(tasks, `${spec.label}: ${phase} enqueue failed`, log);
-    };
-    const reEnqueue = (next: JobPayloads[K]) =>
-      enqueue({ delayMs: POLL_DELAY_MS, kind: spec.kind, payload: next });
-
-    if (payload.initialFanoutDone !== true) {
-      log.set({ phase: payload.phase });
-      await fanout(payload.phase);
-      log.info(`${spec.label}: initial fanout`);
-      log.emit();
-      await reEnqueue({ ...payload, initialFanoutDone: true });
-      return;
-    }
-
-    const counts = await spec.readCounts(payload);
-    const next = spec.nextPhase(payload.phase, counts);
-    log.set({ counts, next, phase: payload.phase });
-    log.info(`${spec.label}: tick`);
-    if (next === "DONE") {
-      log.info(`${spec.label}: complete`);
-      log.emit();
-      return;
-    }
-    if (next !== payload.phase) {
-      await fanout(next);
-    }
-    log.emit();
-    await reEnqueue({ ...payload, phase: next });
   };
 
   return { readStatus, start, tick };
 };
+
+export const completed = (jobs: ReadonlyArray<Job>, kind: JobKind): number =>
+  jobs.filter((job) => job.kind === kind && job.status === JobStatus.DONE).length;

@@ -4,8 +4,11 @@ import { type Post, type Prisma, prisma } from "@repo/db";
 import { PostNotFoundError } from "./errors";
 import { parseOrThrow } from "./parse";
 
-export const requirePost = async (id: string): Promise<Post> => {
-  const post = await prisma.post.findUnique({ where: { id } });
+export const requirePost = async (
+  id: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Post> => {
+  const post = await tx.post.findUnique({ where: { id } });
   if (!post) {
     throw new PostNotFoundError(id);
   }

@@ -1,71 +1,53 @@
-import { JobKind, PostStatus, prisma } from "@repo/db";
-import { closeJobs, countJobs } from "@repo/jobs";
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { JobKind, JobStatus, prisma } from "@repo/db";
+import { enqueue, listRunJobs } from "@repo/jobs";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { rewriteBackfill } from "./index";
 
-const rewrites = (postId: string) => countJobs({ kinds: [JobKind.REWRITE_POST], postId });
-
-describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
-  "rewriteBackfill on Postgres and Redis",
-  () => {
-    const run = `rewrite-${Date.now()}`;
-    const startedAt = new Date();
-    const siteIds: Array<string> = [];
-
-    const livePost = async (name: string, vercelDeployHookUrl: string | null) => {
-      const site = await prisma.site.create({
-        data: { domain: `${name}.${run}.test`, vercelDeployHookUrl },
-      });
-      siteIds.push(site.id);
-      return prisma.post.create({
-        data: {
-          body: "<p>Body.</p>",
-          publishedAt: new Date(),
-          siteId: site.id,
-          slug: name,
-          status: PostStatus.PUBLISHED,
-          title: name,
-        },
-      });
-    };
-
-    afterEach(() => {
-      delete process.env.OPENAI_API_KEY;
+describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped rewrite backfill", () => {
+  let siteId = "";
+  let runId = "";
+  afterEach(async () => {
+    delete process.env.OPENAI_API_KEY;
+    await prisma.job.deleteMany({ where: { runId } });
+    await prisma.backfillRun.deleteMany({ where: { id: runId } });
+    await prisma.site.deleteMany({ where: { id: siteId } });
+  });
+  it("advances through an empty crawl catalog and freezes eligible posts", async () => {
+    process.env.OPENAI_API_KEY = "sk-test";
+    const site = await prisma.site.create({
+      data: {
+        domain: `rewrite-${crypto.randomUUID()}.test`,
+        vercelDeployHookUrl: "https://deploy.test/hook",
+      },
     });
-
-    afterAll(async () => {
-      await prisma.job.deleteMany({
-        where: {
-          OR: [
-            { post: { siteId: { in: siteIds } } },
-            { createdAt: { gte: startedAt }, kind: JobKind.BACKFILL_REWRITE },
-          ],
-        },
-      });
-      await prisma.site.deleteMany({ where: { id: { in: siteIds } } });
-      await closeJobs();
+    siteId = site.id;
+    const post = await prisma.post.create({
+      data: { body: "Body", siteId, slug: "post", status: "PUBLISHED", title: "Post" },
     });
-
-    it("requests a rewrite for each post on a publishable Site only", async () => {
-      process.env.OPENAI_API_KEY = "sk-test";
-      const publishable = await livePost("publishable", "https://deploy.test/hook");
-      const hookless = await livePost("hookless", null);
-
-      await rewriteBackfill.tick({
-        attemptsMade: 0,
-        finalAttempt: false,
-        jobId: `tick-${run}`,
-        payload: {
-          force: true,
-          initialPostsEligible: 1,
-          phase: "REWRITE_POST",
-          startedAt: startedAt.toISOString(),
-        },
-      });
-
-      expect(await rewrites(publishable.id)).toBe(1);
-      expect(await rewrites(hookless.id)).toBe(0);
+    const started = await rewriteBackfill.start({ force: false });
+    runId = started.runId;
+    await rewriteBackfill.tick();
+    const jobs = await listRunJobs(runId);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ kind: JobKind.REWRITE_POST, postId: post.id });
+    await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: post.id } });
+    const extra = await enqueue({
+      kind: JobKind.REWRITE_POST,
+      payload: { postId: post.id },
+      postId: post.id,
+      run: { id: runId, member: "archived", phase: "REWRITE_POST" },
     });
-  },
-);
+    expect(extra.status).toBe(JobStatus.SKIPPED);
+    await prisma.job.updateMany({
+      data: { status: JobStatus.DONE },
+      where: { runId, status: JobStatus.QUEUED },
+    });
+    await rewriteBackfill.tick();
+    expect(await rewriteBackfill.readStatus()).toMatchObject({
+      active: false,
+      counts: { skipped: 1 },
+      ended: "done",
+    });
+  });
+});

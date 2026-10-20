@@ -25,7 +25,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("reapStuckJobs", () => {
     return job.id;
   };
 
-  it("fails stale RUNNING and retried QUEUED rows and leaves the rest alone", async () => {
+  it("fails stale RUNNING rows and leaves the rest alone", async () => {
     const stale = new Date(Date.now() - 2 * HOUR_MS);
     const fresh = new Date();
     const staleRunning = await seed({ attempts: 1, startedAt: stale, status: JobStatus.RUNNING });
@@ -39,9 +39,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("reapStuckJobs", () => {
     const rows = await prisma.job.findMany({ where: { id: { in: createdIds } } });
     const statusOf = new Map(rows.map((row) => [row.id, row.status]));
 
-    expect(reaped).toBeGreaterThanOrEqual(2);
+    expect(reaped).toBeGreaterThanOrEqual(1);
     expect(statusOf.get(staleRunning)).toBe(JobStatus.FAILED);
-    expect(statusOf.get(staleRetry)).toBe(JobStatus.FAILED);
+    expect(statusOf.get(staleRetry)).toBe(JobStatus.QUEUED);
     expect(statusOf.get(freshRunning)).toBe(JobStatus.RUNNING);
     expect(statusOf.get(freshRetry)).toBe(JobStatus.QUEUED);
     expect(statusOf.get(delayed)).toBe(JobStatus.QUEUED);

@@ -11,7 +11,7 @@ const API_STATUS = {
     embeddedPosts: 2,
     failed: 0,
     posts: 10,
-    sites: 3,
+    skipped: 0,
     suggestDone: 1,
   },
   phase: "CLASSIFY_EMBED",

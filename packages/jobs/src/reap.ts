@@ -9,18 +9,8 @@ export const reapStuckJobs = async (maxAgeMs = 30 * 60 * 1000): Promise<{ reaped
       status: JobStatus.FAILED,
     },
     where: {
-      // Delayed jobs can be old before their first attempt, so creation age
-      // cannot distinguish a scheduled job from a stuck job.
-      OR: [
-        { startedAt: { lt: cutoff, not: null }, status: JobStatus.RUNNING },
-        // A queued job with a recorded attempt lost its BullMQ retry. The
-        // attempts check excludes jobs waiting for their initial delay.
-        {
-          attempts: { gt: 0 },
-          startedAt: { lt: cutoff, not: null },
-          status: JobStatus.QUEUED,
-        },
-      ],
+      startedAt: { lt: cutoff, not: null },
+      status: JobStatus.RUNNING,
     },
   });
   return { reaped: result.count };

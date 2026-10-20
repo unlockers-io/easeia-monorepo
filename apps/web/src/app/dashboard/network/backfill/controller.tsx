@@ -1,4 +1,5 @@
 "use client";
+import { backfillRunStatusSchema } from "@repo/api-types";
 import { z } from "zod";
 
 import { unwrapAction } from "@/lib/action-result";
@@ -12,16 +13,11 @@ const countsSchema = z.object({
   embeddedPosts: z.number(),
   failed: z.number(),
   posts: z.number(),
-  sites: z.number(),
+  skipped: z.number(),
   suggestDone: z.number(),
 });
 
-const statusSchema = z.object({
-  active: z.boolean(),
-  counts: countsSchema.optional(),
-  phase: z.string().optional(),
-  startedAt: z.string().optional(),
-});
+const statusSchema = backfillRunStatusSchema.extend({ counts: countsSchema.optional() });
 
 export type Status = z.infer<typeof statusSchema>;
 

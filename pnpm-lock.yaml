@@ -641,18 +641,15 @@ importers:
 
   packages/backfill:
     dependencies:
+      '@repo/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@repo/db':
         specifier: workspace:*
         version: link:../db
       '@repo/jobs':
         specifier: workspace:*
         version: link:../jobs
-      '@repo/observability':
-        specifier: workspace:*
-        version: link:../observability
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../posts
       '@repo/sites':
         specifier: workspace:*
         version: link:../sites
@@ -666,9 +663,6 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
-      bullmq:
-        specifier: ^6.0.9
-        version: 6.0.9(ioredis@6.0.0)(pg@8.23.0)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -860,6 +854,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:../sites
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@26.2.0)
@@ -867,6 +864,9 @@ importers:
       '@repo/config-vitest':
         specifier: workspace:*
         version: link:../config-vitest
+      '@repo/jobs':
+        specifier: workspace:*
+        version: link:../jobs
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../config-typescript

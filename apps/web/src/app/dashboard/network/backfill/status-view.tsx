@@ -4,23 +4,13 @@ import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { RunProgress } from "../run-progress";
+
 import type { Status } from "./controller";
 
 const QUERY_KEY = ["backfill-status"] as const;
 
 const POLL_MS = 3000;
-
-const Row = ({ done, label, total }: { done: number; label: string; total: number }) => {
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-1">
-      <span className="text-sm">{label}</span>
-      <span className="font-mono text-sm tabular-nums">
-        {done} / {total} ({pct}%)
-      </span>
-    </div>
-  );
-};
 
 export const NetworkBackfillPage = ({
   loadStatus,
@@ -74,27 +64,28 @@ export const NetworkBackfillPage = ({
       ) : null}
 
       {status?.counts ? (
-        <div className="mt-6 rounded border p-4">
-          <div className="mb-2 text-sm font-medium">Phase: {status.phase}</div>
-          <Row
-            done={status.counts.classifiedPosts}
-            label="Classify (posts)"
-            total={status.counts.posts}
-          />
-          <Row
-            done={status.counts.embeddedPosts}
-            label="Embed (posts)"
-            total={status.counts.posts}
-          />
-          <Row
-            done={status.counts.suggestDone}
-            label="Suggest links (posts)"
-            total={status.counts.posts}
-          />
-          {status.counts.failed > 0 ? (
-            <div className="mt-2 text-sm text-destructive">Failed jobs: {status.counts.failed}</div>
-          ) : null}
-        </div>
+        <RunProgress
+          counts={status.counts}
+          ended={status.ended}
+          phase={status.phase}
+          rows={[
+            {
+              done: status.counts.classifiedPosts,
+              label: "Classify (posts)",
+              total: status.counts.posts,
+            },
+            {
+              done: status.counts.embeddedPosts,
+              label: "Embed (posts)",
+              total: status.counts.posts,
+            },
+            {
+              done: status.counts.suggestDone,
+              label: "Suggest links (posts)",
+              total: status.counts.posts,
+            },
+          ]}
+        />
       ) : null}
     </section>
   );

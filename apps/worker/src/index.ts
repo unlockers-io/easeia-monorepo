@@ -5,6 +5,7 @@ import { networkBackfill, rewriteBackfill } from "@repo/backfill";
 import { prisma } from "@repo/db";
 import {
   consume,
+  dispatchPendingJobs,
   type ConsumerContext,
   JobKind,
   reapStuckJobs,
@@ -153,8 +154,29 @@ await Promise.all(
   ),
 );
 
+let dispatching: Promise<void> | undefined;
+const dispatch = () => {
+  if (dispatching !== undefined) {
+    return;
+  }
+  dispatching = (async () => {
+    try {
+      await Promise.all([networkBackfill.tick(), rewriteBackfill.tick()]);
+      await dispatchPendingJobs();
+    } catch (error) {
+      log.error({ err: error, message: "durable job dispatch failed" });
+    } finally {
+      dispatching = undefined;
+    }
+  })();
+};
+dispatch();
+const dispatchTimer = setInterval(dispatch, 1000);
+
 const shutdown = async (signal: string) => {
   log.info({ message: "shutting down workers", signal });
+  clearInterval(dispatchTimer);
+  await dispatching;
   await Promise.allSettled(workers.map((w) => w.close()));
   await prisma.$disconnect();
   process.exit(0);

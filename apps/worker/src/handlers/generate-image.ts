@@ -1,7 +1,6 @@
 import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
 import type { ConsumerContext } from "@repo/jobs";
-import { requestRedeploy as realRequestRedeploy } from "@repo/sites";
 
 import { createJobLogger } from "../lib/logger";
 
@@ -19,7 +18,6 @@ type Deps = {
   findPost?: (postId: string) => Promise<PostForHero | null>;
   generateHero?: typeof realGenerateHero;
   hasHero?: (postId: string) => Promise<boolean>;
-  requestRedeploy?: typeof realRequestRedeploy;
 };
 
 const defaultFindPost = (postId: string): Promise<PostForHero | null> =>
@@ -48,7 +46,6 @@ export const makeHandleGenerateImage =
     const findPost = deps.findPost ?? defaultFindPost;
     const hasHero = deps.hasHero ?? defaultHasHero;
     const generateHero = deps.generateHero ?? realGenerateHero;
-    const requestRedeploy = deps.requestRedeploy ?? realRequestRedeploy;
     const log = createJobLogger({ jobId, queue: "generate-image" });
     log.set({ postId });
 
@@ -76,7 +73,6 @@ export const makeHandleGenerateImage =
       },
       site: post.site,
     });
-    await requestRedeploy(post.siteId);
     log.info("generate-image: done");
     log.emit();
   };
