@@ -1,7 +1,7 @@
 import "zod/compile";
 import "dotenv/config";
 
-import { networkBackfill, rewriteBackfill } from "@repo/backfill";
+import { forPublishedMember, networkBackfill, rewriteBackfill } from "@repo/backfill";
 import { prisma } from "@repo/db";
 import {
   consume,
@@ -52,7 +52,7 @@ const startConsumer = <K extends JobKind>(
 ): Worker =>
   consume({
     concurrency,
-    handler: skipOptionalAiWhenUnconfigured(kind, handler),
+    handler: skipOptionalAiWhenUnconfigured(kind, forPublishedMember(handler)),
     isRetryable,
     kind,
   });

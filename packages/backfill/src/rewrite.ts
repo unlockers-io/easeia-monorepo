@@ -4,6 +4,7 @@ import { enqueue } from "@repo/jobs";
 import * as Sites from "@repo/sites";
 
 import { completed, createBackfill } from "./backfill";
+import { enqueuePostMember } from "./members";
 
 export const rewriteBackfill = createBackfill({
   counts: (run, jobs) => ({
@@ -57,7 +58,7 @@ export const rewriteBackfill = createBackfill({
     {
       enqueue: async (run, tx) => {
         for (const postId of run.postIds) {
-          await enqueue(
+          await enqueuePostMember(
             {
               kind: JobKind.REWRITE_POST,
               payload: { force: run.force, postId },

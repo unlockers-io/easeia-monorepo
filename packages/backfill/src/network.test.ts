@@ -2,6 +2,8 @@ import { JobKind, JobStatus, PostStatus, prisma } from "@repo/db";
 import { closeJobs, consume, dispatchPendingJobs, enqueue, listRunJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { forPublishedMember } from "./members";
+
 import { BackfillAlreadyRunningError, networkBackfill } from "./index";
 
 describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfill", () => {
@@ -117,7 +119,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
       await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: archived.id } });
       await prisma.post.delete({ where: { id: deleted.id } });
       const handler = vi.fn().mockResolvedValue(undefined);
-      const workers = [JobKind.CLASSIFY, JobKind.EMBED].map((kind) => consume({ handler, kind }));
+      const workers = [JobKind.CLASSIFY, JobKind.EMBED].map((kind) =>
+        consume({ handler: forPublishedMember(handler), kind }),
+      );
       try {
         await dispatchPendingJobs();
         await vi.waitFor(async () => {

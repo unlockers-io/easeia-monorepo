@@ -1,6 +1,8 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
-import { enqueue, listRunJobs } from "@repo/jobs";
+import { listRunJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it } from "vitest";
+
+import { enqueuePostMember } from "./members";
 
 import { rewriteBackfill } from "./index";
 
@@ -32,13 +34,19 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped rewrite backfil
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({ kind: JobKind.REWRITE_POST, postId: post.id });
     await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: post.id } });
-    const extra = await enqueue({
-      kind: JobKind.REWRITE_POST,
-      payload: { postId: post.id },
-      postId: post.id,
-      run: { id: runId, member: "archived", phase: "REWRITE_POST" },
-    });
-    expect(extra.status).toBe(JobStatus.SKIPPED);
+    await prisma.$transaction((tx) =>
+      enqueuePostMember(
+        {
+          kind: JobKind.REWRITE_POST,
+          payload: { postId: post.id },
+          postId: post.id,
+          run: { id: runId, member: "archived", phase: "REWRITE_POST" },
+        },
+        tx,
+      ),
+    );
+    const children = await listRunJobs(runId);
+    expect(children.some((job) => job.status === JobStatus.SKIPPED)).toBe(true);
     await prisma.job.updateMany({
       data: { status: JobStatus.DONE },
       where: { runId, status: JobStatus.QUEUED },

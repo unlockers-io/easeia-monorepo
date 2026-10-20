@@ -1,7 +1,7 @@
 import { JobKind, PostStatus, prisma } from "@repo/db";
-import { enqueue } from "@repo/jobs";
 
 import { completed, createBackfill } from "./backfill";
+import { enqueuePostMember } from "./members";
 
 export const networkBackfill = createBackfill({
   counts: (run, jobs) => ({
@@ -24,7 +24,7 @@ export const networkBackfill = createBackfill({
       enqueue: async (run, tx) => {
         for (const postId of run.postIds) {
           for (const kind of [JobKind.CLASSIFY, JobKind.EMBED]) {
-            await enqueue(
+            await enqueuePostMember(
               {
                 kind,
                 payload: { postId },
@@ -41,7 +41,7 @@ export const networkBackfill = createBackfill({
     {
       enqueue: async (run, tx) => {
         for (const postId of run.postIds) {
-          await enqueue(
+          await enqueuePostMember(
             {
               kind: JobKind.SUGGEST_LINKS,
               payload: { postId },

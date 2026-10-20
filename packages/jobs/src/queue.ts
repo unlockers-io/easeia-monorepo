@@ -112,16 +112,6 @@ export const enqueue = async <K extends JobKind>(
   if (input.run === undefined) {
     return tx.job.create({ data });
   }
-  if (input.postId !== undefined) {
-    await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${input.postId} FOR SHARE`;
-    const post = await tx.post.findUnique({ where: { id: input.postId } });
-    if (post?.status !== "PUBLISHED") {
-      data.postId = undefined;
-      data.status = JobStatus.SKIPPED;
-      data.finishedAt = new Date();
-      data.lastError = "Post is no longer published";
-    }
-  }
   const id = `${input.run.id}-${input.run.phase}-${input.kind}-${input.run.member}`;
   return tx.job.upsert({ create: { ...data, id }, update: {}, where: { id } });
 };
@@ -187,3 +177,9 @@ export const recordCompletedJob = async <K extends JobKind>({
   };
   await prisma.job.upsert({ create: { id, ...row }, update: row, where: { id } });
 };
+
+export const skipJob = (id: string, reason: string, tx: Prisma.TransactionClient = prisma) =>
+  tx.job.updateMany({
+    data: { finishedAt: new Date(), lastError: reason, status: JobStatus.SKIPPED },
+    where: { id, status: JobStatus.QUEUED },
+  });

@@ -1,11 +1,4 @@
-import {
-  type BackfillPhase,
-  type Job,
-  type JobKind,
-  JobStatus,
-  PostStatus,
-  prisma,
-} from "@repo/db";
+import { type BackfillPhase, type Job, type JobKind, JobStatus, prisma } from "@repo/db";
 import { UnrecoverableError, Worker, type Job as BullJob } from "bullmq";
 
 import type { JobPayloads } from "./payloads";
@@ -36,16 +29,6 @@ const runFor = (row: Pick<Job, "runId" | "phase">): ConsumerContext<JobKind>["ru
     throw new Error("Run child is missing its phase");
   }
   return { id: row.runId, phase: row.phase };
-};
-
-const requirePublishedMember = async (row: Job, payload: JobPayloads[JobKind]) => {
-  if (row.runId === null || !("postId" in payload)) {
-    return;
-  }
-  const post = await prisma.post.findUnique({ where: { id: payload.postId } });
-  if (post?.status !== PostStatus.PUBLISHED) {
-    throw new JobSkippedError("Post is no longer published");
-  }
 };
 
 const recordFailure = async (jobId: string, error: unknown, retry: boolean): Promise<void> => {
@@ -95,7 +78,6 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       });
 
       try {
-        await requirePublishedMember(row, bull.data);
         const context: ConsumerContext<K> = {
           attemptsMade,
           finalAttempt,

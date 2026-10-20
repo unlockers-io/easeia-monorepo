@@ -7,6 +7,7 @@ export {
   enqueueUnlessQueued,
   recordCompletedJob,
   schedule,
+  skipJob,
   unschedule,
 } from "./queue";
 
