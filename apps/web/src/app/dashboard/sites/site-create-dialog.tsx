@@ -14,12 +14,13 @@ import {
 import { Field, FieldLabel, FieldGroup } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { z } from "zod";
 
 import { createSiteAction } from "../actions";
@@ -52,7 +53,6 @@ export const SiteCreateDialog = () => {
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues,
     listeners: {
@@ -72,8 +72,8 @@ export const SiteCreateDialog = () => {
       router.push(`/dashboard/sites/${result.id}`);
       router.refresh();
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
@@ -89,13 +89,15 @@ export const SiteCreateDialog = () => {
           </DialogDescription>
         </DialogHeader>
         <ClientReadyForm
+          id={form.formId}
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
           }}
-          ref={formRef}
         >
           <FieldGroup>
+            <FormAlert message={error} />
             <form.Field name="domain">
               {(field) => (
                 <Field data-invalid={!field.state.meta.isValid || undefined}>
@@ -169,11 +171,6 @@ export const SiteCreateDialog = () => {
                 </Field>
               )}
             </form.Field>
-            {error !== null && (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            )}
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(pending) => (
                 <Button disabled={pending} type="submit">

@@ -11,42 +11,45 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
 import { profileSchema } from "@/lib/form-schemas";
 
 export const ProfileForm = ({ email, name }: { email: string; name: string }) => {
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues: { name },
     listeners: {
       onChange: () => {
+        setError(null);
         setMessage(null);
       },
     },
     onSubmit: async ({ value }) => {
+      setError(null);
       setMessage(null);
       const result = await authClient.updateUser(value).catch(authFailureMessage);
       if (typeof result === "string") {
-        setMessage(result);
+        setError(result);
         return;
       }
       if (result.error) {
-        setMessage(result.error.message ?? "Could not update profile.");
+        setError(result.error.message ?? "Could not update profile.");
         return;
       }
       setMessage("Profile saved.");
       router.refresh();
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: profileSchema },
@@ -61,13 +64,14 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
       </CardHeader>
       <CardContent>
         <ClientReadyForm
+          id={form.formId}
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
           }}
-          ref={formRef}
         >
           <FieldGroup>
+            <FormAlert message={error} />
             <p className="text-sm text-muted-foreground">Signed in as {email}</p>
             <form.Field name="name">
               {(field) => {

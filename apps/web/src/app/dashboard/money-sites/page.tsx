@@ -2,12 +2,13 @@
 import { siteDomainSchema } from "@repo/api-types/sites";
 import { Button } from "@repo/ui/components/button";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRef } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -63,7 +64,7 @@ const recrawl = async (id: string): Promise<void> => {
 
 const MoneySitesPage = () => {
   const queryClient = useQueryClient();
-  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     data: items = [],
@@ -75,11 +76,8 @@ const MoneySitesPage = () => {
     queryKey: QUERY_KEY,
   });
 
-  const { isPending: isCreating, mutate: createSite } = useMutation({
+  const { mutateAsync: createSite } = useMutation({
     mutationFn: create,
-    onError: () => {
-      toast.error("Failed to add money site. Please try again.");
-    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
@@ -99,23 +97,31 @@ const MoneySitesPage = () => {
 
   const form = useForm({
     defaultValues: { contentPathPrefix: "", domain: "", name: "", sitemapUrl: "" },
-    onSubmit: ({ formApi, value }) => {
-      createSite(
-        {
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
+    onSubmit: async ({ formApi, value }) => {
+      setError(null);
+      try {
+        await createSite({
           contentPathPrefix: value.contentPathPrefix || undefined,
           domain: value.domain,
           name: value.name,
           sitemapUrl: value.sitemapUrl,
-        },
-        {
-          onSuccess: () => {
-            formApi.reset();
-          },
-        },
-      );
+        });
+        formApi.reset();
+      } catch (createError) {
+        setError(
+          createError instanceof Error
+            ? createError.message
+            : "Failed to add money site. Please try again.",
+        );
+      }
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
@@ -131,14 +137,15 @@ const MoneySitesPage = () => {
 
       <ClientReadyForm
         className="mt-6 grid gap-2 rounded border p-4"
+        id={form.formId}
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void form.handleSubmit();
         }}
-        ref={formRef}
       >
         <div className="text-sm font-medium">Add money site</div>
+        <FormAlert message={error} />
         {fields.map(([name, label, placeholder]) => (
           <form.Field key={name} name={name}>
             {(field) => (
@@ -161,9 +168,13 @@ const MoneySitesPage = () => {
             )}
           </form.Field>
         ))}
-        <Button disabled={isCreating} type="submit">
-          Add
-        </Button>
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isCreating) => (
+            <Button disabled={isCreating} type="submit">
+              Add
+            </Button>
+          )}
+        </form.Subscribe>
       </ClientReadyForm>
 
       {isError ? (

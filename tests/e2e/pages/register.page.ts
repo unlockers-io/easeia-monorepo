@@ -15,7 +15,7 @@ export class RegisterPage {
     this.passwordInput = page.getByLabel("Password", { exact: true });
     this.confirmPasswordInput = page.getByLabel(/confirm password/i);
     this.submitButton = page.getByRole("button", { name: /create account/i });
-    this.rootError = page.locator('[data-sonner-toast][data-type="error"]');
+    this.rootError = page.locator('[data-slot="form-alert"]');
   }
 
   goto = async () => {

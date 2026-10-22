@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/ui/components/button";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useId, useRef, useState, useTransition } from "react";
 
@@ -81,6 +82,7 @@ export const ExternalBacklinksUpload = ({
   return (
     <div className="flex flex-col gap-4">
       <ClientReadyForm className="flex flex-col gap-2" onSubmit={handleCsvSubmit}>
+        <FormAlert message={csvFeedback.kind === "error" ? csvFeedback.message : null} />
         <label className="text-xs font-medium text-muted-foreground" htmlFor={inputId}>
           Import GSC backlinks (CSV)
         </label>
@@ -111,11 +113,6 @@ export const ExternalBacklinksUpload = ({
               : ""}
             .
           </output>
-        )}
-        {csvFeedback.kind === "error" && (
-          <p className="text-xs text-destructive" role="alert">
-            {csvFeedback.message}
-          </p>
         )}
       </ClientReadyForm>
 

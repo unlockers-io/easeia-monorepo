@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { loginSchema, recoverSchema, registerSchema, resetPasswordSchema } from "./form-schemas";
+import {
+  autoPublishSchema,
+  loginSchema,
+  networkDefaultsSchema,
+  recoverSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "./form-schemas";
 
 describe("loginSchema", () => {
   it("should accept valid credentials", () => {
@@ -162,6 +169,90 @@ describe("resetPasswordSchema", () => {
     });
     expect(result.error?.issues).toMatchObject([
       { message: "Passwords do not match", path: ["confirmPassword"] },
+    ]);
+  });
+});
+
+const issuesOf = (result: {
+  error?: { issues: Array<{ message: string; path: Array<PropertyKey> }> };
+}) => result.error?.issues.map(({ message, path }) => ({ message, path })) ?? [];
+
+describe("autoPublishSchema", () => {
+  const valid = {
+    bucketRefillAt: "3",
+    bucketTarget: "10",
+    cadenceDays: "7",
+    enabled: true,
+    language: "PT" as const,
+    topicHints: "",
+  };
+
+  it("should accept a cadence with a bucket, and both bucket fields blank", () => {
+    expect(autoPublishSchema.safeParse(valid).success).toBe(true);
+    expect(
+      autoPublishSchema.safeParse({ ...valid, bucketRefillAt: "", bucketTarget: "" }).success,
+    ).toBe(true);
+  });
+
+  it("should require a cadence only while auto-publish is enabled", () => {
+    expect(issuesOf(autoPublishSchema.safeParse({ ...valid, cadenceDays: "" }))).toEqual([
+      { message: "Cadence is required when auto-publish is enabled.", path: ["cadenceDays"] },
+    ]);
+    expect(autoPublishSchema.safeParse({ ...valid, cadenceDays: "", enabled: false }).success).toBe(
+      true,
+    );
+  });
+
+  it("should reject counts outside their range or with decimals", () => {
+    expect(issuesOf(autoPublishSchema.safeParse({ ...valid, cadenceDays: "366" }))).toEqual([
+      { message: "Enter a whole number from 1 to 365.", path: ["cadenceDays"] },
+    ]);
+    expect(issuesOf(autoPublishSchema.safeParse({ ...valid, bucketTarget: "1.5" }))).toEqual([
+      { message: "Enter a whole number from 1 to 100.", path: ["bucketTarget"] },
+    ]);
+  });
+
+  it("should put a half-filled bucket on the blank field", () => {
+    expect(issuesOf(autoPublishSchema.safeParse({ ...valid, bucketRefillAt: "" }))).toEqual([
+      {
+        message: "Set both bucket target and refill threshold, or leave both blank.",
+        path: ["bucketRefillAt"],
+      },
+    ]);
+  });
+
+  it("should put a refill threshold above the target on the refill field", () => {
+    expect(
+      issuesOf(autoPublishSchema.safeParse({ ...valid, bucketRefillAt: "12", bucketTarget: "10" })),
+    ).toEqual([
+      { message: "Refill threshold (12) must be ≤ bucket target (10).", path: ["bucketRefillAt"] },
+    ]);
+  });
+});
+
+describe("networkDefaultsSchema", () => {
+  const blank = { bucketRefillAt: "", bucketTarget: "", cadenceDays: "", overwrite: false };
+
+  it("should accept either section on its own", () => {
+    expect(networkDefaultsSchema.safeParse({ ...blank, cadenceDays: "7" }).success).toBe(true);
+    expect(
+      networkDefaultsSchema.safeParse({ ...blank, bucketRefillAt: "3", bucketTarget: "10" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("should ask for at least one section on the cadence field", () => {
+    expect(issuesOf(networkDefaultsSchema.safeParse(blank))).toEqual([
+      { message: "Fill in at least one section (cadence or bucket).", path: ["cadenceDays"] },
+    ]);
+  });
+
+  it("should put a half-filled bucket on the blank field", () => {
+    expect(issuesOf(networkDefaultsSchema.safeParse({ ...blank, bucketRefillAt: "3" }))).toEqual([
+      {
+        message: "Set both bucket target and refill threshold, or leave both blank.",
+        path: ["bucketTarget"],
+      },
     ]);
   });
 });

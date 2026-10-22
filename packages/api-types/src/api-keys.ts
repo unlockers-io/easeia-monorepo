@@ -29,7 +29,7 @@ export const apiKeyCreateSchema = z
     scopes: z.array(apiKeyScopeSchema).min(1, "Pick at least one scope"),
     siteId: z.string().optional(),
   })
-  .refine((val) => !val.scopes.some(isSiteScopedScope) || val.siteId !== undefined, {
+  .refine((val) => !val.scopes.some(isSiteScopedScope) || (val.siteId ?? "") !== "", {
     message: `Pick a site: ${SITE_SCOPED_API_KEY_SCOPES.join(", ")} keys are restricted to one site`,
     path: ["siteId"],
   });

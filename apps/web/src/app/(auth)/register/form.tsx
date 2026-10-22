@@ -4,14 +4,14 @@ import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useRef, useState } from "react";
-import { toast } from "sonner";
+import { Suspense, use, useState } from "react";
 
 import { AuthPasswordField } from "@/components/auth-password-field";
 import { authClient, authFailureMessage } from "@/lib/auth-client";
@@ -45,10 +45,15 @@ const SignInLink = ({ searchParams }: Props) => {
 const RegisterForm = ({ searchParams }: Props) => {
   const { push, refresh } = useRouter();
   const [sentToEmail, setSentToEmail] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: { confirmPassword: "", email: "", name: "", password: "" },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
     onSubmit: async ({ value }) => {
       const { from } = await searchParams;
       const safeTo = safeRedirectPath(from);
@@ -61,11 +66,11 @@ const RegisterForm = ({ searchParams }: Props) => {
         })
         .catch(authFailureMessage);
       if (typeof result === "string") {
-        toast.error(result);
+        setError(result);
         return;
       }
       if (result.error) {
-        toast.error(result.error.message ?? "Failed to register");
+        setError(result.error.message ?? "Failed to register");
         return;
       }
       if (result.data.token === null || result.data.token === "") {
@@ -75,8 +80,8 @@ const RegisterForm = ({ searchParams }: Props) => {
       push(safeTo);
       refresh();
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: registerSchema },
@@ -98,15 +103,16 @@ const RegisterForm = ({ searchParams }: Props) => {
 
   return (
     <ClientReadyForm
+      id={form.formId}
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
         void form.handleSubmit();
       }}
-      ref={formRef}
     >
       <FieldGroup>
+        <FormAlert message={error} />
         <form.Field name="name">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;

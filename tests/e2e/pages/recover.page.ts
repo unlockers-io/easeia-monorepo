@@ -10,7 +10,7 @@ export class RecoverPage {
   constructor(private readonly page: Page) {
     this.emailInput = page.getByLabel(/email/i);
     this.submitButton = page.getByRole("button", { name: /send reset link/i });
-    this.rootError = page.locator('[data-sonner-toast][data-type="error"]');
+    this.rootError = page.locator('[data-slot="form-alert"]');
     this.successHeading = page.getByText(/check your email/i);
   }
 

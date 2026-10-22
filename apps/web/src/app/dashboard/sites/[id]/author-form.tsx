@@ -11,7 +11,8 @@ import {
 import { Input } from "@repo/ui/components/input";
 import { Textarea } from "@repo/ui/components/textarea";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
-import { useState, useTransition } from "react";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
+import { type ChangeEvent, useState, useTransition } from "react";
 
 import { updateSiteAuthorAction } from "./actions";
 
@@ -47,18 +48,32 @@ const AuthorForm = (props: AuthorFormProps) => {
   const [photoUrl, setPhotoUrl] = useState(props.defaultPhotoUrl ?? "");
   const [url, setUrl] = useState(props.defaultUrl ?? "");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const edit =
+    (set: (value: string) => void) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setError(null);
+      set(event.target.value);
+    };
 
   const handleSave = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
     startTransition(async () => {
-      await updateSiteAuthorAction(siteId, { bio, name, photoUrl, url });
-      setSavedAt(new Date());
+      try {
+        await updateSiteAuthorAction(siteId, { bio, name, photoUrl, url });
+        setSavedAt(new Date());
+      } catch {
+        setError("Could not save the author. Try again.");
+      }
     });
   };
 
   return (
     <ClientReadyForm className="flex flex-col gap-3" noValidate onSubmit={handleSave}>
+      <FormAlert message={error} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium" htmlFor={`author-name-${siteId}`}>
@@ -66,9 +81,7 @@ const AuthorForm = (props: AuthorFormProps) => {
           </label>
           <Input
             id={`author-name-${siteId}`}
-            onChange={(e) => {
-              setName(e.target.value);
-            }}
+            onChange={edit(setName)}
             placeholder="e.g. Marina Duarte"
             value={name}
           />
@@ -79,9 +92,7 @@ const AuthorForm = (props: AuthorFormProps) => {
           </label>
           <Input
             id={`author-url-${siteId}`}
-            onChange={(e) => {
-              setUrl(e.target.value);
-            }}
+            onChange={edit(setUrl)}
             placeholder="https://instagram.com/…"
             type="url"
             value={url}
@@ -94,9 +105,7 @@ const AuthorForm = (props: AuthorFormProps) => {
         </label>
         <Input
           id={`author-photo-${siteId}`}
-          onChange={(e) => {
-            setPhotoUrl(e.target.value);
-          }}
+          onChange={edit(setPhotoUrl)}
           placeholder="https://img.easeia.com/…"
           type="url"
           value={photoUrl}
@@ -108,9 +117,7 @@ const AuthorForm = (props: AuthorFormProps) => {
         </label>
         <Textarea
           id={`author-bio-${siteId}`}
-          onChange={(e) => {
-            setBio(e.target.value);
-          }}
+          onChange={edit(setBio)}
           placeholder="One or two sentences of niche-relevant credentials."
           rows={3}
           value={bio}

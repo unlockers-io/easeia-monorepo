@@ -1,6 +1,11 @@
 "use client";
 
-import type { ApiKeyScope } from "@repo/api-types";
+import {
+  apiKeyCreateSchema,
+  isSiteScopedScope,
+  type ApiKeyCreate,
+  type ApiKeyScope,
+} from "@repo/api-types";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -14,7 +19,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@repo/ui/components/dialog";
-import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import {
   Select,
@@ -23,9 +35,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
+import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Check, Copy, KeyRound, Plus } from "lucide-react";
-import { useReducer, useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { createApiKeyAction } from "./actions";
@@ -36,110 +53,66 @@ type Props = {
   siteScopedScopes: ReadonlyArray<ApiKeyScope>;
 };
 
-type CreateKeyState = {
-  copied: boolean;
-  error: string | undefined;
-  name: string;
-  open: boolean;
-  picked: ReadonlySet<ApiKeyScope>;
-  siteId: string;
-  token: string | undefined;
-};
-
-type CreateKeyAction =
-  | { type: "copied.set"; value: boolean }
-  | { type: "create.error"; value: string }
-  | { type: "create.success"; value: string }
-  | { type: "name.set"; value: string }
-  | { type: "open.set"; value: boolean }
-  | { type: "pick.toggle"; value: ApiKeyScope }
-  | { type: "site.set"; value: string };
-
-const createInitialState = (): CreateKeyState => ({
-  copied: false,
-  error: undefined,
+const defaultValues: ApiKeyCreate = {
   name: "",
-  open: false,
-  picked: new Set<ApiKeyScope>(),
+  scopes: [],
   siteId: "",
-  token: undefined,
-});
-
-const createKeyReducer = (state: CreateKeyState, action: CreateKeyAction): CreateKeyState => {
-  switch (action.type) {
-    case "copied.set": {
-      return { ...state, copied: action.value };
-    }
-    case "create.error": {
-      return { ...state, error: action.value };
-    }
-    case "create.success": {
-      return { ...state, error: undefined, token: action.value };
-    }
-    case "name.set": {
-      return { ...state, name: action.value };
-    }
-    case "open.set": {
-      return action.value ? { ...state, open: true } : createInitialState();
-    }
-    case "pick.toggle": {
-      const picked = new Set(state.picked);
-      if (picked.has(action.value)) {
-        picked.delete(action.value);
-      } else {
-        picked.add(action.value);
-      }
-      return { ...state, picked };
-    }
-    case "site.set": {
-      return { ...state, siteId: action.value };
-    }
-    default: {
-      return state;
-    }
-  }
 };
 
 const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
-  const [state, dispatch] = useReducer(createKeyReducer, undefined, createInitialState);
-  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const ready = useClientReady();
-  const { copied, error, name, open, picked, siteId, token } = state;
 
-  const needsSite = siteScopedScopes.some((scope) => picked.has(scope));
-
-  const handleOpenChange = (next: boolean) => {
-    dispatch({ type: "open.set", value: next });
-  };
-
-  const handleTogglePick = (scope: ApiKeyScope) => {
-    dispatch({ type: "pick.toggle", value: scope });
-  };
-
-  const handleCreate = () => {
-    startTransition(async () => {
+  const form = useForm({
+    defaultValues,
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setError(null);
       const result = await createApiKeyAction({
-        name,
-        scopes: [...picked],
-        siteId: needsSite && siteId !== "" ? siteId : undefined,
+        name: value.name,
+        scopes: value.scopes,
+        siteId: value.scopes.some(isSiteScopedScope) ? value.siteId : undefined,
       });
       if (!result.ok) {
-        dispatch({ type: "create.error", value: result.error });
+        setError(result.error);
         return;
       }
-      dispatch({ type: "create.success", value: result.data });
-    });
+      setToken(result.data);
+    },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: apiKeyCreateSchema },
+  });
+  const needsSite = useSelector(form.store, (state) => state.values.scopes.some(isSiteScopedScope));
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      form.reset();
+      setToken(null);
+      setCopied(false);
+      setError(null);
+    }
+    setOpen(next);
   };
 
   const handleCopy = async () => {
-    if (token === undefined || token === "") {
+    if (token === null) {
       return;
     }
     try {
       await navigator.clipboard.writeText(token);
-      dispatch({ type: "copied.set", value: true });
+      setCopied(true);
       setTimeout(() => {
-        dispatch({ type: "copied.set", value: false });
+        setCopied(false);
       }, 2000);
     } catch {
       toast.error("Copy failed. Select the token below and copy it manually.");
@@ -159,7 +132,159 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
       />
 
       <DialogContent className="sm:max-w-lg">
-        {token !== undefined && token !== "" ? (
+        {token === null ? (
+          <ClientReadyForm
+            id={form.formId}
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Create API key</DialogTitle>
+              <DialogDescription>
+                Pick scopes carefully. Keys can&apos;t be edited after creation, only revoked.
+              </DialogDescription>
+            </DialogHeader>
+
+            <FieldGroup className="gap-4 py-2">
+              <FormAlert message={error} />
+              <form.Field name="name">
+                {(field) => {
+                  const isInvalid = !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid || undefined}>
+                      <FieldLabel htmlFor="name">Name</FieldLabel>
+                      <Input
+                        aria-describedby={
+                          isInvalid ? "name-description name-error" : "name-description"
+                        }
+                        aria-invalid={isInvalid}
+                        aria-required
+                        id="name"
+                        onBlur={field.handleBlur}
+                        onChange={(e) => {
+                          field.handleChange(e.target.value);
+                        }}
+                        placeholder="N8N integration"
+                        value={field.state.value}
+                      />
+                      <FieldDescription id="name-description">
+                        Up to 80 characters.
+                      </FieldDescription>
+                      {isInvalid && (
+                        <FormFieldError errors={field.state.meta.errors} id="name-error" />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="scopes">
+                {(field) => {
+                  const isInvalid = !field.state.meta.isValid;
+                  const selected = new Set(field.state.value);
+                  return (
+                    <FieldSet
+                      aria-describedby={isInvalid ? "scopes-error" : undefined}
+                      data-invalid={isInvalid || undefined}
+                    >
+                      <FieldLegend variant="label">Scopes</FieldLegend>
+                      <div className="flex flex-wrap gap-2">
+                        {scopes.map((s) => (
+                          <label className="contents" key={s}>
+                            <Badge
+                              className="cursor-pointer select-none"
+                              variant={selected.has(s) ? "default" : "outline"}
+                            >
+                              <Checkbox
+                                aria-invalid={isInvalid}
+                                checked={selected.has(s)}
+                                onCheckedChange={(checked) => {
+                                  field.handleChange(
+                                    checked
+                                      ? [...field.state.value, s]
+                                      : field.state.value.filter((scope) => scope !== s),
+                                  );
+                                }}
+                              />
+                              {s}
+                            </Badge>
+                          </label>
+                        ))}
+                      </div>
+                      {isInvalid && (
+                        <FormFieldError errors={field.state.meta.errors} id="scopes-error" />
+                      )}
+                    </FieldSet>
+                  );
+                }}
+              </form.Field>
+
+              {needsSite &&
+                (sites.length === 0 ? (
+                  <p className="text-sm text-destructive">
+                    {siteScopedScopes.join(", ")} keys are restricted to one site, and no enabled
+                    site exists yet. Enable a site first.
+                  </p>
+                ) : (
+                  <form.Field name="siteId">
+                    {(field) => {
+                      const isInvalid = !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel htmlFor="siteId">Site</FieldLabel>
+                          <Select
+                            onValueChange={(next: string | null) => {
+                              field.handleChange(next ?? "");
+                            }}
+                            value={field.state.value ?? ""}
+                          >
+                            <SelectTrigger
+                              aria-describedby={
+                                isInvalid ? "siteId-description siteId-error" : "siteId-description"
+                              }
+                              aria-invalid={isInvalid}
+                              className="w-full"
+                              id="siteId"
+                            >
+                              <SelectValue placeholder="Pick a site" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sites.map((site) => (
+                                <SelectItem key={site.id} value={site.id}>
+                                  {site.domain}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FieldDescription id="siteId-description">
+                            Required: {siteScopedScopes.join(", ")} keys only work against the site
+                            they are bound to.
+                          </FieldDescription>
+                          {isInvalid && (
+                            <FormFieldError errors={field.state.meta.errors} id="siteId-error" />
+                          )}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
+                ))}
+            </FieldGroup>
+
+            <DialogFooter>
+              <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(pending) => (
+                  <Button disabled={pending} type="submit">
+                    {pending ? "Creating…" : "Create"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </ClientReadyForm>
+        ) : (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -187,109 +312,6 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
             </div>
             <DialogFooter>
               <DialogClose render={<Button type="button" />}>Done</DialogClose>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>Create API key</DialogTitle>
-              <DialogDescription>
-                Pick scopes carefully. Keys can&apos;t be edited after creation, only revoked.
-              </DialogDescription>
-            </DialogHeader>
-
-            <FieldGroup className="gap-4 py-2">
-              <Field>
-                <FieldLabel htmlFor="name">Name</FieldLabel>
-                <Input
-                  id="name"
-                  onChange={(e) => {
-                    dispatch({ type: "name.set", value: e.target.value });
-                  }}
-                  placeholder="N8N integration"
-                  value={name}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel>Scopes</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {scopes.map((s) => {
-                    const active = picked.has(s);
-                    return (
-                      <button
-                        aria-pressed={active}
-                        className="contents"
-                        key={s}
-                        onClick={() => {
-                          handleTogglePick(s);
-                        }}
-                        type="button"
-                      >
-                        <Badge
-                          className="cursor-pointer select-none"
-                          variant={active ? "default" : "outline"}
-                        >
-                          <Checkbox
-                            checked={active}
-                            className="pointer-events-none"
-                            tabIndex={-1}
-                          />
-                          {s}
-                        </Badge>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-
-              {needsSite &&
-                (sites.length === 0 ? (
-                  <p className="text-sm text-destructive">
-                    {siteScopedScopes.join(", ")} keys are restricted to one site, and no enabled
-                    site exists yet. Enable a site first.
-                  </p>
-                ) : (
-                  <Field>
-                    <FieldLabel htmlFor="siteId">Site</FieldLabel>
-                    <Select
-                      onValueChange={(next: string | null) => {
-                        dispatch({ type: "site.set", value: next ?? "" });
-                      }}
-                      value={siteId}
-                    >
-                      <SelectTrigger className="w-full" id="siteId">
-                        <SelectValue placeholder="Pick a site" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sites.map((site) => (
-                          <SelectItem key={site.id} value={site.id}>
-                            {site.domain}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Required: {siteScopedScopes.join(", ")} keys only work against the site they
-                      are bound to.
-                    </p>
-                  </Field>
-                ))}
-
-              {error !== undefined && error !== "" && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
-            </FieldGroup>
-
-            <DialogFooter>
-              <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-              <Button
-                disabled={pending || !name || picked.size === 0 || (needsSite && siteId === "")}
-                onClick={handleCreate}
-                type="button"
-              >
-                {pending ? "Creating…" : "Create"}
-              </Button>
             </DialogFooter>
           </>
         )}

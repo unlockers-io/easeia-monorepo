@@ -15,6 +15,7 @@ import {
 import { Input } from "@repo/ui/components/input";
 import { Label } from "@repo/ui/components/label";
 import { Switch } from "@repo/ui/components/switch";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Plus, Settings2, X } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -59,6 +60,7 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
   const [niches, setNiches] = useState<Set<Niche>>(() => new Set(site.niches));
   const [defaultCategory, setDefaultCategory] = useState(site.defaultCategory);
   const [mapRows, setMapRows] = useState<Array<MapRow>>(() => toRows(site.categorySlugMap));
+  const [error, setError] = useState<string | null>(null);
 
   const handleOpenChange = (next: boolean) => {
     if (next) {
@@ -71,14 +73,17 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
   };
 
   const updateRow = (index: number, patch: Partial<MapRow>) => {
+    setError(null);
     setMapRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 
   const addRow = () => {
+    setError(null);
     setMapRows((prev) => [...prev, { id: crypto.randomUUID(), key: "", value: "" }]);
   };
 
   const removeRow = (index: number) => {
+    setError(null);
     setMapRows((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -94,14 +99,27 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
     fd.set("defaultCategory", defaultCategory.trim() || "sem-categoria");
     const categorySlugMap = Object.fromEntries(rowsToMap(mapRows));
     fd.set("categorySlugMap", JSON.stringify(categorySlugMap));
+    setError(null);
     startTransition(async () => {
-      await updateSiteAction(fd);
-      setOpen(false);
+      try {
+        await updateSiteAction(fd);
+        setOpen(false);
+      } catch {
+        setError("Could not save the site. Try again.");
+      }
     });
   };
 
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
+    <Dialog
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={(isOpen) => {
+        if (!isOpen) {
+          setError(null);
+        }
+      }}
+      open={open}
+    >
       <DialogTrigger
         disabled={!ready}
         render={
@@ -120,12 +138,19 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
         </DialogHeader>
 
         <div className="flex max-h-popover-viewport flex-col gap-6 overflow-y-auto py-2 pr-1">
+          <FormAlert message={error} />
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
             <div>
               <Label>Enabled</Label>
               <p className="text-xs text-muted-foreground">Disabled sites refuse new publishes.</p>
             </div>
-            <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={(value) => {
+                setError(null);
+                setIsEnabled(value);
+              }}
+            />
           </div>
 
           <div className="flex flex-col gap-3">
@@ -137,6 +162,7 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
             </div>
             <NicheToggleGroup
               onChange={(value) => {
+                setError(null);
                 setNiches(new Set(value));
               }}
               options={allNiches}
@@ -160,6 +186,7 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
               id={`default-category-${site.id}`}
               name="defaultCategory"
               onChange={(e) => {
+                setError(null);
                 setDefaultCategory(e.target.value);
               }}
               placeholder="sem-categoria"

@@ -11,11 +11,12 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { createFormHook, createFormHookContexts, revalidateLogic } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
 import { changePasswordSchema } from "@/lib/form-schemas";
@@ -69,17 +70,19 @@ const { useAppForm } = createFormHook({
 });
 
 export const PasswordForm = () => {
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const form = useAppForm({
     defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
     listeners: {
       onChange: () => {
+        setError(null);
         setMessage(null);
       },
     },
     onSubmit: async ({ value }) => {
+      setError(null);
       setMessage(null);
       const result = await authClient
         .changePassword({
@@ -89,19 +92,19 @@ export const PasswordForm = () => {
         })
         .catch(authFailureMessage);
       if (typeof result === "string") {
-        setMessage(result);
+        setError(result);
         return;
       }
       if (result.error) {
-        setMessage(result.error.message ?? "Could not change password.");
+        setError(result.error.message ?? "Could not change password.");
         return;
       }
       form.reset();
       setMessage("Password changed. Your other sessions have been signed out.");
       router.refresh();
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: changePasswordSchema },
@@ -116,14 +119,15 @@ export const PasswordForm = () => {
       </CardHeader>
       <CardContent>
         <ClientReadyForm
+          id={form.formId}
           onSubmit={(event) => {
             event.preventDefault();
             event.stopPropagation();
             void form.handleSubmit();
           }}
-          ref={formRef}
         >
           <FieldGroup>
+            <FormAlert message={error} />
             <form.AppField name="currentPassword">
               {(field) => (
                 <field.PasswordField autoComplete="current-password" label="Current password" />

@@ -4,11 +4,12 @@ import { Button } from "@repo/ui/components/button";
 import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
 import { apiUrl } from "@/lib/urls";
@@ -22,7 +23,6 @@ const errorSchema = z.object({ error: z.object({ message: z.string() }) });
 const WaitlistForm = () => {
   const [status, setStatus] = useState<"idle" | "success">("idle");
   const [error, setError] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues: { email: "", website: "" },
     listeners: {
@@ -50,8 +50,8 @@ const WaitlistForm = () => {
         setError("Could not reach the waitlist. Check your connection and try again.");
       }
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
@@ -70,14 +70,15 @@ const WaitlistForm = () => {
   }
   return (
     <ClientReadyForm
+      id={form.formId}
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
         void form.handleSubmit();
       }}
-      ref={formRef}
     >
       <FieldGroup>
+        <FormAlert message={error} />
         <form.Field name="email">
           {(field) => {
             const invalid = !field.state.meta.isValid;
@@ -89,6 +90,7 @@ const WaitlistForm = () => {
                     invalid ? "waitlist-email-error waitlist-privacy" : "waitlist-privacy"
                   }
                   aria-invalid={invalid}
+                  aria-required
                   autoComplete="email"
                   disabled={submitting}
                   id="waitlist-email"
@@ -98,7 +100,6 @@ const WaitlistForm = () => {
                     field.handleChange(event.target.value);
                   }}
                   placeholder="you@example.com"
-                  required
                   type="email"
                   value={field.state.value}
                 />
@@ -125,11 +126,6 @@ const WaitlistForm = () => {
             )}
           </form.Field>
         </div>
-        {error !== null && (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        )}
         <Button aria-busy={submitting} disabled={submitting} size="lg" type="submit">
           {submitting ? "Joining…" : "Join the cloud waitlist"}
         </Button>

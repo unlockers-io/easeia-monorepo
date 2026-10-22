@@ -1,6 +1,7 @@
 "use server";
 
-import { siteCreateSchema, postCreateFromFormData, siteUpdateFromFormData } from "@repo/api-types";
+import { siteCreateSchema, siteUpdateFromFormData, type PostCreateInput } from "@repo/api-types";
+import { Prisma } from "@repo/db";
 import * as Posts from "@repo/posts";
 import * as Sites from "@repo/sites";
 import { revalidatePath, updateTag } from "next/cache";
@@ -30,20 +31,25 @@ export const updateSiteAction = async (formData: FormData) => {
 const withError = (path: string, error: Sites.DomainError): string =>
   `${path}?error=${encodeURIComponent(error.message)}`;
 
-export const createPostAction = async (formData: FormData) => {
+export const createPostAction = async (
+  input: PostCreateInput,
+): Promise<{ id: string; ok: true } | { error: string; ok: false }> => {
   await requireSession();
   let result: Posts.CreateResult;
   try {
-    result = await Posts.create(postCreateFromFormData(formData));
+    result = await Posts.create(input);
   } catch (error) {
     if (error instanceof Sites.DomainError) {
-      redirect(withError("/dashboard/posts/new", error));
+      return { error: error.message, ok: false };
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: "This site already has a post with that slug.", ok: false };
     }
     throw error;
   }
   await audit({ action: "post.create", target: `post:${result.post.id}` });
   revalidatePath("/dashboard/posts");
-  redirect(`/dashboard/posts/${result.post.id}`);
+  return { id: result.post.id, ok: true };
 };
 
 export const publishPostAction = async (formData: FormData) => {

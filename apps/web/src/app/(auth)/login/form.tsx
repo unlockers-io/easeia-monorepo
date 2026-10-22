@@ -4,14 +4,14 @@ import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useRef, useState } from "react";
-import { toast } from "sonner";
+import { Suspense, use, useState } from "react";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
 import { loginSchema } from "@/lib/form-schemas";
@@ -48,17 +48,22 @@ const LoginForm = ({
 }: Props & { mailConfigured: boolean; signupOpen: boolean }) => {
   const { push, refresh } = useRouter();
   const [showUnverifiedNotice, setShowUnverifiedNotice] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
     onSubmit: async ({ value }) => {
       setShowUnverifiedNotice(false);
       const result = await authClient.signIn
         .email({ email: value.email, password: value.password })
         .catch(authFailureMessage);
       if (typeof result === "string") {
-        toast.error(result);
+        setError(result);
         return;
       }
       if (result.error) {
@@ -66,15 +71,15 @@ const LoginForm = ({
           setShowUnverifiedNotice(true);
           return;
         }
-        toast.error(result.error.message ?? "Invalid credentials");
+        setError(result.error.message ?? "Invalid credentials");
         return;
       }
       const { from } = await searchParams;
       push(safeRedirectPath(from));
       refresh();
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: loginSchema },
@@ -84,15 +89,16 @@ const LoginForm = ({
 
   return (
     <ClientReadyForm
+      id={form.formId}
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
         void form.handleSubmit();
       }}
-      ref={formRef}
     >
       <FieldGroup>
+        <FormAlert message={error} />
         <form.Field name="email">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;

@@ -12,11 +12,12 @@ import {
 import { Field, FieldLabel, FieldGroup } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
 import { updateSitePublishingAction } from "./actions";
@@ -53,9 +54,9 @@ export const PublishingForm = ({
     vercelProjectName: string | null;
   };
 }) => {
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues: {
       astroRepoUrl: site.astroRepoUrl ?? "",
@@ -65,18 +66,21 @@ export const PublishingForm = ({
     },
     listeners: {
       onChange: () => {
+        setError(null);
         setMessage(null);
       },
     },
     onSubmit: async ({ value }) => {
       const result = await updateSitePublishingAction(site.id, value);
-      setMessage(result.ok ? "Publishing settings saved." : result.error);
-      if (result.ok) {
-        router.refresh();
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      setMessage("Publishing settings saved.");
+      router.refresh();
     },
-    onSubmitInvalid: () => {
-      focusFirstInvalidField(formRef.current);
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
@@ -93,13 +97,14 @@ export const PublishingForm = ({
       </CardHeader>
       <CardContent>
         <ClientReadyForm
+          id={form.formId}
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
           }}
-          ref={formRef}
         >
           <FieldGroup>
+            <FormAlert message={error} />
             {fields.map(([name, label]) => (
               <form.Field key={name} name={name}>
                 {(field) => (
