@@ -5,9 +5,10 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/compon
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
@@ -15,6 +16,7 @@ import { recoverSchema } from "@/lib/form-schemas";
 
 const RecoverForm = () => {
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const form = useForm({
     defaultValues: { email: "" },
@@ -35,7 +37,11 @@ const RecoverForm = () => {
       }
       setSubmittedEmail(value.email);
     },
-    validators: { onSubmit: recoverSchema },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: recoverSchema },
   });
 
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
@@ -67,11 +73,12 @@ const RecoverForm = () => {
         e.stopPropagation();
         void form.handleSubmit();
       }}
+      ref={formRef}
     >
       <FieldGroup>
         <form.Field name="email">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>

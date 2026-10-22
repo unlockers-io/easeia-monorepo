@@ -91,6 +91,13 @@ describe("registerSchema", () => {
     const result = registerSchema.safeParse({ ...validData, confirmPassword: "short" });
     expect(result.success).toBe(false);
   });
+
+  it("should reject mismatched passwords on the confirmation field", () => {
+    const result = registerSchema.safeParse({ ...validData, confirmPassword: "securepasswore" });
+    expect(result.error?.issues).toMatchObject([
+      { message: "Passwords do not match", path: ["confirmPassword"] },
+    ]);
+  });
 });
 
 describe("recoverSchema", () => {
@@ -146,5 +153,15 @@ describe("resetPasswordSchema", () => {
       password: "123456789012",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("should reject mismatched passwords on the confirmation field", () => {
+    const result = resetPasswordSchema.safeParse({
+      confirmPassword: "newpassword13",
+      password: "newpassword12",
+    });
+    expect(result.error?.issues).toMatchObject([
+      { message: "Passwords do not match", path: ["confirmPassword"] },
+    ]);
   });
 });

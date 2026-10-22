@@ -5,21 +5,31 @@ import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 
 import { apiUrl } from "@/lib/urls";
 
-const emailSchema = z.string().trim().pipe(z.email("Enter a valid email address."));
+const formSchema = z.object({
+  email: z.string().trim().pipe(z.email("Enter a valid email address.")),
+  website: z.string(),
+});
 const errorSchema = z.object({ error: z.object({ message: z.string() }) });
 
 const WaitlistForm = () => {
   const [status, setStatus] = useState<"idle" | "success">("idle");
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues: { email: "", website: "" },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
     onSubmit: async ({ value }) => {
       setError(null);
       try {
@@ -40,6 +50,11 @@ const WaitlistForm = () => {
         setError("Could not reach the waitlist. Check your connection and try again.");
       }
     },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: formSchema },
   });
   const submitting = useSelector(form.store, (state) => state.isSubmitting);
 
@@ -60,16 +75,19 @@ const WaitlistForm = () => {
         event.preventDefault();
         void form.handleSubmit();
       }}
+      ref={formRef}
     >
       <FieldGroup>
-        <form.Field name="email" validators={{ onBlur: emailSchema, onChange: emailSchema }}>
+        <form.Field name="email">
           {(field) => {
-            const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const invalid = !field.state.meta.isValid;
             return (
               <Field data-invalid={invalid || undefined}>
                 <FieldLabel htmlFor="waitlist-email">Email address</FieldLabel>
                 <Input
-                  aria-describedby="waitlist-privacy"
+                  aria-describedby={
+                    invalid ? "waitlist-email-error waitlist-privacy" : "waitlist-privacy"
+                  }
                   aria-invalid={invalid}
                   autoComplete="email"
                   disabled={submitting}

@@ -13,9 +13,10 @@ import { Field, FieldLabel, FieldGroup } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 
 import { updateSitePublishingAction } from "./actions";
@@ -54,12 +55,18 @@ export const PublishingForm = ({
 }) => {
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues: {
       astroRepoUrl: site.astroRepoUrl ?? "",
       imageStyle: site.imageStyle ?? "",
       vercelDeployHookUrl: site.vercelDeployHookUrl ?? "",
       vercelProjectName: site.vercelProjectName ?? "",
+    },
+    listeners: {
+      onChange: () => {
+        setMessage(null);
+      },
     },
     onSubmit: async ({ value }) => {
       const result = await updateSitePublishingAction(site.id, value);
@@ -68,7 +75,11 @@ export const PublishingForm = ({
         router.refresh();
       }
     },
-    validators: { onBlur: formSchema, onChange: formSchema },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: formSchema },
   });
   return (
     <Card id="publishing">
@@ -86,17 +97,19 @@ export const PublishingForm = ({
             event.preventDefault();
             void form.handleSubmit();
           }}
+          ref={formRef}
         >
           <FieldGroup>
             {fields.map(([name, label]) => (
               <form.Field key={name} name={name}>
                 {(field) => (
-                  <Field>
+                  <Field data-invalid={!field.state.meta.isValid || undefined}>
                     <FieldLabel htmlFor={`${site.id}-${name}`}>{label}</FieldLabel>
                     <Input
                       aria-describedby={
-                        field.state.meta.errors.length > 0 ? `${site.id}-${name}-error` : undefined
+                        field.state.meta.isValid ? undefined : `${site.id}-${name}-error`
                       }
+                      aria-invalid={!field.state.meta.isValid}
                       autoComplete="off"
                       id={`${site.id}-${name}`}
                       onBlur={field.handleBlur}

@@ -3,9 +3,11 @@
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup } from "@repo/ui/components/field";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 import { toast } from "sonner";
 
 import { AuthPasswordField } from "@/components/auth-password-field";
@@ -14,14 +16,11 @@ import { resetPasswordSchema } from "@/lib/form-schemas";
 
 const ResetPasswordForm = ({ token }: { token: string }) => {
   const { push } = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const form = useForm({
     defaultValues: { confirmPassword: "", password: "" },
     onSubmit: async ({ value }) => {
-      if (value.password !== value.confirmPassword) {
-        toast.error("Passwords do not match");
-        return;
-      }
       const result = await authClient
         .resetPassword({
           newPassword: value.password,
@@ -38,7 +37,11 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
       }
       push("/login?message=password-reset-success");
     },
-    validators: { onSubmit: resetPasswordSchema },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: resetPasswordSchema },
   });
 
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
@@ -48,12 +51,18 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
       action={async () => {
         await form.handleSubmit();
       }}
+      ref={formRef}
     >
       <FieldGroup>
         <div className="grid grid-cols-2 gap-4">
           <form.Field name="password">
             {(field) => (
-              <AuthPasswordField disabled={isLoading} field={field} label="New password" />
+              <AuthPasswordField
+                description="At least 12 characters."
+                disabled={isLoading}
+                field={field}
+                label="New password"
+              />
             )}
           </form.Field>
 

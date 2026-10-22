@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
-import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import {
   Select,
@@ -98,12 +98,16 @@ const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: s
                 <Field>
                   <FieldLabel htmlFor="slug">Slug</FieldLabel>
                   <Input
+                    aria-describedby="slug-description"
                     id="slug"
                     name="slug"
                     pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
                     placeholder="kebab-case-only"
                     required
                   />
+                  <FieldDescription id="slug-description">
+                    Lowercase letters and numbers, separated by single hyphens.
+                  </FieldDescription>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="title">Title</FieldLabel>

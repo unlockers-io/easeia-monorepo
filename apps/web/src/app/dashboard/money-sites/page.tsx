@@ -1,9 +1,13 @@
 "use client";
+import { siteDomainSchema } from "@repo/api-types/sites";
 import { Button } from "@repo/ui/components/button";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormFieldError } from "@repo/ui/compositions/form-field-error";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -26,6 +30,20 @@ const moneySitesPayloadSchema = z.object({ data: z.array(moneySiteSchema) });
 
 type MoneySite = z.infer<typeof moneySiteSchema>;
 
+const formSchema = z.object({
+  contentPathPrefix: z.string().trim().max(500),
+  domain: siteDomainSchema,
+  name: z.string().trim().min(1, "Enter a name.").max(200),
+  sitemapUrl: z.url({ error: "Enter an HTTP(S) sitemap URL.", protocol: /^https?$/v }),
+});
+
+const fields = [
+  ["name", "Name", "Name (e.g., Acme Studios)"],
+  ["domain", "Domain", "Domain (e.g., acmestudios.example)"],
+  ["sitemapUrl", "Sitemap URL", "Sitemap URL"],
+  ["contentPathPrefix", "Content path prefix", "Content path prefix (optional, e.g., /spaces/)"],
+] as const;
+
 const QUERY_KEY = ["money-sites"] as const;
 const fetchAll = async (): Promise<Array<MoneySite>> => {
   const data = unwrapAction(await listMoneySitesAction());
@@ -45,12 +63,7 @@ const recrawl = async (id: string): Promise<void> => {
 
 const MoneySitesPage = () => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    contentPathPrefix: "",
-    domain: "",
-    name: "",
-    sitemapUrl: "",
-  });
+  const formRef = useRef<HTMLFormElement>(null);
 
   const {
     data: items = [],
@@ -68,7 +81,6 @@ const MoneySitesPage = () => {
       toast.error("Failed to add money site. Please try again.");
     },
     onSuccess: () => {
-      setForm({ contentPathPrefix: "", domain: "", name: "", sitemapUrl: "" });
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
@@ -85,18 +97,29 @@ const MoneySitesPage = () => {
     },
   });
 
-  const handleCreate = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!form.domain || !form.sitemapUrl || !form.name) {
-      return;
-    }
-    createSite({
-      contentPathPrefix: form.contentPathPrefix || undefined,
-      domain: form.domain,
-      name: form.name,
-      sitemapUrl: form.sitemapUrl,
-    });
-  };
+  const form = useForm({
+    defaultValues: { contentPathPrefix: "", domain: "", name: "", sitemapUrl: "" },
+    onSubmit: ({ formApi, value }) => {
+      createSite(
+        {
+          contentPathPrefix: value.contentPathPrefix || undefined,
+          domain: value.domain,
+          name: value.name,
+          sitemapUrl: value.sitemapUrl,
+        },
+        {
+          onSuccess: () => {
+            formApi.reset();
+          },
+        },
+      );
+    },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: formSchema },
+  });
 
   return (
     <section className="max-w-3xl p-6">
@@ -106,44 +129,38 @@ const MoneySitesPage = () => {
         money site; the rewriter picks topically-relevant money-site pages as link targets.
       </p>
 
-      <ClientReadyForm className="mt-6 grid gap-2 rounded border p-4" onSubmit={handleCreate}>
+      <ClientReadyForm
+        className="mt-6 grid gap-2 rounded border p-4"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+        ref={formRef}
+      >
         <div className="text-sm font-medium">Add money site</div>
-        <input
-          aria-label="Name"
-          className="rounded border px-2 py-1 text-base sm:text-sm"
-          onChange={(e) => {
-            setForm((prev) => ({ ...prev, name: e.target.value }));
-          }}
-          placeholder="Name (e.g., Acme Studios)"
-          value={form.name}
-        />
-        <input
-          aria-label="Domain"
-          className="rounded border px-2 py-1 text-base sm:text-sm"
-          onChange={(e) => {
-            setForm((prev) => ({ ...prev, domain: e.target.value }));
-          }}
-          placeholder="Domain (e.g., acmestudios.example)"
-          value={form.domain}
-        />
-        <input
-          aria-label="Sitemap URL"
-          className="rounded border px-2 py-1 text-base sm:text-sm"
-          onChange={(e) => {
-            setForm((prev) => ({ ...prev, sitemapUrl: e.target.value }));
-          }}
-          placeholder="Sitemap URL"
-          value={form.sitemapUrl}
-        />
-        <input
-          aria-label="Content path prefix"
-          className="rounded border px-2 py-1 text-base sm:text-sm"
-          onChange={(e) => {
-            setForm((prev) => ({ ...prev, contentPathPrefix: e.target.value }));
-          }}
-          placeholder="Content path prefix (optional, e.g., /spaces/)"
-          value={form.contentPathPrefix}
-        />
+        {fields.map(([name, label, placeholder]) => (
+          <form.Field key={name} name={name}>
+            {(field) => (
+              <>
+                <input
+                  aria-describedby={
+                    field.state.meta.isValid ? undefined : `money-site-${name}-error`
+                  }
+                  aria-invalid={!field.state.meta.isValid}
+                  aria-label={label}
+                  className="rounded border px-2 py-1 text-base sm:text-sm"
+                  onChange={(e) => {
+                    field.handleChange(e.target.value);
+                  }}
+                  placeholder={placeholder}
+                  value={field.state.value}
+                />
+                <FormFieldError errors={field.state.meta.errors} id={`money-site-${name}-error`} />
+              </>
+            )}
+          </form.Field>
+        ))}
         <Button disabled={isCreating} type="submit">
           Add
         </Button>

@@ -5,11 +5,12 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/compon
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useState } from "react";
+import { Suspense, use, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthPasswordField } from "@/components/auth-password-field";
@@ -44,14 +45,11 @@ const SignInLink = ({ searchParams }: Props) => {
 const RegisterForm = ({ searchParams }: Props) => {
   const { push, refresh } = useRouter();
   const [sentToEmail, setSentToEmail] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const form = useForm({
     defaultValues: { confirmPassword: "", email: "", name: "", password: "" },
     onSubmit: async ({ value }) => {
-      if (value.password !== value.confirmPassword) {
-        toast.error("Passwords do not match");
-        return;
-      }
       const { from } = await searchParams;
       const safeTo = safeRedirectPath(from);
       const result = await authClient.signUp
@@ -77,7 +75,11 @@ const RegisterForm = ({ searchParams }: Props) => {
       push(safeTo);
       refresh();
     },
-    validators: { onSubmit: registerSchema },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: registerSchema },
   });
 
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
@@ -102,16 +104,17 @@ const RegisterForm = ({ searchParams }: Props) => {
         e.stopPropagation();
         void form.handleSubmit();
       }}
+      ref={formRef}
     >
       <FieldGroup>
         <form.Field name="name">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
                 <Input
-                  aria-describedby={isInvalid ? "name-error" : undefined}
+                  aria-describedby={isInvalid ? "name-description name-error" : "name-description"}
                   aria-invalid={isInvalid}
                   autoComplete="name"
                   disabled={isLoading}
@@ -124,6 +127,7 @@ const RegisterForm = ({ searchParams }: Props) => {
                   placeholder="John Doe"
                   value={field.state.value}
                 />
+                <FieldDescription id="name-description">3 to 32 characters.</FieldDescription>
                 {isInvalid && <FormFieldError errors={field.state.meta.errors} id="name-error" />}
               </Field>
             );
@@ -132,7 +136,7 @@ const RegisterForm = ({ searchParams }: Props) => {
 
         <form.Field name="email">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -159,7 +163,14 @@ const RegisterForm = ({ searchParams }: Props) => {
 
         <div className="grid grid-cols-2 gap-4">
           <form.Field name="password">
-            {(field) => <AuthPasswordField disabled={isLoading} field={field} label="Password" />}
+            {(field) => (
+              <AuthPasswordField
+                description="At least 12 characters."
+                disabled={isLoading}
+                field={field}
+                label="Password"
+              />
+            )}
           </form.Field>
 
           <form.Field name="confirmPassword">

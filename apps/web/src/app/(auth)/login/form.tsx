@@ -5,11 +5,12 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/compon
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useState } from "react";
+import { Suspense, use, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
@@ -47,6 +48,7 @@ const LoginForm = ({
 }: Props & { mailConfigured: boolean; signupOpen: boolean }) => {
   const { push, refresh } = useRouter();
   const [showUnverifiedNotice, setShowUnverifiedNotice] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
@@ -71,7 +73,11 @@ const LoginForm = ({
       push(safeRedirectPath(from));
       refresh();
     },
-    validators: { onSubmit: loginSchema },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: loginSchema },
   });
 
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
@@ -84,11 +90,12 @@ const LoginForm = ({
         e.stopPropagation();
         void form.handleSubmit();
       }}
+      ref={formRef}
     >
       <FieldGroup>
         <form.Field name="email">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -115,7 +122,7 @@ const LoginForm = ({
 
         <form.Field name="password">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <div className="flex items-center">

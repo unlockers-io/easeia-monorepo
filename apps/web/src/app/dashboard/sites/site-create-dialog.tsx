@@ -16,9 +16,10 @@ import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
-import { useForm } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { z } from "zod";
 
 import { createSiteAction } from "../actions";
@@ -51,8 +52,14 @@ export const SiteCreateDialog = () => {
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const form = useForm({
     defaultValues,
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
     onSubmit: async ({ value }) => {
       setError(null);
       const result = await createSiteAction(value);
@@ -65,7 +72,11 @@ export const SiteCreateDialog = () => {
       router.push(`/dashboard/sites/${result.id}`);
       router.refresh();
     },
-    validators: { onBlur: formSchema, onChange: formSchema },
+    onSubmitInvalid: () => {
+      focusFirstInvalidField(formRef.current);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: formSchema },
   });
   return (
     <Dialog onOpenChange={setOpen} open={open}>
@@ -82,16 +93,16 @@ export const SiteCreateDialog = () => {
             event.preventDefault();
             void form.handleSubmit();
           }}
+          ref={formRef}
         >
           <FieldGroup>
             <form.Field name="domain">
               {(field) => (
-                <Field>
+                <Field data-invalid={!field.state.meta.isValid || undefined}>
                   <FieldLabel htmlFor={`${id}-domain`}>Domain</FieldLabel>
                   <Input
-                    aria-describedby={
-                      field.state.meta.errors.length > 0 ? `${id}-domain-error` : undefined
-                    }
+                    aria-describedby={field.state.meta.isValid ? undefined : `${id}-domain-error`}
+                    aria-invalid={!field.state.meta.isValid}
                     autoComplete="url"
                     id={`${id}-domain`}
                     onBlur={field.handleBlur}
@@ -139,12 +150,11 @@ export const SiteCreateDialog = () => {
             </form.Field>
             <form.Field name="vercelDeployHookUrl">
               {(field) => (
-                <Field>
+                <Field data-invalid={!field.state.meta.isValid || undefined}>
                   <FieldLabel htmlFor={`${id}-hook`}>Deploy hook URL (optional)</FieldLabel>
                   <Input
-                    aria-describedby={
-                      field.state.meta.errors.length > 0 ? `${id}-hook-error` : undefined
-                    }
+                    aria-describedby={field.state.meta.isValid ? undefined : `${id}-hook-error`}
+                    aria-invalid={!field.state.meta.isValid}
                     autoComplete="off"
                     id={`${id}-hook`}
                     onBlur={field.handleBlur}

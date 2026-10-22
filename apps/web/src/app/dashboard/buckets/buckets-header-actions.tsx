@@ -64,16 +64,16 @@ const dialogFormReducer = (state: DialogFormState, action: DialogFormAction): Di
       return { ...state, open: action.value };
     }
     case "cadenceDays.set": {
-      return { ...state, cadenceDays: action.value };
+      return { ...state, cadenceDays: action.value, result: { kind: "idle" } };
     }
     case "bucketTarget.set": {
-      return { ...state, bucketTarget: action.value };
+      return { ...state, bucketTarget: action.value, result: { kind: "idle" } };
     }
     case "bucketRefillAt.set": {
-      return { ...state, bucketRefillAt: action.value };
+      return { ...state, bucketRefillAt: action.value, result: { kind: "idle" } };
     }
     case "overwrite.set": {
-      return { ...state, overwrite: action.value };
+      return { ...state, overwrite: action.value, result: { kind: "idle" } };
     }
     case "result.set": {
       return { ...state, result: action.result };

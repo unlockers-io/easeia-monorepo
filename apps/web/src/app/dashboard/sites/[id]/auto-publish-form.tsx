@@ -99,22 +99,22 @@ const autoPublishReducer = (
 ): AutoPublishState => {
   switch (action.type) {
     case "enabled.toggle": {
-      return { ...state, enabled: action.value };
+      return { ...state, enabled: action.value, errors: [] };
     }
     case "language.set": {
-      return { ...state, language: action.value };
+      return { ...state, errors: [], language: action.value };
     }
     case "cadenceDays.set": {
-      return { ...state, cadenceDays: action.value };
+      return { ...state, cadenceDays: action.value, errors: [] };
     }
     case "topicHints.set": {
-      return { ...state, topicHints: action.value };
+      return { ...state, errors: [], topicHints: action.value };
     }
     case "bucketTarget.set": {
-      return { ...state, bucketTarget: action.value };
+      return { ...state, bucketTarget: action.value, errors: [] };
     }
     case "bucketRefillAt.set": {
-      return { ...state, bucketRefillAt: action.value };
+      return { ...state, bucketRefillAt: action.value, errors: [] };
     }
     case "save.done": {
       return {

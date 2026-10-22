@@ -9,7 +9,7 @@ const NEW_PASSWORD = "BrandNewPassword2!";
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Change password", () => {
-  test("shows an error after blur, clears it while typing, and saves on the first click", async ({
+  test("shows an error only after submit, clears it while typing, and saves on the next click", async ({
     loginPage,
     page,
     request,
@@ -33,7 +33,11 @@ test.describe("Change password", () => {
     await settingsPage.fillPassword("current", PASSWORD);
     await settingsPage.fillPassword("new", "too-short");
     await settingsPage.leavePassword("new");
+    await settingsPage.expectNewPasswordErrorHidden();
+
+    await settingsPage.changePassword();
     await settingsPage.expectNewPasswordErrorVisible();
+    await settingsPage.expectNewPasswordFocused();
 
     await settingsPage.fillPassword("new", NEW_PASSWORD);
     await settingsPage.expectNewPasswordErrorHidden();
