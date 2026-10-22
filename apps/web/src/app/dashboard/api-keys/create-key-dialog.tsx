@@ -103,6 +103,33 @@ const defaultValues: z.input<typeof formSchema> = {
   siteId: "",
 };
 
+const scopesDescribedBy = (noSite: boolean, invalid: boolean) =>
+  [noSite ? "scopes-no-site" : null, invalid ? "scopes-error" : null]
+    .filter((id) => id !== null)
+    .join(" ") || undefined;
+
+type ScopeOptionProps = {
+  checked: boolean;
+  disabled: boolean;
+  invalid: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  scope: ApiKeyScope;
+};
+
+const ScopeOption = ({ checked, disabled, invalid, onCheckedChange, scope }: ScopeOptionProps) => (
+  <label className="contents">
+    <Badge className="cursor-pointer select-none" variant={checked ? "default" : "outline"}>
+      <Checkbox
+        aria-invalid={invalid}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+      />
+      {scope}
+    </Badge>
+  </label>
+);
+
 const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
@@ -214,33 +241,34 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                   const selected = new Set(field.state.value);
                   return (
                     <FieldSet
-                      aria-describedby={isInvalid ? "scopes-error" : undefined}
+                      aria-describedby={scopesDescribedBy(sites.length === 0, isInvalid)}
                       data-invalid={isInvalid || undefined}
                     >
                       <FieldLegend variant="label">Scopes</FieldLegend>
                       <div className="flex flex-wrap gap-2">
                         {scopes.map((s) => (
-                          <label className="contents" key={s}>
-                            <Badge
-                              className="cursor-pointer select-none"
-                              variant={selected.has(s) ? "default" : "outline"}
-                            >
-                              <Checkbox
-                                aria-invalid={isInvalid}
-                                checked={selected.has(s)}
-                                onCheckedChange={(checked) => {
-                                  field.handleChange(
-                                    checked
-                                      ? [...field.state.value, s]
-                                      : field.state.value.filter((scope) => scope !== s),
-                                  );
-                                }}
-                              />
-                              {s}
-                            </Badge>
-                          </label>
+                          <ScopeOption
+                            checked={selected.has(s)}
+                            disabled={sites.length === 0 && isSiteScopedScope(s)}
+                            invalid={isInvalid}
+                            key={s}
+                            onCheckedChange={(checked) => {
+                              field.handleChange(
+                                checked
+                                  ? [...field.state.value, s]
+                                  : field.state.value.filter((scope) => scope !== s),
+                              );
+                            }}
+                            scope={s}
+                          />
                         ))}
                       </div>
+                      {sites.length === 0 && (
+                        <FieldDescription id="scopes-no-site">
+                          {siteScopedScopes.join(", ")} keys are restricted to one site, and no
+                          enabled site exists yet. Enable a site to pick them.
+                        </FieldDescription>
+                      )}
                       {isInvalid && (
                         <FormFieldError errors={field.state.meta.errors} id="scopes-error" />
                       )}
@@ -249,55 +277,49 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                 }}
               </form.Field>
 
-              {needsSite &&
-                (sites.length === 0 ? (
-                  <p className="text-sm text-destructive">
-                    {siteScopedScopes.join(", ")} keys are restricted to one site, and no enabled
-                    site exists yet. Enable a site first.
-                  </p>
-                ) : (
-                  <form.Field name="siteId">
-                    {(field) => {
-                      const isInvalid = !field.state.meta.isValid;
-                      return (
-                        <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor="siteId">Site</FieldLabel>
-                          <Select
-                            onValueChange={(next: string | null) => {
-                              field.handleChange(next ?? "");
-                            }}
-                            value={field.state.value}
+              {needsSite && (
+                <form.Field name="siteId">
+                  {(field) => {
+                    const isInvalid = !field.state.meta.isValid;
+                    return (
+                      <Field data-invalid={isInvalid || undefined}>
+                        <FieldLabel htmlFor="siteId">Site</FieldLabel>
+                        <Select
+                          onValueChange={(next: string | null) => {
+                            field.handleChange(next ?? "");
+                          }}
+                          value={field.state.value}
+                        >
+                          <SelectTrigger
+                            aria-describedby={
+                              isInvalid ? "siteId-description siteId-error" : "siteId-description"
+                            }
+                            aria-invalid={isInvalid}
+                            className="w-full"
+                            id="siteId"
                           >
-                            <SelectTrigger
-                              aria-describedby={
-                                isInvalid ? "siteId-description siteId-error" : "siteId-description"
-                              }
-                              aria-invalid={isInvalid}
-                              className="w-full"
-                              id="siteId"
-                            >
-                              <SelectValue placeholder="Pick a site" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {sites.map((site) => (
-                                <SelectItem key={site.id} value={site.id}>
-                                  {site.domain}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FieldDescription id="siteId-description">
-                            Required: {siteScopedScopes.join(", ")} keys only work against the site
-                            they are bound to.
-                          </FieldDescription>
-                          {isInvalid && (
-                            <FormFieldError errors={field.state.meta.errors} id="siteId-error" />
-                          )}
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
-                ))}
+                            <SelectValue placeholder="Pick a site" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sites.map((site) => (
+                              <SelectItem key={site.id} value={site.id}>
+                                {site.domain}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription id="siteId-description">
+                          Required: {siteScopedScopes.join(", ")} keys only work against the site
+                          they are bound to.
+                        </FieldDescription>
+                        {isInvalid && (
+                          <FormFieldError errors={field.state.meta.errors} id="siteId-error" />
+                        )}
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+              )}
             </FieldGroup>
 
             <DialogFooter>
