@@ -177,6 +177,7 @@ describe("resetPasswordSchema", () => {
       confirmPassword: "newpassword13",
       password: "newpassword12",
     });
+
     expect(result.error?.issues).toMatchObject([
       { message: "Passwords do not match", path: ["confirmPassword"] },
     ]);

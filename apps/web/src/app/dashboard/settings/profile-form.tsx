@@ -25,6 +25,7 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+
   const form = useForm({
     defaultValues: { name },
     listeners: {
@@ -37,14 +38,19 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
       setError(null);
       setMessage(null);
       const result = await authClient.updateUser(value).catch(authFailureMessage);
+
       if (typeof result === "string") {
         setError(result);
+
         return;
       }
+
       if (result.error) {
         setError(result.error.message ?? "Could not update profile.");
+
         return;
       }
+
       setMessage("Profile saved.");
       router.refresh();
     },
@@ -54,6 +60,7 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
     validationLogic: revalidateLogic(),
     validators: { onDynamic: profileSchema },
   });
+
   return (
     <Card>
       <CardHeader>
@@ -76,6 +83,7 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
             <form.Field name="name">
               {(field) => {
                 const isInvalid = !field.state.meta.isValid;
+
                 return (
                   <Field data-invalid={isInvalid || undefined}>
                     <FieldLabel htmlFor="account-name">Display name</FieldLabel>

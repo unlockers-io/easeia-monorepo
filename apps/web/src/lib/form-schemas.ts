@@ -74,8 +74,10 @@ const checkBucket = (
       message: "Set both bucket target and refill threshold, or leave both blank.",
       path: [bucketRefillAt === "" ? "bucketRefillAt" : "bucketTarget"],
     });
+
     return;
   }
+
   if (
     isCount(bucketRefillAt, 100) &&
     isCount(bucketTarget, 100) &&
@@ -104,6 +106,7 @@ export const autoPublishSchema = z
         path: ["cadenceDays"],
       });
     }
+
     checkBucket(value, context);
   });
 
@@ -117,6 +120,7 @@ export const networkDefaultsSchema = z
         path: ["cadenceDays"],
       });
     }
+
     checkBucket(value, context);
   });
 

@@ -1,4 +1,5 @@
 "use client";
+
 import { siteDomainSchema } from "@repo/api-types/sites";
 import { Button } from "@repo/ui/components/button";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
@@ -46,10 +47,13 @@ const fields = [
 ] as const;
 
 const QUERY_KEY = ["money-sites"] as const;
+
 const fetchAll = async (): Promise<Array<MoneySite>> => {
   const data = unwrapAction(await listMoneySitesAction());
+
   return moneySitesPayloadSchema.parse({ data }).data;
 };
+
 const create = async (input: {
   contentPathPrefix?: string;
   domain: string;
@@ -58,6 +62,7 @@ const create = async (input: {
 }): Promise<void> => {
   unwrapAction(await createMoneySiteAction(input));
 };
+
 const recrawl = async (id: string): Promise<void> => {
   unwrapAction(await recrawlMoneySiteAction(id));
 };
@@ -104,6 +109,7 @@ const MoneySitesPage = () => {
     },
     onSubmit: async ({ formApi, value }) => {
       setError(null);
+
       try {
         await createSite({
           contentPathPrefix: value.contentPathPrefix || undefined,

@@ -57,6 +57,7 @@ const RegisterForm = ({ searchParams }: Props) => {
     onSubmit: async ({ value }) => {
       const { from } = await searchParams;
       const safeTo = safeRedirectPath(from);
+
       const result = await authClient.signUp
         .email({
           callbackURL: safeTo,
@@ -65,18 +66,25 @@ const RegisterForm = ({ searchParams }: Props) => {
           password: value.password,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         setError(result);
+
         return;
       }
+
       if (result.error) {
         setError(result.error.message ?? "Failed to register");
+
         return;
       }
+
       if (result.data.token === null || result.data.token === "") {
         setSentToEmail(value.email);
+
         return;
       }
+
       push(safeTo);
       refresh();
     },
@@ -116,6 +124,7 @@ const RegisterForm = ({ searchParams }: Props) => {
         <form.Field name="name">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
@@ -143,6 +152,7 @@ const RegisterForm = ({ searchParams }: Props) => {
         <form.Field name="email">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>

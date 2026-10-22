@@ -11,6 +11,7 @@ const { fetchMock } = vi.hoisted(() => {
   const mock = vi.fn<typeof fetch>();
   // The auth client keeps the fetch it finds at import time.
   vi.stubGlobal("fetch", mock);
+
   return { fetchMock: mock };
 });
 

@@ -52,14 +52,18 @@ const describeStatus = ({
       ? `Paused. Last auto-published ${formatDate(lastAutoPublishedAt)}.`
       : "Paused. Toggle on + set cadence to start.";
   }
+
   if (!lastAutoPublishedAt) {
     return "Running. First post lands within the next hour (assuming the bucket has a draft).";
   }
+
   const nextDue = new Date(lastAutoPublishedAt.getTime() + cadenceDays * 24 * 60 * 60 * 1000);
   const now = Date.now();
+
   if (nextDue.getTime() <= now) {
     return `Running. Next post lands within the next hour (last: ${formatDate(lastAutoPublishedAt)}).`;
   }
+
   return `Running. Next post: ${formatDateTime(nextDue)} (last: ${formatDate(lastAutoPublishedAt)}).`;
 };
 
@@ -100,6 +104,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
     },
     onSubmit: async ({ value }) => {
       setError(null);
+
       const result = await updateAutoPublishAction(siteId, {
         autoPublishEnabled: value.enabled,
         bucketRefillAt: toNumberOrNull(value.bucketRefillAt),
@@ -108,10 +113,13 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
         language: value.language,
         topicHints: value.topicHints,
       });
+
       if (result.errors.length > 0) {
         setError(result.errors.join(" "));
+
         return;
       }
+
       setSavedAt(new Date());
     },
     onSubmitInvalid: ({ formApi }) => {
@@ -120,6 +128,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
     validationLogic: revalidateLogic(),
     validators: { onDynamic: autoPublishSchema },
   });
+
   const cadenceDays = useSelector(form.store, (state) => state.values.cadenceDays);
   const enabled = useSelector(form.store, (state) => state.values.enabled);
   const bucketHelpId = `bucket-help-${siteId}`;

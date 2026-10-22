@@ -28,6 +28,7 @@ const urlInput = z
     (value) => deployHookUrlSchema.safeParse(value).success,
     "Enter an HTTP(S) URL or leave it blank.",
   );
+
 const formSchema = z.object({
   astroRepoUrl: urlInput,
   imageStyle: z.string().max(2000),
@@ -57,6 +58,7 @@ export const PublishingForm = ({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+
   const form = useForm({
     defaultValues: {
       astroRepoUrl: site.astroRepoUrl ?? "",
@@ -72,10 +74,13 @@ export const PublishingForm = ({
     },
     onSubmit: async ({ value }) => {
       const result = await updateSitePublishingAction(site.id, value);
+
       if (!result.ok) {
         setError(result.error);
+
         return;
       }
+
       setMessage("Publishing settings saved.");
       router.refresh();
     },
@@ -85,6 +90,7 @@ export const PublishingForm = ({
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
   });
+
   return (
     <Card id="publishing">
       <CardHeader>

@@ -46,6 +46,7 @@ describe("AuthPasswordField", () => {
 
   it("describes the input by its helper text, then by its error as well", () => {
     const field = createField();
+
     const { rerender } = render(
       <AuthPasswordField
         description="At least 12 characters."

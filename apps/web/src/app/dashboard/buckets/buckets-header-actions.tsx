@@ -56,6 +56,7 @@ const NetworkDefaultsDialog = () => {
     onSubmit: async ({ value }) => {
       setError(null);
       setApplied(null);
+
       try {
         const result = await applyNetworkDefaultsAction({
           bucketRefillAt: toNumberOrNull(value.bucketRefillAt),
@@ -63,10 +64,13 @@ const NetworkDefaultsDialog = () => {
           cadenceDays: toNumberOrNull(value.cadenceDays),
           scope: value.overwrite ? "overwrite" : "unconfigured",
         });
+
         if (result.errors.length > 0) {
           setError(result.errors.join(" "));
+
           return;
         }
+
         setApplied({
           bucketSites: result.bucketSitesUpdated,
           cadenceSites: result.cadenceSitesUpdated,
@@ -234,10 +238,13 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
     startTransition(async () => {
       try {
         const result = await refillAllNeedyBucketsAction();
+
         if (!result.ok) {
           setState({ kind: "error", message: result.error });
+
           return;
         }
+
         const { queuedPerSite, sitesTouched } = result.data;
         const total = Object.values(queuedPerSite).reduce((sum, n) => sum + n, 0);
         setState({ kind: "done", sitesTouched, total });

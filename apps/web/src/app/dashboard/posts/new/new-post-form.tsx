@@ -52,6 +52,7 @@ const emptyPost: z.input<typeof newPostSchema> = {
 const splitCsv = (raw: string): Array<string> =>
   raw.split(",").flatMap((token) => {
     const trimmed = token.trim();
+
     return trimmed === "" ? [] : [trimmed];
   });
 
@@ -115,6 +116,7 @@ export const NewPostForm = ({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const ready = useClientReady();
+
   const form = useForm({
     defaultValues: { ...emptyPost, siteId: sites[0]?.id ?? "" },
     listeners: {
@@ -124,6 +126,7 @@ export const NewPostForm = ({
     },
     onSubmit: async ({ value }) => {
       setError(null);
+
       try {
         const result = await createPostAction({
           body: value.body,
@@ -138,10 +141,13 @@ export const NewPostForm = ({
           tags: splitCsv(value.tags),
           title: value.title,
         });
+
         if (!result.ok) {
           setError(result.error);
+
           return;
         }
+
         router.push(`/dashboard/posts/${result.id}`);
       } catch {
         setError("Could not save the post. Try again.");

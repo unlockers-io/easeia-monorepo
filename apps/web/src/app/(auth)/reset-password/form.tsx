@@ -32,14 +32,19 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
           token,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         setError(result);
+
         return;
       }
+
       if (result.error) {
         setError(result.error.message ?? "Failed to reset password");
+
         return;
       }
+
       push("/login?message=password-reset-success");
     },
     onSubmitInvalid: ({ formApi }) => {

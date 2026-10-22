@@ -40,8 +40,13 @@ export const postListQuerySchema = z.object({
 });
 
 export type PostCreate = z.infer<typeof postCreateSchema>;
+
 export type PostCreateInput = z.input<typeof postCreateSchema>;
+
 export type PostUpdate = z.infer<typeof postUpdateSchema>;
+
 export type PostUpdateInput = z.input<typeof postUpdateSchema>;
+
 export type PostListQuery = z.infer<typeof postListQuerySchema>;
+
 export type PostListQueryInput = z.input<typeof postListQuerySchema>;

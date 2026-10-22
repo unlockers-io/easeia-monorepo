@@ -18,11 +18,13 @@ const formSchema = z.object({
   email: z.string().trim().pipe(z.email("Enter a valid email address.")),
   website: z.string(),
 });
+
 const errorSchema = z.object({ error: z.object({ message: z.string() }) });
 
 const WaitlistForm = () => {
   const [status, setStatus] = useState<"idle" | "success">("idle");
   const [error, setError] = useState<string | null>(null);
+
   const form = useForm({
     defaultValues: { email: "", website: "" },
     listeners: {
@@ -32,6 +34,7 @@ const WaitlistForm = () => {
     },
     onSubmit: async ({ value }) => {
       setError(null);
+
       try {
         const response = await fetch(apiUrl("/api/waitlist"), {
           body: JSON.stringify({ ...value, source: "landing" }),
@@ -40,11 +43,14 @@ const WaitlistForm = () => {
           method: "POST",
           signal: AbortSignal.timeout(15_000),
         });
+
         if (!response.ok) {
           const parsed = errorSchema.safeParse(await response.json());
           setError(parsed.data?.error.message ?? "We could not save your email. Please try again.");
+
           return;
         }
+
         setStatus("success");
       } catch {
         setError("Could not reach the waitlist. Check your connection and try again.");
@@ -56,6 +62,7 @@ const WaitlistForm = () => {
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
   });
+
   const submitting = useSelector(form.store, (state) => state.isSubmitting);
 
   if (status === "success") {
@@ -68,6 +75,7 @@ const WaitlistForm = () => {
       </output>
     );
   }
+
   return (
     <ClientReadyForm
       id={form.formId}
@@ -82,6 +90,7 @@ const WaitlistForm = () => {
         <form.Field name="email">
           {(field) => {
             const invalid = !field.state.meta.isValid;
+
             return (
               <Field data-invalid={invalid || undefined}>
                 <FieldLabel htmlFor="waitlist-email">Email address</FieldLabel>
@@ -139,4 +148,5 @@ const WaitlistForm = () => {
     </ClientReadyForm>
   );
 };
+
 export { WaitlistForm };

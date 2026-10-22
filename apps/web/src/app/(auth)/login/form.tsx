@@ -59,21 +59,29 @@ const LoginForm = ({
     },
     onSubmit: async ({ value }) => {
       setShowUnverifiedNotice(false);
+
       const result = await authClient.signIn
         .email({ email: value.email, password: value.password })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         setError(result);
+
         return;
       }
+
       if (result.error) {
         if (result.error.code === "EMAIL_NOT_VERIFIED") {
           setShowUnverifiedNotice(true);
+
           return;
         }
+
         setError(result.error.message ?? "Invalid credentials");
+
         return;
       }
+
       const { from } = await searchParams;
       push(safeRedirectPath(from));
       refresh();
@@ -102,6 +110,7 @@ const LoginForm = ({
         <form.Field name="email">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -129,6 +138,7 @@ const LoginForm = ({
         <form.Field name="password">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <div className="flex items-center">

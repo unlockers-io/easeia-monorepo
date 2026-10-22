@@ -8,9 +8,11 @@ test("a new post shows its errors on submit, focuses the first one, and saves on
 }) => {
   const domain = recordCleanup("site", `e2e-post-${crypto.randomUUID()}.example`);
   await prisma.site.create({ data: { domain } });
+
   const slugError = page.getByText(
     "Use lowercase letters and numbers, separated by single hyphens.",
   );
+
   const slug = page.getByLabel("Slug", { exact: true });
   const save = page.getByRole("button", { exact: true, name: "Save" });
 

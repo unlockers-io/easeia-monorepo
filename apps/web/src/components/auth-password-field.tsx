@@ -21,6 +21,7 @@ const AuthPasswordField = ({ description, disabled, field, label }: Props) => {
   const isInvalid = !field.state.meta.isValid;
   const errorId = `${field.name}-error`;
   const descriptionId = `${field.name}-description`;
+
   const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
     .filter((describer) => describer !== null)
     .join(" ");

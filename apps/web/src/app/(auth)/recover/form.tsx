@@ -32,14 +32,19 @@ const RecoverForm = () => {
           redirectTo: `${window.location.origin}/reset-password`,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         setError(result);
+
         return;
       }
+
       if (result.error) {
         setError(result.error.message ?? "Failed to send password reset email");
+
         return;
       }
+
       setSubmittedEmail(value.email);
     },
     onSubmitInvalid: ({ formApi }) => {
@@ -85,6 +90,7 @@ const RecoverForm = () => {
         <form.Field name="email">
           {(field) => {
             const isInvalid = !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>

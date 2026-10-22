@@ -35,6 +35,7 @@ const PasswordField = ({ autoComplete, description, label }: PasswordFieldProps)
   const inputId = `account-${field.name}`;
   const errorId = `${inputId}-error`;
   const descriptionId = `${inputId}-description`;
+
   const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
     .filter((describer) => describer !== null)
     .join(" ");
@@ -73,6 +74,7 @@ export const PasswordForm = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+
   const form = useAppForm({
     defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
     listeners: {
@@ -84,6 +86,7 @@ export const PasswordForm = () => {
     onSubmit: async ({ value }) => {
       setError(null);
       setMessage(null);
+
       const result = await authClient
         .changePassword({
           currentPassword: value.currentPassword,
@@ -91,14 +94,19 @@ export const PasswordForm = () => {
           revokeOtherSessions: true,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         setError(result);
+
         return;
       }
+
       if (result.error) {
         setError(result.error.message ?? "Could not change password.");
+
         return;
       }
+
       form.reset();
       setMessage("Password changed. Your other sessions have been signed out.");
       router.refresh();
@@ -109,6 +117,7 @@ export const PasswordForm = () => {
     validationLogic: revalidateLogic(),
     validators: { onDynamic: changePasswordSchema },
   });
+
   return (
     <Card>
       <CardHeader>

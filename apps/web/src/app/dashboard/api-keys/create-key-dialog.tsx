@@ -145,15 +145,19 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
     },
     onSubmit: async ({ value }) => {
       setError(null);
+
       const result = await createApiKeyAction({
         name: value.name,
         scopes: value.scopes,
         siteId: value.scopes.some(isSiteScopedScope) ? value.siteId : undefined,
       });
+
       if (!result.ok) {
         setError(result.error);
+
         return;
       }
+
       setToken(result.data);
     },
     onSubmitInvalid: ({ formApi }) => {
@@ -162,6 +166,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
     validationLogic: revalidateLogic(),
     validators: { onDynamic: formSchema },
   });
+
   const needsSite = useSelector(form.store, (state) => state.values.scopes.some(isSiteScopedScope));
 
   const handleOpenChange = (next: boolean) => {
@@ -170,6 +175,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
       setToken(null);
       setError(null);
     }
+
     setOpen(next);
   };
 
@@ -207,6 +213,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
               <form.Field name="name">
                 {(field) => {
                   const isInvalid = !field.state.meta.isValid;
+
                   return (
                     <Field data-invalid={isInvalid || undefined}>
                       <FieldLabel htmlFor="name">Name</FieldLabel>
@@ -239,6 +246,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                 {(field) => {
                   const isInvalid = !field.state.meta.isValid;
                   const selected = new Set(field.state.value);
+
                   return (
                     <FieldSet
                       aria-describedby={scopesDescribedBy(sites.length === 0, isInvalid)}
@@ -281,6 +289,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                 <form.Field name="siteId">
                   {(field) => {
                     const isInvalid = !field.state.meta.isValid;
+
                     return (
                       <Field data-invalid={isInvalid || undefined}>
                         <FieldLabel htmlFor="siteId">Site</FieldLabel>

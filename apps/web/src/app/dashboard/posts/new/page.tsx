@@ -14,6 +14,7 @@ import { NewPostForm } from "./new-post-form";
 
 const NewPostPage = async () => {
   await connection();
+
   const sites = await prisma.site.findMany({
     orderBy: { domain: "asc" },
     select: { domain: true, id: true },
