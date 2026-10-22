@@ -13,20 +13,28 @@ const fmtRelative = (date: Date | null, nowMs: number): string => {
   if (!date) {
     return "never";
   }
+
   const diffMs = nowMs - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
+
   if (diffSec < 60) {
     return `${diffSec}s ago`;
   }
+
   const diffMin = Math.floor(diffSec / 60);
+
   if (diffMin < 60) {
     return `${diffMin}m ago`;
   }
+
   const diffH = Math.floor(diffMin / 60);
+
   if (diffH < 24) {
     return `${diffH}h ago`;
   }
+
   const diffD = Math.floor(diffH / 24);
+
   return `${diffD}d ago`;
 };
 
@@ -80,6 +88,7 @@ export const generateMetadata = async ({
 }): Promise<Metadata> => {
   const { id } = await params;
   const loaded = await loadMoneySite(id);
+
   return { title: loaded?.site.domain ?? "Money site" };
 };
 
@@ -97,6 +106,7 @@ const MoneySiteDetail = async ({ params }: { params: Promise<{ id: string }> }) 
   const nowMs = Date.now();
   const total = site.pages.length;
   const classified = site.pages.filter((p) => p.niches.length > 0).length;
+
   const lastCrawledAt =
     site.pages.length > 0 && site.pages[0]?.lastCrawledAt ? site.pages[0].lastCrawledAt : null;
 

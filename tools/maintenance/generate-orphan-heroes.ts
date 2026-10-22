@@ -49,6 +49,7 @@ const main = async (): Promise<void> => {
   const sites = await prisma.site.findMany({
     select: { domain: true, id: true, imageStyle: true },
   });
+
   const siteByDomain = new Map(sites.map((s) => [s.domain, s] as const));
 
   type Task = {
@@ -58,6 +59,7 @@ const main = async (): Promise<void> => {
     postId: string;
     siteId: string;
   };
+
   const tasks: Array<Task> = [];
 
   for (const f of readdirSync(ORPHAN_DIR).filter((n) => n.endsWith(".json"))) {
@@ -65,23 +67,29 @@ const main = async (): Promise<void> => {
     const siteFileJson: unknown = JSON.parse(readFileSync(siteFilePath, "utf8"));
     const data = siteFileSchema.parse(siteFileJson);
     const site = siteByDomain.get(data.domain);
+
     if (!site) {
       console.warn(
         `[gen] no site row for ${data.domain} — skipping ${data.orphans.length} orphans`,
       );
       continue;
     }
+
     const posts = await prisma.post.findMany({
       select: { id: true, slug: true },
       where: { siteId: site.id, slug: { in: data.orphans.map((o) => o.slug) } },
     });
+
     const postBySlug = new Map(posts.map((p) => [p.slug, p.id] as const));
+
     for (const o of data.orphans) {
       const postId = postBySlug.get(o.slug);
+
       if (postId === undefined || postId === "") {
         console.warn(`[gen] no post row for ${data.domain}/${o.slug}`);
         continue;
       }
+
       tasks.push({
         domain: data.domain,
         imageStyle: site.imageStyle,
@@ -91,6 +99,7 @@ const main = async (): Promise<void> => {
       });
     }
   }
+
   console.log(`[gen] total orphans: ${tasks.length}`);
 
   let generated = 0;
@@ -100,6 +109,7 @@ const main = async (): Promise<void> => {
 
   for (const task of tasks) {
     let existing: { id: string } | null;
+
     try {
       existing = await prisma.postImage.findFirst({
         select: { id: true },
@@ -112,6 +122,7 @@ const main = async (): Promise<void> => {
       await sleep(2000);
       continue;
     }
+
     if (existing) {
       skipped++;
       continue;
@@ -130,11 +141,13 @@ const main = async (): Promise<void> => {
         site: { imageStyle: task.imageStyle },
       });
       generated++;
+
       if (generated % 10 === 0) {
         console.log(
           `[gen] ${generated}/${tasks.length - skipped} (skipped ${skipped}, failed ${failed})`,
         );
       }
+
       await sleep(1500);
     } catch (error) {
       failed++;

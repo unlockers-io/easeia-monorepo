@@ -17,6 +17,7 @@ export const networkBackfill = createBackfill({
       select: { id: true },
       where: { status: PostStatus.PUBLISHED },
     });
+
     return { moneySiteIds: [], postIds: posts.map((post) => post.id) };
   },
   phases: [

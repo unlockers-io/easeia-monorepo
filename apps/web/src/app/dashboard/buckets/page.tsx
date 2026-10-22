@@ -49,6 +49,7 @@ const BucketsContent = async () => {
     if (a.needsRefill !== b.needsRefill) {
       return a.needsRefill ? -1 : 1;
     }
+
     return a.supply - b.supply;
   });
 
@@ -66,11 +67,14 @@ const BucketsContent = async () => {
         text: `${missedCount} site${missedCount === 1 ? "" : "s"} missed a cadence slot.`,
       };
     }
+
     if (needyCount > 0) {
       return { text: `${needyCount} bucket${needyCount === 1 ? "" : "s"} below threshold.` };
     }
+
     return { text: "All buckets above their refill threshold." };
   };
+
   const attention = buildAttentionLine();
   const { openai } = readIntegrations();
 

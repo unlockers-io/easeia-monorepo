@@ -44,6 +44,7 @@ const bucketIssues = ({ refillAt, target }: BucketInput): Array<Issue> => {
   if (refillAt === null && target === null) {
     return [];
   }
+
   if (refillAt === null || target === null) {
     return [
       {
@@ -52,6 +53,7 @@ const bucketIssues = ({ refillAt, target }: BucketInput): Array<Issue> => {
       },
     ];
   }
+
   return refillAt > target
     ? [
         {
@@ -77,14 +79,17 @@ export const configure = async (siteId: string, input: AutoPublishInput): Promis
       : []),
     ...(bucket === undefined ? [] : bucketIssues(bucket)),
   ]);
+
   const patch: Sites.SiteUpdatePatch = {
     autoPublishEnabled: input.autoPublishEnabled,
     cadenceDays,
   };
+
   if (bucket !== undefined) {
     patch.bucketRefillAt = bucket.refillAt;
     patch.bucketTarget = bucket.target;
   }
+
   return Sites.update(siteId, patch);
 };
 
@@ -97,6 +102,7 @@ export const applyNetworkDefaults = async (input: NetworkDefaultsInput) => {
       : []),
     ...bucketIssues({ refillAt, target }),
   ]);
+
   return Sites.applyNetworkDefaults({
     bucket: refillAt === null || target === null ? null : { refillAt, target },
     cadenceDays,

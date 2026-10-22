@@ -66,6 +66,7 @@ describe("stripEmDash", () => {
         `o conjunto ${EM} camera, lente e suporte ${EM} afeta o resultado.`,
         "PT",
       );
+
       expect(result.counts["paired-appositive"]).toBe(1);
     });
   });
@@ -155,6 +156,7 @@ describe("stripEmDash", () => {
         `ffmpeg -i in.wav out.wav # traco ${EM} preservado`,
         "```",
       ].join("\n");
+
       const result = stripEmDash(md, "PT", "markdown");
       expect(result.text).toContain(`# traco ${EM} preservado`);
       expect(result.text).toContain("Rode o comando: ele grava o log.");
@@ -190,6 +192,7 @@ describe("stripEmDash", () => {
         ``,
         `A diferenca de sensor ${EM} os numeros mostram o alcance real.`,
       ].join("\n");
+
       const result = stripEmDash(md, "PT", "markdown");
       expect(result.text).not.toContain(EM);
       expect(result.text).toContain("A diferenca de sensor: os numeros mostram o alcance real.");
@@ -203,6 +206,7 @@ describe("stripEmDash", () => {
         ``,
         `Corpo do texto ${EM} segue aqui.`,
       ].join("\n");
+
       const result = stripEmDash(md, "PT", "markdown");
       expect(result.text).toContain(`title: Guia ${EM} 2026`);
       expect(result.text).toContain("Corpo do texto: segue aqui.");
@@ -310,6 +314,7 @@ describe("stripEmDash", () => {
     it("does not swallow a second dash when the blocked tail is too long to pair", () => {
       const long =
         "luz, som, camera, tripe, gimbal, lentes, filtros, baterias, cartoes de memoria, refletores, rebatedores e cabos para o dia inteiro de gravacao na locacao alugada";
+
       const result = stripEmDash(`Plano: bloco um ${EM} ${long} ${EM} fim.`, "PT");
       expect(result.text).toBe(`Plano: bloco um, ${long}, fim.`);
       expect(result.counts["enumeration-parenthetical"]).toBe(0);
@@ -479,6 +484,7 @@ describe("stripEmDash", () => {
         `codigo ${EM} intacto`,
         "```",
       ].join("\n");
+
       const once = stripEmDash(md, "PT", "markdown");
       const twice = stripEmDash(once.text, "PT", "markdown");
       expect(twice.changed).toBe(false);

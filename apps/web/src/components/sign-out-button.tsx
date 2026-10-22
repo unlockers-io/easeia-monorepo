@@ -17,6 +17,7 @@ const SignOutButton = () => {
   const handleSignOut = async () => {
     setIsLoading(true);
     setError(null);
+
     try {
       await authClient.signOut();
       push("/login");

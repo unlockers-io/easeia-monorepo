@@ -33,29 +33,36 @@ const bearerToken = (authorization: string | undefined) => {
   if (authorization === undefined || !authorization.startsWith(BEARER_PREFIX)) {
     return undefined;
   }
+
   const token = authorization.slice(BEARER_PREFIX.length).trim();
+
   return token.startsWith(TOKEN_NAMESPACE) ? token : undefined;
 };
 
 export const authenticate = async (authorization: string | undefined): Promise<Actor | null> => {
   const token = bearerToken(authorization);
+
   if (token === undefined) {
     return null;
   }
+
   const [key] = await prisma.apiKey.updateManyAndReturn({
     data: { lastUsed: new Date() },
     select: { id: true, scopes: true, siteId: true },
     where: { hash: hashToken(token), revokedAt: null },
   });
+
   if (key === undefined) {
     throw new InvalidApiKeyError();
   }
+
   return { kind: "apikey", ...withKnownScopes(key) };
 };
 
 export const createApiKey = async (input: ApiKeyCreate) => {
   const { name, scopes, siteId } = apiKeyCreateSchema.parse(input);
   const token = `${TOKEN_NAMESPACE}${randomBytes(TOKEN_ENTROPY_BYTES).toString("base64url")}`;
+
   const key = await prisma.apiKey.create({
     data: {
       hash: hashToken(token),
@@ -66,6 +73,7 @@ export const createApiKey = async (input: ApiKeyCreate) => {
     },
     select: summaryFields,
   });
+
   return { ...withKnownScopes(key), token };
 };
 
@@ -74,6 +82,7 @@ export const listApiKeys = async () => {
     orderBy: { createdAt: "desc" },
     select: summaryFields,
   });
+
   return keys.map(withKnownScopes);
 };
 

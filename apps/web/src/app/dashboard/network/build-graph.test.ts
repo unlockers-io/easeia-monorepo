@@ -29,6 +29,7 @@ describe("buildGraph", () => {
 
   it("namespaces node ids by kind so PBN and money ids can't collide", () => {
     const { nodes } = buildGraph(sampleInput);
+
     for (const node of nodes) {
       if (node.type === "pbn-site") {
         expect(node.id.startsWith(PBN_NODE_PREFIX)).toBe(true);
@@ -47,6 +48,7 @@ describe("buildGraph", () => {
     const { edges } = buildGraph(sampleInput);
     const moneyBound = edges.filter((e) => e.data?.kind === "pbn-to-money");
     expect(moneyBound.length).toBeGreaterThan(0);
+
     for (const edge of moneyBound) {
       expect(edge.target.startsWith(MONEY_NODE_PREFIX)).toBe(true);
     }
@@ -63,9 +65,11 @@ describe("buildGraph", () => {
     const { nodes } = buildGraph(sampleInput);
     const s1 = nodes.find((n) => n.id === `${PBN_NODE_PREFIX}s1`);
     const s3 = nodes.find((n) => n.id === `${PBN_NODE_PREFIX}s3`);
+
     if (s1?.type !== "pbn-site" || s3?.type !== "pbn-site") {
       throw new Error("expected pbn-site nodes");
     }
+
     expect(s1.data.hasMoneyEdge).toBe(true);
     expect(s3.data.hasMoneyEdge).toBe(false);
   });
@@ -77,6 +81,7 @@ describe("buildGraph", () => {
       pbnEdges: [],
       pbnSites: [{ domain: "a.com", id: "s1", moneySiteId: null, niches: [], postCount: 0 }],
     });
+
     expect(nodes).toHaveLength(2);
     expect(edges).toHaveLength(0);
   });

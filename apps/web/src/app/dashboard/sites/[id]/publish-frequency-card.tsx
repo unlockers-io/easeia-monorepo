@@ -12,6 +12,7 @@ export const PublishFrequencyCard = async ({ siteId }: { siteId: string }) => {
   const stats = await fetchLocalStats(siteId);
   const max = Math.max(1, ...stats.publishesPerWeek.map((w) => w.count));
   const total = stats.publishesPerWeek.reduce((s, w) => s + w.count, 0);
+
   return (
     <Card>
       <CardHeader>

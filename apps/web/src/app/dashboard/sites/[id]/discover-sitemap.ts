@@ -19,6 +19,7 @@ export const isSameSite = (candidate: string, base: string): boolean => {
   try {
     const a = new URL(candidate);
     const b = new URL(base);
+
     return (
       isHttpFamily(a.protocol) &&
       isHttpFamily(b.protocol) &&
@@ -32,14 +33,18 @@ export const isSameSite = (candidate: string, base: string): boolean => {
 const addRobotsSitemaps = (body: string, origin: string, candidates: Set<string>): void => {
   for (const match of body.matchAll(/^\s*Sitemap:\s*(?<url>\S+)/gimv)) {
     const [, raw] = match;
+
     if (raw === undefined) {
       throw new Error("addRobotsSitemaps: Sitemap line matched without its capture group");
     }
+
     if (raw === "") {
       continue;
     }
+
     try {
       const absolute = new URL(raw, origin).href;
+
       if (isSameSite(absolute, origin)) {
         candidates.add(absolute);
       }
@@ -55,9 +60,11 @@ const probeWithMethod = async (
   origin: string,
 ): Promise<string> => {
   const controller = new AbortController();
+
   const timer = setTimeout(() => {
     controller.abort();
   }, PROBE_TIMEOUT_MS);
+
   try {
     const probe = await fetch(url, {
       cache: "no-store",
@@ -65,10 +72,13 @@ const probeWithMethod = async (
       redirect: "follow",
       signal: controller.signal,
     });
+
     const finalUrl = probe.url || url;
+
     if (probe.ok && isSameSite(finalUrl, origin)) {
       return finalUrl;
     }
+
     throw new Error("not ok or cross-origin");
   } finally {
     clearTimeout(timer);
@@ -88,6 +98,7 @@ const probeOne = async (url: string, origin: string): Promise<string> => {
 export const discoverSitemap = async (siteUrl: string): Promise<string | null> => {
   const base = siteUrl.replace(/\/?$/v, "");
   let origin: string;
+
   try {
     origin = new URL(base).origin;
   } catch {
@@ -101,7 +112,9 @@ export const discoverSitemap = async (siteUrl: string): Promise<string | null> =
       cache: "no-store",
       redirect: "follow",
     });
+
     const robotsUrl = robots.url || `${base}/robots.txt`;
+
     if (robots.ok && isSameSite(robotsUrl, origin)) {
       addRobotsSitemaps(await robots.text(), origin, candidates);
     }

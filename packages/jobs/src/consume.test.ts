@@ -55,9 +55,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const { id } = await enqueue({ kind: KIND, payload: { siteId: "site_unused" } });
       createdIds.push(id);
       await dispatchPendingJobs();
+
       for (let tick = 0; tick < 400; tick += 1) {
         await queue.promoteJobs();
         const job = await prisma.job.findUniqueOrThrow({ where: { id } });
+
         if (
           job.status === JobStatus.DONE ||
           job.status === JobStatus.FAILED ||
@@ -65,8 +67,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         ) {
           return job;
         }
+
         await sleep(25);
       }
+
       throw new Error(`Job ${id} never settled`);
     };
 
@@ -75,6 +79,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       const job = await run((ctx) => {
         seen.push(ctx);
+
         return Promise.resolve();
       });
 
@@ -90,6 +95,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       const job = await run(({ attemptsMade, finalAttempt }) => {
         calls.push({ attemptsMade, finalAttempt });
+
         return Promise.reject(new Error("boom"));
       });
 
@@ -114,10 +120,12 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const job = await run(
         () => {
           calls += 1;
+
           return Promise.reject(new NotConfiguredError("AI is not configured"));
         },
         (error) => !(error instanceof NotConfiguredError),
       );
+
       await queue.promoteJobs();
       const bullJob = await queue.getJob(job.id);
 
@@ -136,6 +144,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const job = await run(
         () => {
           calls += 1;
+
           return calls < 3 ? Promise.reject(new Error("flaky")) : Promise.resolve();
         },
         (error) => !(error instanceof NotConfiguredError),

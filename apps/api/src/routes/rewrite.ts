@@ -40,6 +40,7 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
     async (c) => {
       const { runId } = await dependencies.start({ force: c.req.valid("json").force ?? false });
       await dependencies.audit(c, { action: "rewrite.trigger", target: "network" });
+
       return c.json({ runId }, 202);
     },
   );
@@ -64,10 +65,13 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
     }),
     async (c) => {
       const id = c.req.valid("param").id;
+
       const job = await dependencies.requestRewrite(id, {
         force: c.req.valid("json").force ?? false,
       });
+
       await dependencies.audit(c, { action: "rewrite.trigger", target: `post:${id}` });
+
       return c.json({ jobId: job.id }, 202);
     },
   );
@@ -86,4 +90,5 @@ const rewriteRoutes = createRewriteRoutes({
 });
 
 export { createRewriteRoutes, rewriteRoutes };
+
 export type { RewriteRouteDependencies };

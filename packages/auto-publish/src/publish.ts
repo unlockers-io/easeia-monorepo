@@ -24,10 +24,13 @@ export const publishDraft = async (postId: string): Promise<void> => {
 
 export const publishNext = async (siteId: string): Promise<Published | null> => {
   const draft = await nextDraft(siteId);
+
   if (draft === null) {
     return null;
   }
+
   await publishDraft(draft.id);
+
   return { postId: draft.id, siteId };
 };
 
@@ -41,6 +44,7 @@ const findDue = async (now: Date) => {
       posts: { some: BUCKET_DRAFT },
     },
   });
+
   return sites.filter((site) => isDue(site, now));
 };
 
@@ -48,8 +52,10 @@ export const publishDue = async (now: Date): Promise<PublishDueResult> => {
   const sites = await findDue(now);
   const settled = await Promise.allSettled(sites.map((site) => publishNext(site.id)));
   const result: PublishDueResult = { failed: [], published: [], skipped: [] };
+
   for (const [index, outcome] of settled.entries()) {
     const siteId = sites[index]?.id ?? "";
+
     if (outcome.status === "fulfilled") {
       if (outcome.value === null) {
         result.skipped.push({ reason: "bucket emptied before the claim", siteId });
@@ -65,5 +71,6 @@ export const publishDue = async (now: Date): Promise<PublishDueResult> => {
       });
     }
   }
+
   return result;
 };

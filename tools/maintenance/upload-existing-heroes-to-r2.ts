@@ -12,8 +12,10 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const siteFilterArg = process.argv.find((a) => a.startsWith("--site="));
 const SITE_FILTER = siteFilterArg === undefined ? null : siteFilterArg.slice("--site=".length);
 const concurrencyArg = process.argv.find((a) => a.startsWith("--concurrency="));
+
 const concurrencyRaw =
   concurrencyArg === undefined ? "" : concurrencyArg.slice("--concurrency=".length);
+
 const CONCURRENCY = concurrencyRaw ? Math.max(1, Math.trunc(Number(concurrencyRaw))) : 8;
 
 const EXTS = new Set(["jpg", "jpeg", "png", "webp", "avif"]);
@@ -24,15 +26,19 @@ const mimeFor = (ext: string): string => {
     case "jpeg": {
       return "image/jpeg";
     }
+
     case "png": {
       return "image/png";
     }
+
     case "webp": {
       return "image/webp";
     }
+
     case "avif": {
       return "image/avif";
     }
+
     default: {
       throw new Error(`unknown extension: ${ext}`);
     }
@@ -43,9 +49,11 @@ const repoNameFor = (domain: string): string => domain.replace(/\.com(?:\.br)?$/
 
 const main = async () => {
   const reposDir = process.env.REPOS_DIR?.trim();
+
   if (reposDir === undefined || reposDir === "") {
     throw new Error("REPOS_DIR must point to the directory containing the site repositories.");
   }
+
   const sites = await prisma.site.findMany({
     orderBy: { domain: "asc" },
     select: { domain: true, id: true },
@@ -63,9 +71,11 @@ const main = async () => {
     const stagingDir = join(STAGING_DIR, site.domain);
 
     const sources: Array<{ dir: string; label: string }> = [];
+
     if (existsSync(assetsDir)) {
       sources.push({ dir: assetsDir, label: "repo" });
     }
+
     if (existsSync(stagingDir)) {
       sources.push({ dir: stagingDir, label: "staging" });
     }
@@ -77,25 +87,32 @@ const main = async () => {
 
     const seen = new Set<string>();
     const files: Array<{ dir: string; file: string; label: string }> = [];
+
     for (const src of sources) {
       for (const f of readdirSync(src.dir)) {
         const dot = f.lastIndexOf(".");
+
         if (dot <= 0 || !EXTS.has(f.slice(dot + 1).toLowerCase())) {
           continue;
         }
+
         const slug = f.slice(0, dot);
+
         if (seen.has(slug)) {
           continue;
         }
+
         seen.add(slug);
         files.push({ dir: src.dir, file: f, label: src.label });
       }
     }
+
     console.log(
       `\n[${site.domain}] ${files.length} local images (${sources.map((s) => s.label).join("+")})`,
     );
 
     const queue = [...files];
+
     const processOne = async ({
       dir,
       file,
@@ -108,6 +125,7 @@ const main = async () => {
       const dot = file.lastIndexOf(".");
       const slug = file.slice(0, dot);
       const ext = file.slice(dot + 1).toLowerCase();
+
       if (!EXTS.has(ext)) {
         return;
       }
@@ -116,9 +134,11 @@ const main = async () => {
         select: { id: true, slug: true },
         where: { siteId_slug: { siteId: site.id, slug } },
       });
+
       if (!post) {
         stats.missingPost++;
         console.warn(`  [no-post]  ${file}`);
+
         return;
       }
 
@@ -126,8 +146,10 @@ const main = async () => {
         select: { id: true },
         where: { isHero: true, postId: post.id },
       });
+
       if (existingHero) {
         stats.skipped++;
+
         return;
       }
 
@@ -136,6 +158,7 @@ const main = async () => {
 
       let width: number | null = null;
       let height: number | null = null;
+
       try {
         const meta = await sharp(bytes).metadata();
         width = meta.width;
@@ -148,6 +171,7 @@ const main = async () => {
 
       if (DRY_RUN) {
         stats.uploaded++;
+
         return;
       }
 
@@ -159,6 +183,7 @@ const main = async () => {
           postId: post.id,
           siteId: site.id,
         });
+
         await prisma.$transaction([
           prisma.postImage.create({
             data: {
@@ -179,6 +204,7 @@ const main = async () => {
           }),
         ]);
         stats.uploaded++;
+
         if (stats.uploaded % 25 === 0) {
           console.log(`  [progress] ${stats.uploaded} uploaded`);
         }
@@ -193,12 +219,15 @@ const main = async () => {
     const worker = async (): Promise<void> => {
       while (queue.length > 0) {
         const next = queue.shift();
+
         if (!next) {
           return;
         }
+
         await processOne(next);
       }
     };
+
     await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
   }
 

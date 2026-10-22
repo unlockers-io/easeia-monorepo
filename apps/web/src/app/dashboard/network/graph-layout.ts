@@ -18,11 +18,13 @@ type LayoutResult = {
 
 const moneyWeightBySite = (edges: Array<NetworkEdge>): Map<string, number> => {
   const weight = new Map<string, number>();
+
   for (const e of edges) {
     if (e.data?.kind === "pbn-to-money") {
       weight.set(e.source, (weight.get(e.source) ?? 0) + e.data.count);
     }
   }
+
   return weight;
 };
 
@@ -47,16 +49,19 @@ const stackColumn = (
 ): StackColumnResultContract => {
   const perColumn = wrap ? Math.ceil(sites.length / 2) : sites.length;
   let maxY = startY;
+
   const nodes = sites.map<PbnSiteNode>((node, i) => {
     const col = Math.floor(i / perColumn);
     const row = i % perColumn;
     const y = startY + row * ROW_STEP;
     maxY = Math.max(maxY, y + NODE_HEIGHT);
+
     return {
       ...node,
       position: { x: baseX - col * SECOND_COLUMN_GAP, y },
     };
   });
+
   return { maxY, nodes };
 };
 

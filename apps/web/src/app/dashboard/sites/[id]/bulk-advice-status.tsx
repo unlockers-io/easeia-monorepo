@@ -26,4 +26,5 @@ const BulkAdviceStatus = ({ bulk }: { bulk: BulkState }) => (
 );
 
 export { BulkAdviceStatus };
+
 export type { BulkState };

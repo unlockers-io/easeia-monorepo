@@ -20,6 +20,7 @@ const API_STATUS = {
 
 const renderPage = async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   const view = render(
     <QueryClientProvider client={client}>
       <NetworkBackfillPage
@@ -28,7 +29,9 @@ const renderPage = async () => {
       />
     </QueryClientProvider>,
   );
+
   await view.findByText("Classify (posts)");
+
   return view;
 };
 

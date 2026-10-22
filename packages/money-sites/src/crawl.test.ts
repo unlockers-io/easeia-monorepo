@@ -8,9 +8,11 @@ describe("crawlSitemap fetch", () => {
       contentPathPrefix: null,
       sitemapUrl: "https://money.test/sitemap.xml",
     });
+
     const fetchMock = vi.fn(() =>
       Promise.resolve(new Response("<urlset></urlset>", { status: 200 })),
     );
+
     const crawlSitemap = createCrawlSitemap({
       createPages: vi.fn().mockResolvedValue(0),
       fetchSitemap: fetchMock,

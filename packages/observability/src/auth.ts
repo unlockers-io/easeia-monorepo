@@ -6,4 +6,5 @@ const createIdentify = (auth: BetterAuthInstance, opts?: { exclude?: Array<strin
   createAuthMiddleware(auth, { exclude: opts?.exclude ?? ["/api/auth/**"] });
 
 export { identifyUser } from "evlog/better-auth";
+
 export { createIdentify };

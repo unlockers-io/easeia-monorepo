@@ -27,6 +27,7 @@ const defaultToJpeg = async (
   const out = await sharp(png)
     .jpeg({ mozjpeg: true, quality: 85 })
     .toBuffer({ resolveWithObject: true });
+
   return { bytes: new Uint8Array(out.data), height: out.info.height, width: out.info.width };
 };
 
@@ -43,6 +44,7 @@ export const generatePostImage = async (
 
   const png = await generateImage(input.prompt);
   const jpeg = await toJpeg(png);
+
   const result = await blob.upload({
     bytes: jpeg.bytes,
     filename: input.filename,
@@ -50,5 +52,6 @@ export const generatePostImage = async (
     postId: input.post.id,
     siteId: input.post.siteId,
   });
+
   return { height: jpeg.height, key: result.key, url: result.url, width: jpeg.width };
 };

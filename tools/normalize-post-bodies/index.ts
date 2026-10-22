@@ -32,9 +32,11 @@ const main = async (): Promise<void> => {
       skip: cursor === undefined ? 0 : 1,
       take: BATCH_SIZE,
     });
+
     if (rows.length === 0) {
       break;
     }
+
     scanned += rows.length;
     cursor = rows.at(-1)?.id;
 
@@ -42,10 +44,13 @@ const main = async (): Promise<void> => {
       if (normalizeBody(row.body, row.site.language) === row.body) {
         continue;
       }
+
       perSite.set(row.site.domain, (perSite.get(row.site.domain) ?? 0) + 1);
+
       if (!APPLY) {
         continue;
       }
+
       try {
         await reviseBody(row.id, { body: row.body, from: row.body });
       } catch (error) {
@@ -56,19 +61,23 @@ const main = async (): Promise<void> => {
 
   const changed = [...perSite.values()].reduce((sum, n) => sum + n, 0);
   console.log(`scanned ${scanned} posts, ${changed} bodies not normalized`);
+
   for (const [domain, n] of [...perSite].toSorted((a, b) => a[0].localeCompare(b[0]))) {
     console.log(`  ${domain.padEnd(30)} ${n}`);
   }
 
   if (!APPLY) {
     console.log("\ndry run: nothing written. Re-run with --apply to write.");
+
     return;
   }
 
   console.log(`\nwrote ${changed - failures.length} bodies, ${failures.length} failed`);
+
   for (const failure of failures) {
     console.error(`  [FAIL] ${failure}`);
   }
+
   if (failures.length > 0) {
     process.exitCode = 1;
   }

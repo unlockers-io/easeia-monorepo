@@ -22,6 +22,7 @@ export type ProposeTopicInput = {
 const buildProposeTopicPrompt = (input: ProposeTopicInput): string => {
   const languageName = SITE_LANGUAGE_HUMAN[input.language];
   const niches = input.niches.length === 0 ? "unspecified" : input.niches.join(", ");
+
   const lines = [
     "You pick the next blog post topic for a niche site. Choose ONE focus keyword a real person would type into Google, plus the angle the post should take.",
     `Site niches: ${niches}.`,
@@ -47,6 +48,7 @@ const buildProposeTopicPrompt = (input: ProposeTopicInput): string => {
     `- Write focusKeyword and angle in ${languageName}.`,
     "Output JSON with: focusKeyword, angle.",
   ];
+
   return lines.filter((l) => l !== "").join("\n");
 };
 

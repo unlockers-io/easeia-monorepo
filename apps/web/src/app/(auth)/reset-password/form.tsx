@@ -20,22 +20,29 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
     onSubmit: async ({ value }) => {
       if (value.password !== value.confirmPassword) {
         toast.error("Passwords do not match");
+
         return;
       }
+
       const result = await authClient
         .resetPassword({
           newPassword: value.password,
           token,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         toast.error(result);
+
         return;
       }
+
       if (result.error) {
         toast.error(result.error.message ?? "Failed to reset password");
+
         return;
       }
+
       push("/login?message=password-reset-success");
     },
     validators: { onSubmit: resetPasswordSchema },

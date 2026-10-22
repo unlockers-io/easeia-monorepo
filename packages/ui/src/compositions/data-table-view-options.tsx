@@ -24,6 +24,7 @@ const DataTableViewOptions = <TData extends RowData>({
   table,
 }: DataTableViewOptionsProps<TData>) => {
   const ready = useClientReady();
+
   const items = table.getAllColumns().flatMap((column: DataTableColumn<TData>) => {
     // getCanHide() alone, matching the "Hide" item in DataTableColumnHeader.
     // Also requiring an accessorFn excluded display columns, so a labelled
@@ -31,6 +32,7 @@ const DataTableViewOptions = <TData extends RowData>({
     if (!column.getCanHide()) {
       return [];
     }
+
     return [
       <DropdownMenuCheckboxItem
         checked={column.getIsVisible()}

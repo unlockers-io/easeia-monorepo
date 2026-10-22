@@ -18,6 +18,7 @@ const stripTrailingSlash = (value: string): string =>
 const slugFromUrl = (url: string): string | null => {
   const path = stripTrailingSlash(new URL(url).pathname);
   const last = path.split("/").at(-1);
+
   return last === undefined || last === "" ? null : last;
 };
 
@@ -38,45 +39,58 @@ const main = async () => {
     slug: string;
     title: string;
   };
+
   const candidates: Array<Candidate> = [];
 
   for (const site of sites) {
     const searchConsole = await forSite(site.domain);
+
     if (searchConsole.status === "not_connected") {
       throw new Error("No Google connection. Connect Search Console in the dashboard first.");
     }
+
     if (searchConsole.status === "not_verified") {
       console.warn(`skip ${site.domain}: not verified in Search Console`);
       continue;
     }
+
     const pages = await searchConsole.topPages({ days: WINDOW_DAYS, limit: PAGES_PER_SITE });
+
     const striking = pages.filter(
       (p) =>
         p.position >= MIN_POSITION &&
         p.position <= MAX_POSITION &&
         p.impressions >= MIN_IMPRESSIONS,
     );
+
     if (striking.length === 0) {
       continue;
     }
 
     const slugged: Array<{ page: TopPage; slug: string }> = [];
+
     for (const page of striking) {
       const slug = slugFromUrl(page.page);
+
       if (slug !== null) {
         slugged.push({ page, slug });
       }
     }
+
     const posts = await prisma.post.findMany({
       select: { id: true, rewrittenAt: true, slug: true, title: true },
       where: { siteId: site.id, slug: { in: slugged.map((s) => s.slug) } },
     });
+
     const bySlug = new Map(posts.map((p) => [p.slug, p]));
+
     for (const { page, slug } of slugged) {
       const post = bySlug.get(slug);
+
       if (!post) {
         continue;
       }
+
       candidates.push({
         clicks: page.clicks,
         domain: site.domain,
@@ -94,20 +108,24 @@ const main = async () => {
 
   if (candidates.length === 0) {
     console.log("No striking-distance candidates found.");
+
     return;
   }
 
   console.log(
     `\n${candidates.length} rewrite candidates (position ${MIN_POSITION}-${MAX_POSITION}, >=${MIN_IMPRESSIONS} impressions, last ${WINDOW_DAYS}d), best first:\n`,
   );
+
   for (const c of candidates) {
     const rewritten =
       c.rewrittenAt === null ? "" : ` [rewritten ${c.rewrittenAt.toISOString().slice(0, 10)}]`;
+
     console.log(
       `${c.impressions.toString().padStart(6)} impr  pos ${c.position.toFixed(1).padStart(5)}  ${c.clicks.toString().padStart(4)} clicks  ${c.domain}/${c.slug}${rewritten}`,
     );
     console.log(`        ${c.title}  (postId: ${c.postId})`);
   }
+
   console.log(
     "\nQueue one with: POST /api/rewrite/post/:postId (force=true to re-run an already-rewritten post).",
   );

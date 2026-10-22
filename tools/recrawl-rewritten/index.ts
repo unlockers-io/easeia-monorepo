@@ -12,6 +12,7 @@ const main = async (): Promise<number> => {
 
   if (posts.length === 0) {
     console.log("No rewritten posts to re-crawl.");
+
     return 0;
   }
 
@@ -19,6 +20,7 @@ const main = async (): Promise<number> => {
 
   let enqueued = 0;
   let failed = 0;
+
   for (const post of posts) {
     try {
       await enqueue({
@@ -28,6 +30,7 @@ const main = async (): Promise<number> => {
         siteId: post.siteId,
       });
       enqueued++;
+
       if (enqueued % 50 === 0) {
         console.log(`  ${enqueued}/${posts.length}`);
       }
@@ -38,6 +41,7 @@ const main = async (): Promise<number> => {
   }
 
   console.log(`Done. enqueued=${enqueued} failed=${failed}`);
+
   return failed > 0 ? 1 : 0;
 };
 

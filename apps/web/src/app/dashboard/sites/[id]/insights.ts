@@ -13,6 +13,7 @@ import { sitePublishedPostsTag } from "@/lib/cache-tags";
 import { discoverSitemap, isSameSite } from "./discover-sitemap";
 
 export type HealthCheck = { detail?: string; name: string; ok: boolean };
+
 type HealthReport = { checks: Array<HealthCheck>; ok: boolean };
 
 const trimOrigin = (url: string, base: string): string => {
@@ -20,7 +21,9 @@ const trimOrigin = (url: string, base: string): string => {
     if (!isSameSite(url, base)) {
       return url;
     }
+
     const parsed = new URL(url);
+
     return `${parsed.pathname}${parsed.search}` || "/";
   } catch {
     return url;
@@ -35,9 +38,11 @@ export const fetchHealth = async (siteId: string): Promise<HealthReport> => {
 
   try {
     const controller = new AbortController();
+
     const timer = setTimeout(() => {
       controller.abort();
     }, 10_000);
+
     try {
       const res = await fetch(siteUrl, {
         cache: "no-store",
@@ -45,6 +50,7 @@ export const fetchHealth = async (siteId: string): Promise<HealthReport> => {
         redirect: "follow",
         signal: controller.signal,
       });
+
       checks.push({
         detail: `HTTP ${res.status}`,
         name: "Site reachable",
@@ -106,7 +112,9 @@ export const fetchOnPageSeo = async (siteId: string): Promise<OnPageSeoReport> =
       title: p.title,
     })),
   );
+
   const checks = toOnPageChecks(summary);
+
   return { checks, ok: checks.every((c) => c.ok), published: summary.published };
 };
 
@@ -128,6 +136,7 @@ export const fetchSiteStats = async (siteId: string): Promise<SiteStats> => {
       where: { siteId, status: PostStatus.PUBLISHED },
     }),
   ]);
+
   return {
     lastPublishedAt: lastPost?.publishedAt?.toISOString() ?? null,
     postsTotal,
@@ -160,6 +169,7 @@ export const fetchRecentPosts = async (siteId: string, limit = 10): Promise<Arra
     take: limit,
     where: { siteId, status: PostStatus.PUBLISHED },
   });
+
   return posts.map((p) => ({
     id: p.id,
     link: postPublicUrl(p.site, p),
@@ -181,26 +191,31 @@ export const fetchLocalStats = async (siteId: string): Promise<LocalStats> => {
   });
 
   const nicheMap = new Map<string, number>();
+
   for (const post of posts) {
     for (const n of post.niches) {
       nicheMap.set(n, (nicheMap.get(n) ?? 0) + 1);
     }
   }
+
   const byNiche = [...nicheMap.entries()]
     .map(([niche, count]) => ({ count, niche }))
     .toSorted((a, b) => b.count - a.count);
 
   const now = new Date();
   const weeks: Array<{ count: number; weekStart: string }> = [];
+
   for (let i = 11; i >= 0; i--) {
     const start = new Date(now);
     start.setDate(now.getDate() - i * 7 - now.getDay());
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(start.getDate() + 7);
+
     const count = posts.filter(
       (p) => p.publishedAt !== null && p.publishedAt >= start && p.publishedAt < end,
     ).length;
+
     weeks.push({ count, weekStart: start.toISOString() });
   }
 

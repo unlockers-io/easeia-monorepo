@@ -42,16 +42,20 @@ const createCrawlSitemap =
   (dependencies: CrawlSitemapDependencies) =>
   async (moneySiteId: string): Promise<CrawlSitemapResult> => {
     const site = await dependencies.findSite(moneySiteId);
+
     if (!site) {
       return { discovered: 0, upserted: 0 };
     }
+
     const res = await dependencies.fetchSitemap(site.sitemapUrl, {
       headers: { "User-Agent": userAgent },
       signal: AbortSignal.timeout(30_000),
     });
+
     if (!res.ok) {
       throw new Error(`sitemap fetch ${res.status} from ${site.sitemapUrl}`);
     }
+
     const xml = await res.text();
     const allUrls = extractLocs(xml);
     const contentUrls = filterContentPaths(allUrls, site.contentPathPrefix);
@@ -59,6 +63,7 @@ const createCrawlSitemap =
     // skipDuplicates preserves crawled fields on existing rows, matching the
     // previous insert-if-absent behavior.
     const upserted = await dependencies.createPages(moneySiteId, contentUrls);
+
     return { discovered: allUrls.length, upserted };
   };
 
@@ -68,6 +73,7 @@ const crawlSitemap = createCrawlSitemap({
       data: urls.map((url) => ({ excerpt: "", moneySiteId, title: url, url })),
       skipDuplicates: true,
     });
+
     return created.count;
   },
   fetchSitemap: fetch,
@@ -84,17 +90,21 @@ export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResul
     include: { moneySite: true },
     where: { id: moneySitePageId },
   });
+
   if (!page) {
     return { classified: false, embedded: false };
   }
+
   const res = await fetch(page.url, {
     headers: { "User-Agent": userAgent },
     redirect: "follow",
     signal: AbortSignal.timeout(30_000),
   });
+
   if (!res.ok) {
     throw new Error(`page fetch ${res.status} from ${page.url}`);
   }
+
   // The dynamic import read as a lazy load but `./extract` imports linkedom
   // statically, so the module was always already resolved.
   const html = await res.text();
@@ -108,6 +118,7 @@ export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResul
   // used to be dead: classifyContent swallowed the error and returned null, so
   // the only branch here rethrew everything that reached it.
   let classified: ClassifyContentResult | null = null;
+
   try {
     classified = await classifyContent({
       body: bodyText.slice(0, MAX_BODY_CHARS),
@@ -122,6 +133,7 @@ export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResul
   }
 
   let embedding: Array<number> | null = null;
+
   try {
     embedding = await embedText(`${title}\n\n${bodyText.slice(0, MAX_EMBED_CHARS)}`);
   } catch (error) {
@@ -140,11 +152,14 @@ export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResul
     },
     where: { id: moneySitePageId },
   });
+
   if (embedding) {
     await recordPageEmbedding(moneySitePageId, embedding);
   }
+
   return { classified: classified !== null, embedded: embedding !== null };
 };
 
 export { crawlSitemap, createCrawlSitemap };
+
 export type { CrawlSitemapDependencies };

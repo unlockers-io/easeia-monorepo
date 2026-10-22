@@ -6,6 +6,7 @@ import { update } from "./index";
 
 describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", () => {
   let siteId = "";
+
   const fixture = async (
     isEnabled = true,
     vercelDeployHookUrl: string | null = "https://deploy.test/hook",
@@ -18,8 +19,10 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", ()
         vercelDeployHookUrl,
       },
     });
+
     siteId = site.id;
   };
+
   const deploys = () => countJobs({ kinds: [JobKind.TRIGGER_DEPLOY], siteId });
   afterEach(async () => {
     await prisma.job.deleteMany({ where: { siteId } });

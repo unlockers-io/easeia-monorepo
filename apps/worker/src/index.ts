@@ -62,6 +62,7 @@ type ConsumersContract = Record<JobKind, () => Worker>;
 
 const reapStuck = async (): Promise<void> => {
   const { reaped } = await reapStuckJobs(STUCK_AFTER_MS);
+
   if (reaped > 0) {
     log.warn({ message: "reaped stuck jobs", reaped });
   }
@@ -175,6 +176,7 @@ const shutdown = async (signal: string) => {
 };
 
 let shuttingDown: Promise<void> | undefined;
+
 const requestShutdown = (signal: string): void => {
   shuttingDown ??= shutdown(signal);
   void shuttingDown;
@@ -183,6 +185,7 @@ const requestShutdown = (signal: string): void => {
 process.on("SIGTERM", () => {
   requestShutdown("SIGTERM");
 });
+
 process.on("SIGINT", () => {
   requestShutdown("SIGINT");
 });

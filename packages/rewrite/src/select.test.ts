@@ -22,6 +22,7 @@ describe("pickTopByRecencyAndType", () => {
       ],
       3,
     );
+
     expect(out).toHaveLength(1);
   });
 
@@ -35,6 +36,7 @@ describe("pickTopByRecencyAndType", () => {
       ],
       3,
     );
+
     expect(out).toHaveLength(3);
   });
 });

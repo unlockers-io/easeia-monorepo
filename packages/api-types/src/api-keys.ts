@@ -35,6 +35,7 @@ export const apiKeyCreateSchema = z
   });
 
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+
 export type ApiKeyCreate = z.infer<typeof apiKeyCreateSchema>;
 
 export const isApiKeyScope = (scope: string): scope is ApiKeyScope =>

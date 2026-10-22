@@ -24,6 +24,7 @@ const unreachable: Rule = ({ latest, siteId }) => {
   if (latest.reachable) {
     return null;
   }
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "unreachable",
@@ -34,9 +35,11 @@ const unreachable: Rule = ({ latest, siteId }) => {
 
 const noPublishRecent: Rule = ({ latest, siteId }) => {
   const days = latest.daysSinceLastPublish;
+
   if (days === null || days <= 21) {
     return null;
   }
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "noPublishRecent",
@@ -47,10 +50,13 @@ const noPublishRecent: Rule = ({ latest, siteId }) => {
 
 const rankDropped: Rule = ({ latest, prior, siteId }) => {
   const priorRank = prior?.domainRank ?? null;
+
   if (priorRank === null || latest.domainRank === null || priorRank - latest.domainRank < 5) {
     return null;
   }
+
   const drop = priorRank - latest.domainRank;
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "rankDropped",
@@ -61,6 +67,7 @@ const rankDropped: Rule = ({ latest, prior, siteId }) => {
 
 const gscClicksDropped: Rule = ({ latest, prior, siteId }) => {
   const priorClicks = prior?.gscClicks ?? null;
+
   if (
     priorClicks === null ||
     latest.gscClicks === null ||
@@ -69,7 +76,9 @@ const gscClicksDropped: Rule = ({ latest, prior, siteId }) => {
   ) {
     return null;
   }
+
   const pct = Math.round(((priorClicks - latest.gscClicks) / priorClicks) * 100);
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "gscClicksDropped",
@@ -82,6 +91,7 @@ const lowOnPageScore: Rule = ({ latest, siteId }) => {
   if (latest.onPageScore === null || latest.onPageScore >= 70) {
     return null;
   }
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "lowOnPageScore",
@@ -98,10 +108,13 @@ const gscNotConnected: Rule = ({ latest, siteId }) => {
   if (latest.gscImpressions !== null) {
     return null;
   }
+
   const errors = gscErrorsSchema.safeParse(latest.errors);
+
   if (!errors.success || errors.data.gsc !== "not_connected") {
     return null;
   }
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "gscNotConnected",
@@ -114,6 +127,7 @@ const noRefDomains: Rule = ({ latest, siteId }) => {
   if (latest.referringDomains === null || latest.referringDomains >= 5) {
     return null;
   }
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "noRefDomains",
@@ -126,6 +140,7 @@ const lowCadence: Rule = ({ latest, siteId }) => {
   if (latest.postsLast30d >= 4) {
     return null;
   }
+
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "lowCadence",
@@ -148,11 +163,15 @@ const RULES: ReadonlyArray<Rule> = [
 const buildRecommendations = (ctx: RecommendationContext): Array<Recommendation> => {
   const triggered = RULES.flatMap((rule) => {
     const recommendation = rule(ctx);
+
     return recommendation === null ? [] : [recommendation];
   });
+
   triggered.sort((a, b) => a.priority - b.priority);
+
   return triggered.slice(0, 3);
 };
 
 export { buildRecommendations };
+
 export type { Recommendation, RecommendationContext, RecommendationPriority };

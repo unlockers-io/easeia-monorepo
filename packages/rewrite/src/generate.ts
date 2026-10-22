@@ -90,9 +90,11 @@ const buildAnchorsSection = (anchors: ReadonlyArray<AnchorSpec>): string => {
   if (anchors.length === 0) {
     return "";
   }
+
   const lines = anchors.map(
     (a, i) => `  ${i + 1}. ${a.url}\n     anchor text: "${a.anchor}"\n     reason: ${a.reason}`,
   );
+
   return [
     'LINKS TO INSERT (each exactly once, as inline `<a href="…">anchor text</a>` tags at natural spots in the body):',
     ...lines,
@@ -102,8 +104,10 @@ const buildAnchorsSection = (anchors: ReadonlyArray<AnchorSpec>): string => {
 const buildSerpSection = (serp: SerpContext): string => {
   const lines = serp.competitors.map((c, i) => {
     const description = c.description === null || c.description === "" ? "" : `: ${c.description}`;
+
     return `  ${i + 1}. ${c.title}${description}`;
   });
+
   return [
     `TARGET FOCUS KEYWORD: "${serp.focusKeyword}". Use it as the post's focusKeyword and build the post around this search intent.`,
     "",
@@ -122,6 +126,7 @@ const buildGeneratePrompt = (input: GeneratePostInput): string => {
   const languageName = SITE_LANGUAGE_HUMAN[input.site.language];
   const anchorsSection = buildAnchorsSection(input.anchors);
   const serpSection = input.serpContext === null ? "" : buildSerpSection(input.serpContext);
+
   const lines = [
     REWRITER_SYSTEM_PROMPT,
     "",
@@ -143,6 +148,7 @@ const buildGeneratePrompt = (input: GeneratePostInput): string => {
     "",
     `Output structured JSON with: title (50-${SEO_TITLE_MAX} chars, in ${languageName}), body (Markdown in ${languageName}; use ## / ### headings, **bold**, _italics_, - bullet lists; put each heading, paragraph and list item on its own line separated by a blank line; the only raw HTML allowed is the inline <a href="…"> tags for the links listed above, never HTML block markup and never Gutenberg block comments), category (one Title-Case noun phrase in ${languageName} naming the post's primary section, e.g. "Iluminação" or "Edição de Vídeo"), excerpt (140-${SEO_DESCRIPTION_MAX} chars, in ${languageName}), focusKeyword (2-5 words, in ${languageName}), tags (1-8 lowercase short strings in ${languageName}).`,
   ];
+
   return lines.filter((l) => l !== "").join("\n");
 };
 
@@ -150,10 +156,13 @@ type DetectedLanguage = { detected: SiteLanguage | "unknown"; francCode: string 
 
 const detectBodyLanguage = (body: string): DetectedLanguage => {
   const code = franc(stripHtml(body), { only: ["eng", "por", "spa"] });
+
   if (code === "und") {
     return { detected: "unknown", francCode: code };
   }
+
   const detected = francToSiteLanguage.get(code);
+
   return detected ? { detected, francCode: code } : { detected: "unknown", francCode: code };
 };
 
@@ -169,6 +178,7 @@ export const generateNewPost = async (input: GeneratePostInput): Promise<Generat
   });
 
   const { detected, francCode } = detectBodyLanguage(body);
+
   if (detected !== input.site.language) {
     throw new LanguageMismatchError(input.site.language, detected, francCode);
   }

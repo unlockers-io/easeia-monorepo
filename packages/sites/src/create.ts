@@ -17,6 +17,7 @@ export const createSite =
       ) {
         throw new SiteDomainTakenError();
       }
+
       throw error;
     }
   };

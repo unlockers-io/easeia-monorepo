@@ -33,6 +33,7 @@ describe("filterContentPaths", () => {
       "https://example.com/spaces/atelie",
       "https://example.com/contact",
     ];
+
     expect(filterContentPaths(urls, "/spaces/")).toEqual([
       "https://example.com/spaces/casa-jardim",
       "https://example.com/spaces/atelie",

@@ -18,13 +18,16 @@ const main = async () => {
   await seedAdmin();
 
   const file = process.argv.at(2);
+
   if (file !== undefined && file !== "") {
     const raw: unknown = JSON.parse(await readFile(file, "utf8"));
     const entries = seedSchema.parse(raw);
+
     for (const entry of entries) {
       const site = await Sites.upsert({
         domain: entry.domain,
       });
+
       console.log(`upserted ${site.domain}`);
     }
   } else {

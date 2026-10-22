@@ -18,6 +18,7 @@ const clean = (tail: string): string =>
 const tailClause = (tail: string): string => {
   const flat = tail.replaceAll(MASK_RE, " ");
   const m = CLAUSE_END.exec(flat);
+
   return (m === null ? flat : flat.slice(0, m.index)).trim();
 };
 
@@ -29,23 +30,30 @@ export const isClauseTail = (tail: string): boolean => {
   const raw = clean(tailClause(tail))
     .split(/[^\p{L}\p{N}]+/v)
     .filter(Boolean);
+
   const words = raw.map((w) => w.toLowerCase());
+
   for (const [i, w] of words.entries()) {
     if (SUBORDINATOR.has(w)) {
       return false;
     }
+
     if (i > 0 && (raw[i] ?? "") !== w) {
       continue;
     }
+
     if (AMBIGUOUS.has(w)) {
       if (i > 0 || NOUN_FOLLOWERS.has(words[i + 1] ?? "")) {
         continue;
       }
+
       return true;
     }
+
     if (FINITE.has(w) || IMPERATIVE.has(w)) {
       return true;
     }
   }
+
   return false;
 };

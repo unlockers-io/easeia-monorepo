@@ -13,20 +13,26 @@ export const resolveClientIp = (
   trusted: ReadonlySet<string>,
 ): string => {
   const address = normalizeIp(peer);
+
   if (!trusted.has(address) || forwarded === undefined || forwarded === "") {
     return address;
   }
+
   const chain = forwarded.split(",").map(normalizeIp);
   let client = address;
+
   for (const hop of chain.toReversed()) {
     if (!trusted.has(client)) {
       break;
     }
+
     if (isIP(hop) === 0) {
       return address;
     }
+
     client = hop;
   }
+
   return client;
 };
 
@@ -39,10 +45,12 @@ const trustedProxies = new Set(
 
 export const getClientIp = (c: Context): string => {
   let peer: string | undefined;
+
   try {
     peer = getConnInfo(c).remote.address;
   } catch {
     /* Non-Node test adapters share a conservative bucket. */
   }
+
   return resolveClientIp(peer ?? "unknown", c.req.header("x-forwarded-for"), trustedProxies);
 };

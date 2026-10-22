@@ -47,9 +47,11 @@ export const rewritePost = async (
     include: { site: { include: { moneySite: true } } },
     where: { id: postId },
   });
+
   if (!post) {
     return { outcome: "skipped", reason: "not_found" };
   }
+
   if (post.rewrittenAt !== null && opts.force !== true) {
     return { outcome: "skipped", reason: "already_rewritten" };
   }
@@ -58,7 +60,9 @@ export const rewritePost = async (
     fromPostId: postId,
     limit: SUGGESTION_OVERFETCH,
   });
+
   const topInternalPbn = pickTopByRecencyAndType(candidateLinks, TOP_INTERNAL_PBN);
+
   const moneyPages =
     post.site.moneySiteId !== null && post.site.moneySiteId !== ""
       ? await findRelevantPages(postId, TOP_MONEY_SITE)
@@ -97,7 +101,9 @@ export const rewritePost = async (
     }),
     schema: rewriteOutputSchema,
   });
+
   const { excerpt, focusKeyword, title } = output;
+
   const body = withSeeAlsoLinks(
     output.body,
     missing.map((a) => ({ anchorText: a.anchor, toUrl: a.url })),

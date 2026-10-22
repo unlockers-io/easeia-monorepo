@@ -7,12 +7,14 @@ const fanoutRejections = (
   settled: ReadonlyArray<PromiseSettledResult<unknown>>,
 ): ReadonlyArray<FanoutRejection> => {
   const out: Array<FanoutRejection> = [];
+
   for (const [index, result] of settled.entries()) {
     if (result.status === "rejected") {
       const reason = result.reason instanceof Error ? result.reason : String(result.reason);
       out.push({ index, reason });
     }
   }
+
   return out;
 };
 
@@ -37,9 +39,11 @@ const settleFanout = async (
   // the first await or the fan-out silently becomes serial.
   const settled = await Promise.allSettled(tasks.map((t) => t.run()));
   const rejections = fanoutRejections(settled);
+
   for (const { index, reason } of rejections) {
     log.error(asLoggableError(reason), { enqueueFailedFor: tasks[index]?.id });
   }
+
   if (rejections.length > 0) {
     log.emit();
     throw new Error(`${message}: ${rejections.length}/${tasks.length} enqueues failed`);
@@ -47,4 +51,5 @@ const settleFanout = async (
 };
 
 export { asLoggableError, fanoutRejections, settleFanout };
+
 export type { FanoutTask };

@@ -92,24 +92,30 @@ const main = async (): Promise<number> => {
     if (langFilter !== undefined && langFilter !== "" && c.language !== langFilter) {
       return false;
     }
+
     if (caseFilter !== undefined && caseFilter !== "" && !c.id.includes(caseFilter)) {
       return false;
     }
+
     return true;
   });
+
   if (cases.length === 0) {
     console.log("No cases matched filters.");
+
     return 0;
   }
 
   console.log(`Running ${cases.length} case${cases.length === 1 ? "" : "s"}…`);
 
   const results: Array<Awaited<ReturnType<typeof runCase>>> = [];
+
   for (const c of cases) {
     const r = await runCase(c);
     results.push(r);
     const status = r.passed === r.total ? "PASS" : "FAIL";
     console.log(`[${r.lang.toUpperCase()}] ${r.caseId}: ${status} (${r.passed}/${r.total})`);
+
     for (const f of r.failures) {
       console.log(f);
     }
@@ -119,7 +125,9 @@ const main = async (): Promise<number> => {
     (acc, r) => ({ passed: acc.passed + r.passed, total: acc.total + r.total }),
     { passed: 0, total: 0 },
   );
+
   console.log(`\nOverall: ${totals.passed} / ${totals.total} assertions passed`);
+
   return totals.passed === totals.total ? 0 : 1;
 };
 

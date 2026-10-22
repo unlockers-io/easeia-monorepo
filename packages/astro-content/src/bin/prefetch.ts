@@ -3,9 +3,11 @@ import { prefetchImages } from "../prefetch-images";
 
 const requireEnv = (key: string): string => {
   const value = process.env[key];
+
   if (value === undefined || value === "") {
     throw new Error(`Missing required env var: ${key}`);
   }
+
   return value;
 };
 
@@ -16,6 +18,7 @@ const run = async () => {
     outDir: process.env.EASEIA_IMAGES_DIR ?? "src/content/posts/images",
     siteId: requireEnv("EASEIA_SITE_ID"),
   });
+
   console.log(
     result.status === "up-to-date"
       ? `[easeia-prefetch-images] up to date (contentHash ${result.contentHash})`

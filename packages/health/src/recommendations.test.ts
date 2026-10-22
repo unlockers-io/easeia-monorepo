@@ -30,6 +30,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs).toEqual([]);
   });
 
@@ -39,6 +40,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs[0]?.id).toBe("unreachable");
     expect(recs[0]?.priority).toBe(1);
   });
@@ -49,6 +51,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("noPublishRecent");
   });
 
@@ -58,6 +61,7 @@ describe("buildRecommendations", () => {
       prior: { ...baseSnapshot, domainRank: 50 },
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("rankDropped");
   });
 
@@ -67,6 +71,7 @@ describe("buildRecommendations", () => {
       prior: { ...baseSnapshot, domainRank: 50 },
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).not.toContain("rankDropped");
   });
 
@@ -76,6 +81,7 @@ describe("buildRecommendations", () => {
       prior: { ...baseSnapshot, gscClicks: 100 },
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("gscClicksDropped");
   });
 
@@ -85,6 +91,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("lowOnPageScore");
   });
 
@@ -100,6 +107,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("gscNotConnected");
   });
 
@@ -113,6 +121,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).not.toContain("gscNotConnected");
   });
 
@@ -126,6 +135,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).not.toContain("gscNotConnected");
   });
 
@@ -135,6 +145,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("noRefDomains");
   });
 
@@ -144,6 +155,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs.map((r) => r.id)).toContain("lowCadence");
   });
 
@@ -161,6 +173,7 @@ describe("buildRecommendations", () => {
       prior: null,
       siteId: "site_1",
     });
+
     expect(recs).toHaveLength(3);
     expect(recs[0]?.priority).toBeLessThanOrEqual(recs[1]?.priority ?? 99);
     expect(recs[1]?.priority).toBeLessThanOrEqual(recs[2]?.priority ?? 99);

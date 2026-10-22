@@ -12,9 +12,11 @@ import { NavLink } from "./nav-link";
 
 const SessionEmail = async () => {
   const session = await getSession();
+
   if (!session) {
     redirect("/login");
   }
+
   return (
     <p className="text-xs break-all text-muted-foreground" title={session.user.email}>
       {session.user.email}
@@ -36,9 +38,11 @@ const NAV = [
 
 const AuthGate = async ({ children }: { children: ReactNode }) => {
   const session = await getSession();
+
   if (!session) {
     redirect("/login");
   }
+
   return children;
 };
 

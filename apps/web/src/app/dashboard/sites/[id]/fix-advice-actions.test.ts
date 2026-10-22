@@ -59,9 +59,11 @@ describe("getFixAdviceAction", () => {
     });
 
     expect(result.ok).toBe(true);
+
     if (!result.ok) {
       return;
     }
+
     expect(result.data).toEqual(baseAdvice);
     expect(generator).toHaveBeenCalledTimes(1);
     expect(generator).toHaveBeenCalledWith({
@@ -135,9 +137,11 @@ describe("getFixAdviceAction", () => {
     });
 
     expect(result.ok).toBe(false);
+
     if (result.ok) {
       return;
     }
+
     expect(result.error).toBe("Site not found.");
     expect(generator).not.toHaveBeenCalled();
   });

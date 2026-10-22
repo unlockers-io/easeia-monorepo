@@ -37,11 +37,13 @@ test("register, add a site, save a draft, then configure publishing", async ({ p
   await page.getByLabel("Password", { exact: true }).fill("DemoPassword123!");
   await page.getByLabel("Confirm Password").fill("DemoPassword123!");
   await page.getByRole("button", { name: "Create account" }).click();
+
   if (emailVerificationRequired) {
     await expect(page.getByText(/check your email/i)).toBeVisible();
     const mail = await waitForEmail({ sinceMs: since, subject: /verify/i, to: email });
     await page.goto(extractLink(mail, /\/api\/auth\/verify-email\?token=/));
   }
+
   await page.waitForURL("/dashboard");
   await page.goto("/dashboard/sites");
   await page.getByRole("button", { name: "Add site" }).first().click();

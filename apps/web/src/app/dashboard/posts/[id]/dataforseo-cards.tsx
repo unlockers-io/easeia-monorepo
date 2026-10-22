@@ -26,6 +26,7 @@ export const SerpRankCard = async ({
   url: string;
 }) => {
   const outcome = await serpOrganic(siteDomain, siteLanguage, focusKeyword);
+
   if (!outcome.ok) {
     return (
       <ProviderErrorCard
@@ -35,6 +36,7 @@ export const SerpRankCard = async ({
       />
     );
   }
+
   const result = outcome.data;
 
   return (
@@ -66,6 +68,7 @@ export const SerpRankCard = async ({
           <ol className="flex flex-col gap-2 text-sm">
             {result.top.slice(0, 5).map((p) => {
               const isThis = p.url === url;
+
               return (
                 <li className="flex items-baseline gap-2" key={`${p.rank}-${p.url}`}>
                   <span className="w-7 shrink-0 text-xs font-semibold text-muted-foreground tabular-nums">
@@ -92,6 +95,7 @@ export const SerpRankCard = async ({
 
 export const PostAuditCard = async ({ url }: { url: string }) => {
   const outcome = await auditPage(url);
+
   if (!outcome.ok) {
     return (
       <ProviderErrorCard
@@ -101,6 +105,7 @@ export const PostAuditCard = async ({ url }: { url: string }) => {
       />
     );
   }
+
   const audit = outcome.data;
 
   if (!audit) {

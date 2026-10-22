@@ -15,6 +15,7 @@ const tryFetch = async <T>(label: string, fn: () => Promise<T>): Promise<Outcome
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log.warn({ err: error, label, message: "snapshot fetcher failed" });
+
     return { error: msg, kind: "err" };
   }
 };
@@ -30,17 +31,21 @@ const synthesizeDomainRank = (
   if (!overview) {
     return null;
   }
+
   const weighted =
     overview.pos1 * 4 + overview.pos2to3 * 2 + overview.pos4to10 + overview.pos11to20 * 0.3;
+
   if (weighted <= 0) {
     return 0;
   }
+
   return Math.min(100, Math.round(Math.log10(weighted + 1) * 33));
 };
 
 const startOfUtcDay = (d: Date): Date => {
   const out = new Date(d);
   out.setUTCHours(0, 0, 0, 0);
+
   return out;
 };
 
@@ -70,20 +75,25 @@ const fetchPublishingStats = async (siteId: string) => {
 const checkReachability = async (siteId: string): Promise<boolean> => {
   try {
     const site = await Sites.find(siteId);
+
     if (!site) {
       return false;
     }
+
     const url = `https://${site.domain}`;
     const controller = new AbortController();
+
     const timer = setTimeout(() => {
       controller.abort();
     }, 10_000);
+
     try {
       const res = await fetch(url, {
         method: "HEAD",
         redirect: "follow",
         signal: controller.signal,
       });
+
       return res.ok;
     } finally {
       clearTimeout(timer);
@@ -102,17 +112,20 @@ const fetchGsc = async (
   impressions: number | null;
 }> => {
   const site = await forSite(domain);
+
   if (site.status !== "ok") {
     return { avgPosition: null, clicks: null, errorCode: site.status, impressions: null };
   }
 
   const t = await site.totals(7);
+
   if (t === null) {
     // Connected and verified, but the property has no rows in the window.
     // Null metrics drop the search component from the health score entirely;
     // zero-filling would score it as a first-place ranking.
     return { avgPosition: null, clicks: null, errorCode: null, impressions: null };
   }
+
   return {
     avgPosition: t.position,
     clicks: t.clicks,
@@ -126,9 +139,11 @@ const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promis
   const jobLog = createJobLogger({ jobId: ctx.jobId, queue: "snapshot-site" });
   jobLog.set({ siteId });
   const site = await Sites.find(siteId);
+
   if (!site) {
     jobLog.warn("snapshot: site not found, skipping");
     jobLog.emit();
+
     return;
   }
 
@@ -141,13 +156,16 @@ const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promis
   ]);
 
   const domainRank = dfsRank.kind === "ok" ? synthesizeDomainRank(dfsRank.value) : null;
+
   const backlinksTotal =
     dfsBacklinks.kind === "ok" ? (dfsBacklinks.value?.backlinks ?? null) : null;
+
   const referringDomains =
     dfsBacklinks.kind === "ok" ? (dfsBacklinks.value?.referringDomains ?? null) : null;
 
   const gscMetrics =
     gsc.kind === "ok" ? gsc.value : { avgPosition: null, clicks: null, impressions: null };
+
   const {
     avgPosition: gscAvgPosition,
     clicks: gscClicks,

@@ -10,6 +10,7 @@ export const mountForTest = <E extends Env>(router: Hono<E>): Hono => {
   app.use("*", honoEvlog());
   app.route("/", router);
   app.onError(errorHandler);
+
   return app;
 };
 

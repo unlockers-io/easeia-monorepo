@@ -7,6 +7,7 @@ const TABS = [
   ["/dashboard/network/rewrite", "Rewrite"],
   ["/dashboard/network/suggestions", "Suggestions"],
 ] as const;
+
 const Layout = ({ children }: { children: ReactNode }) => (
   <div className="flex flex-col gap-6">
     <nav aria-label="Network tools" className="flex flex-wrap gap-4 border-b pb-3">
@@ -19,4 +20,5 @@ const Layout = ({ children }: { children: ReactNode }) => (
     {children}
   </div>
 );
+
 export default Layout;

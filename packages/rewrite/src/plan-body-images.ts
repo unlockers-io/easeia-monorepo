@@ -49,18 +49,22 @@ const fencedLines = (body: string): ReadonlySet<number> => {
     if (/^\s*(?:```|~~~)/v.test(line)) {
       open = !open;
       fenced.add(i + 1);
+
       return;
     }
+
     if (open) {
       fenced.add(i + 1);
     }
   });
+
   return fenced;
 };
 
 export const buildBodyImagePlanPrompt = (input: PlanBodyImagesInput): string => {
   const languageName = SITE_LANGUAGE_HUMAN[input.site.language];
   const tagHint = input.post.tags.length > 0 ? ` Tags: ${input.post.tags.join(", ")}.` : "";
+
   return [
     `You are choosing where to place photographs inside a published blog post titled "${input.post.title}".${tagHint}`,
     "",
@@ -89,19 +93,24 @@ export const sanitizeBodyImagePlan = (
   const lineCount = body.split("\n").length;
   const fenced = fencedLines(body);
   const seen = new Set<number>();
+
   return raw
     .toSorted((a, b) => a.line - b.line)
     .filter((image) => {
       if (!Number.isInteger(image.line) || image.line < 1 || image.line > lineCount) {
         return false;
       }
+
       if (fenced.has(image.line) || seen.has(image.line)) {
         return false;
       }
+
       if (image.alt.trim() === "" || image.prompt.trim() === "") {
         return false;
       }
+
       seen.add(image.line);
+
       return true;
     })
     .slice(0, MAX_BODY_IMAGES)
@@ -115,5 +124,6 @@ export const planBodyImages = async (
     prompt: buildBodyImagePlanPrompt(input),
     schema: plannedBodyImagesSchema,
   });
+
   return sanitizeBodyImagePlan(input.body, images);
 };

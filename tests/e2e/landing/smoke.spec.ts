@@ -35,6 +35,7 @@ test("legal and search metadata routes render", async ({ page, request }) => {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
   }
+
   for (const path of ["/robots.txt", "/sitemap.xml", "/manifest.webmanifest"]) {
     const response = await request.get(path);
     expect(response.status()).toBe(200);

@@ -34,19 +34,27 @@ const relativeTime = (iso: string | null, nowMs: number): string => {
   if (iso === null) {
     return "never";
   }
+
   const diff = nowMs - new Date(iso).getTime();
+
   if (diff < 0) {
     return new Date(iso).toLocaleString("en-US", { timeZone: "UTC" });
   }
+
   const days = Math.floor(diff / MS_PER_DAY);
+
   if (days >= 1) {
     return `${days}d ago`;
   }
+
   const hours = Math.floor(diff / (60 * 60 * 1000));
+
   if (hours >= 1) {
     return `${hours}h ago`;
   }
+
   const minutes = Math.floor(diff / (60 * 1000));
+
   return `${Math.max(1, minutes)}m ago`;
 };
 
@@ -58,18 +66,24 @@ const nextPublishLabel = (
   if (!enabled || cadenceDays === null) {
     return "paused";
   }
+
   if (lastAutoPublishedAt === null) {
     return "within 1h";
   }
+
   const next = new Date(lastAutoPublishedAt).getTime() + cadenceDays * MS_PER_DAY;
   const diff = next - Date.now();
+
   if (diff <= 0) {
     return "within 1h";
   }
+
   const days = Math.floor(diff / MS_PER_DAY);
+
   if (days >= 1) {
     return `in ${days}d`;
   }
+
   return `in ${Math.max(1, Math.floor(diff / (60 * 60 * 1000)))}h`;
 };
 
@@ -77,6 +91,7 @@ const fillRatio = (supply: number, target: number | null): number => {
   if (target === null || target === 0) {
     return 0;
   }
+
   return Math.min(1, supply / target);
 };
 
@@ -94,6 +109,7 @@ const BucketBar = ({
   target: number | null;
 }) => {
   const ratio = fillRatio(supply, target);
+
   return (
     <div className="flex w-32 flex-col gap-1">
       <div className="text-xs font-medium tabular-nums">
@@ -130,10 +146,13 @@ const RowActions = ({
     startTransition(async () => {
       try {
         const result = await refillBucketAction(siteId);
+
         if (!result.ok) {
           setMessage(result.error);
+
           return;
         }
+
         const { queued } = result.data;
         setMessage(
           queued > 0 ? `+${queued} draft${queued === 1 ? "" : "s"} queued` : "Already at target",
@@ -157,6 +176,7 @@ const RowActions = ({
   };
 
   const refillDisabled = !ready || pending || !aiConfigured || bucketTarget === null;
+
   const refillTitle =
     bucketTarget === null ? "Set a bucket target on the site detail page" : "Refill to target";
 
@@ -221,6 +241,7 @@ const ExpandedDrafts = ({ nowMs, row }: { nowMs: number; row: BucketRow }) => {
       row.inflight > 0
         ? ` ${row.inflight} draft${row.inflight === 1 ? "" : "s"} currently being generated.`
         : " Click Refill to queue some drafts.";
+
     return (
       <div className="mr-2 mb-2 ml-9">
         <p className="rounded-md border border-dashed border-border/60 px-3 py-4 text-center text-xs text-muted-foreground">
@@ -229,6 +250,7 @@ const ExpandedDrafts = ({ nowMs, row }: { nowMs: number; row: BucketRow }) => {
       </div>
     );
   }
+
   return (
     <div className="mr-2 mb-2 ml-9">
       <ul className="flex flex-col gap-1">
@@ -255,11 +277,13 @@ type ExpandedState = ReadonlySet<string>;
 
 const toggleExpanded = (current: ExpandedState, siteId: string): ExpandedState => {
   const next = new Set(current);
+
   if (next.has(siteId)) {
     next.delete(siteId);
   } else {
     next.add(siteId);
   }
+
   return next;
 };
 
@@ -301,6 +325,7 @@ export const BucketsTable = ({
       {rows.map((row) => {
         const isOpen = expanded.has(row.siteId);
         const cadenceLabel = row.cadenceDays === null ? "—" : `every ${row.cadenceDays}d`;
+
         return (
           <div className="flex flex-col deferred-bucket-row" key={row.siteId}>
             <div className={`${ROW_GRID} rounded-md px-2 py-3 hover:bg-muted/40`}>

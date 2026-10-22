@@ -23,10 +23,13 @@ import { createPostRoutes } from "./posts";
 import { bypassMiddleware, mountForTest } from "./test-harness";
 
 let actor: Actor = { id: "admin", kind: "user" };
+
 const apiAuth: MiddlewareHandler<{ Variables: AuthVariables }> = (c, next) => {
   c.set("actor", actor);
+
   return next();
 };
+
 const post: Post = {
   body: "Body",
   categories: [],
@@ -47,6 +50,7 @@ const post: Post = {
   title: "Title",
   updatedAt: new Date(),
 };
+
 const writers = {
   create: vi.fn<typeof Posts.create>().mockResolvedValue({ post }),
   get: vi.fn<typeof Posts.get>().mockResolvedValue(post),
@@ -56,6 +60,7 @@ const writers = {
   unpublish: vi.fn<typeof Posts.unpublish>().mockResolvedValue({ post }),
   update: vi.fn<typeof Posts.update>().mockResolvedValue(post),
 };
+
 const key = {
   createdAt: new Date(),
   id: "key",
@@ -67,15 +72,18 @@ const key = {
   siteId: null,
   token: "token",
 };
+
 const createKey = vi.fn().mockResolvedValue(key);
 const listKeys = vi.fn().mockResolvedValue([]);
 const revokeKey = vi.fn().mockResolvedValue(undefined);
+
 const common = {
   apiAuth,
   audit: () => Promise.resolve(),
   rateLimit: bypassMiddleware,
   requirePermission: requireAction,
 };
+
 const posts = mountForTest(createPostRoutes({ ...common, posts: writers }));
 const keys = mountForTest(createApiKeyRoutes({ ...common, createKey, listKeys, revokeKey }));
 
@@ -88,11 +96,13 @@ const postCases = [
   ["POST", "/p1/publish", undefined, 202, writers.publish],
   ["POST", "/p1/unpublish", undefined, 200, writers.unpublish],
 ] as const;
+
 const keyCases = [
   ["GET", "/", undefined, 200, listKeys],
   ["POST", "/", { name: "test", scopes: ["posts:read"] }, 201, createKey],
   ["DELETE", "/key", undefined, 200, revokeKey],
 ] as const;
+
 const request = (
   app: typeof posts,
   method: string,
@@ -100,10 +110,12 @@ const request = (
   body: Record<string, string | ReadonlyArray<string>> | undefined,
 ) => {
   const init: RequestInit = { method };
+
   if (body !== undefined) {
     init.body = JSON.stringify(body);
     init.headers = { "Content-Type": "application/json" };
   }
+
   return app.request(path, init);
 };
 
@@ -133,6 +145,7 @@ describe("mounted route authorization", () => {
   beforeEach(() => vi.clearAllMocks());
   it.each(actors)("enforces Post access for $actor.id", async (access) => {
     actor = access.actor;
+
     for (const [method, path, body, success, handler] of postCases) {
       vi.clearAllMocks();
       const allowed = method === "GET" ? access.read : access.write;
@@ -143,6 +156,7 @@ describe("mounted route authorization", () => {
   });
   it.each(actors)("enforces API-key administration for $actor.id", async (access) => {
     actor = access.actor;
+
     for (const [method, path, body, success, handler] of keyCases) {
       vi.clearAllMocks();
       const response = await request(keys, method, path, body);

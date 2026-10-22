@@ -13,14 +13,19 @@ const LINKS_PER_POST = 4;
 const SUGGESTIONS_PER_POST = 20;
 
 const APPLY = process.argv.includes("--apply");
+
 const argValue = (flag: string): string | undefined => {
   const i = process.argv.indexOf(flag);
+
   return i === -1 ? undefined : process.argv[i + 1];
 };
+
 const numArg = (flag: string): number | undefined => {
   const value = argValue(flag);
+
   return value === undefined || value === "" ? undefined : Number(value);
 };
+
 const SITE = argValue("--site");
 const LIMIT = numArg("--limit");
 const OFFSET = numArg("--offset");
@@ -53,16 +58,20 @@ const fetchTopSuggestions = async (postId: string, body: string): Promise<Array<
   const links = await listSuggestions({ fromPostId: postId, limit: SUGGESTIONS_PER_POST });
   const seen = new Set<string>();
   const out: Array<Anchor> = [];
+
   for (const l of links) {
     if (l.toPostId === null || seen.has(l.toPostId) || body.includes(l.toUrl)) {
       continue;
     }
+
     seen.add(l.toPostId);
     out.push({ anchor: l.anchorText, linkId: l.id, url: l.toUrl });
+
     if (out.length >= LINKS_PER_POST) {
       break;
     }
   }
+
   return out;
 };
 
@@ -106,6 +115,7 @@ type Outcome = {
 const enrichOne = async (post: { body: string; id: string; slug: string }): Promise<Outcome> => {
   await suggestForPost(post.id);
   const anchors = await fetchTopSuggestions(post.id, post.body);
+
   if (anchors.length === 0) {
     return {
       id: post.id,
@@ -119,6 +129,7 @@ const enrichOne = async (post: { body: string; id: string; slug: string }): Prom
     prompt: buildPrompt(post.body, anchors),
     schema: bodySchema,
   });
+
   const llm = body.trim();
 
   const llmClean = proseOf(llm) === proseOf(post.body);
@@ -141,8 +152,10 @@ const main = async (): Promise<number> => {
   );
 
   const outcomes: Array<Outcome> = [];
+
   for (let i = 0; i < posts.length; i += BATCH_SIZE) {
     const batch = posts.slice(i, i + BATCH_SIZE);
+
     const settled = await Promise.all(
       batch.map(async (p): Promise<Outcome> => {
         try {
@@ -157,6 +170,7 @@ const main = async (): Promise<number> => {
         }
       }),
     );
+
     outcomes.push(...settled);
     console.log(`  processed ${Math.min(i + BATCH_SIZE, posts.length)}/${posts.length}`);
   }
@@ -170,21 +184,26 @@ const main = async (): Promise<number> => {
   );
 
   const skipReasons = new Map<string, number>();
+
   for (const o of outcomes.filter((x) => x.status === "skipped")) {
     const key = (o.reason ?? "unknown").slice(0, 80);
     skipReasons.set(key, (skipReasons.get(key) ?? 0) + 1);
   }
+
   for (const [reason, n] of skipReasons) {
     console.log(`  skip (${n}): ${reason}`);
   }
 
   if (!APPLY) {
     const sample = enriched.find((o) => o.method === "inline") ?? enriched.at(0);
+
     if (sample) {
       console.log(`\n--- sample (${sample.method}): ${sample.slug} ---`);
       console.log((sample.after ?? "").slice(-500));
     }
+
     console.log("\nDry run — no writes. Re-run with --apply to persist.");
+
     return 0;
   }
 
@@ -192,10 +211,12 @@ const main = async (): Promise<number> => {
     if (o.before !== undefined && o.after !== undefined && o.after !== o.before) {
       await reviseBody(o.id, { body: o.after, from: o.before });
     }
+
     await approveSuggestions(o.id, o.linkIds ?? []);
   }
 
   console.log(`\nWrote ${enriched.length} bodies.`);
+
   return 0;
 };
 

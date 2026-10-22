@@ -22,6 +22,7 @@ export const selectAnchorsForNewPost = async (
     include: { moneySite: { select: { name: true } } },
     where: { id: input.siteId },
   });
+
   if (!site) {
     return [];
   }

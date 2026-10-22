@@ -34,6 +34,7 @@ export const PostSearchConsoleCard = async ({
     () => forSite(domain),
     [GoogleAuthError, GoogleNotConfiguredError],
   );
+
   if (!resolved.ok) {
     return (
       <Card>
@@ -41,7 +42,9 @@ export const PostSearchConsoleCard = async ({
       </Card>
     );
   }
+
   const site = resolved.data;
+
   if (site.status === "not_connected") {
     return (
       <Card>
@@ -55,6 +58,7 @@ export const PostSearchConsoleCard = async ({
       </Card>
     );
   }
+
   if (site.status === "not_verified") {
     return (
       <Card>

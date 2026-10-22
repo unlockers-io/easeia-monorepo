@@ -9,18 +9,23 @@ import { BackfillAlreadyRunningError, networkBackfill } from "./index";
 describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfill", () => {
   let siteId = "";
   const runIds: Array<string> = [];
+
   const fixture = async () => {
     const site = await prisma.site.create({ data: { domain: `run-${crypto.randomUUID()}.test` } });
     siteId = site.id;
+
     return prisma.post.create({
       data: { body: "Body", siteId, slug: "post", status: PostStatus.PUBLISHED, title: "Post" },
     });
   };
+
   const start = async () => {
     const { runId } = await networkBackfill.start();
     runIds.push(runId);
+
     return runId;
   };
+
   afterEach(async () => {
     await prisma.job.deleteMany({ where: { runId: { in: runIds } } });
     await prisma.backfillRun.deleteMany({ where: { id: { in: runIds } } });
@@ -55,9 +60,11 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
   it("uses frozen members, treats optional-AI skips as terminal, and ignores unrelated work", async () => {
     const original = await fixture();
     const id = await start();
+
     const late = await prisma.post.create({
       data: { body: "new", siteId, slug: "new", status: PostStatus.PUBLISHED, title: "New" },
     });
+
     await prisma.job.updateMany({ data: { status: JobStatus.SKIPPED }, where: { runId: id } });
     await enqueue({ kind: JobKind.SUGGEST_LINKS, payload: { postId: late.id }, postId: late.id });
     await networkBackfill.tick();
@@ -83,12 +90,14 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
     const post = await fixture();
     const id = await start();
     const [child] = await listRunJobs(id);
+
     const input = {
       kind: JobKind.CLASSIFY,
       payload: { postId: post.id },
       postId: post.id,
       run: { id, member: post.id, phase: "CLASSIFY_EMBED" },
     } as const;
+
     await Promise.all([enqueue(input), enqueue(input)]);
     expect(await listRunJobs(id)).toHaveLength(2);
     await prisma.post.delete({ where: { id: post.id } });
@@ -112,16 +121,20 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
     "skips members removed or archived before consumption",
     async () => {
       const archived = await fixture();
+
       const deleted = await prisma.post.create({
         data: { body: "Body", siteId, slug: "deleted", status: "PUBLISHED", title: "Deleted" },
       });
+
       const id = await start();
       await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: archived.id } });
       await prisma.post.delete({ where: { id: deleted.id } });
       const handler = vi.fn().mockResolvedValue(undefined);
+
       const workers = [JobKind.CLASSIFY, JobKind.EMBED].map((kind) =>
         consume({ handler: forPublishedMember(handler), kind }),
       );
+
       try {
         await dispatchPendingJobs();
         await vi.waitFor(async () => {

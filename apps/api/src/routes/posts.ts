@@ -102,6 +102,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
 
   postRoutes.openapi(listPostsRoute, async (c) => {
     const result = await deps.posts.list(c.req.valid("query"));
+
     return c.json({ data: result.data, meta: result.meta }, 200);
   });
 
@@ -138,6 +139,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(createPostRoute, async (c) => {
     const result = await deps.posts.create(c.req.valid("json"));
     await deps.audit(c, { action: "post.create", target: `post:${result.post.id}` });
+
     return c.json({ data: result.post, job: result.job }, 201);
   });
 
@@ -163,6 +165,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
 
   postRoutes.openapi(getPostRoute, async (c) => {
     const post = await deps.posts.get(c.req.valid("param").id);
+
     return c.json({ data: post }, 200);
   });
 
@@ -199,6 +202,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(updatePostRoute, async (c) => {
     const post = await deps.posts.update(c.req.valid("param").id, c.req.valid("json"));
     await deps.audit(c, { action: "post.update", target: `post:${post.id}` });
+
     return c.json({ data: post }, 200);
   });
 
@@ -226,6 +230,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     const id = c.req.valid("param").id;
     await deps.posts.remove(id);
     await deps.audit(c, { action: "post.delete", target: `post:${id}` });
+
     return c.json({ ok: true as const }, 200);
   });
 
@@ -254,6 +259,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(publishPostRoute, async (c) => {
     const result = await deps.posts.publish(c.req.valid("param").id);
     await deps.audit(c, { action: "post.publish", target: `post:${result.post.id}` });
+
     return c.json({ data: { jobId: result.job.id, postId: result.post.id } }, 202);
   });
 
@@ -281,6 +287,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     const id = c.req.valid("param").id;
     await deps.posts.unpublish(id);
     await deps.audit(c, { action: "post.unpublish", target: `post:${id}` });
+
     return c.json({ ok: true as const }, 200);
   });
 

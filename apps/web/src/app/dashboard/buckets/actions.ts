@@ -13,10 +13,12 @@ import { withAuth } from "@/lib/server-action";
 export const refillBucketAction = async (siteId: string) =>
   withAuth(async () => {
     const { queued } = await AutoPublish.refill(siteId);
+
     if (queued > 0) {
       await audit({ action: "bucket.refill", target: `site:${siteId}` });
       revalidatePath("/dashboard/buckets");
     }
+
     return { queued };
   });
 
@@ -38,6 +40,7 @@ export const applyNetworkDefaultsAction = async (
 ): Promise<ApplyNetworkDefaultsResult> => {
   await requireSession();
   let counts: Awaited<ReturnType<typeof AutoPublish.applyNetworkDefaults>>;
+
   try {
     counts = await AutoPublish.applyNetworkDefaults({
       bucket: { refillAt: input.bucketRefillAt, target: input.bucketTarget },
@@ -48,12 +51,15 @@ export const applyNetworkDefaultsAction = async (
     if (error instanceof AutoPublishConfigError) {
       return { bucketSitesUpdated: 0, cadenceSitesUpdated: 0, errors: error.messages };
     }
+
     throw error;
   }
+
   await audit({ action: "site.update", meta: counts, target: "network" });
 
   revalidatePath("/dashboard/buckets");
   revalidatePath("/dashboard/sites");
+
   return { ...counts, errors: [] };
 };
 
@@ -61,13 +67,16 @@ export const refillAllNeedyBucketsAction = async () =>
   withAuth(async () => {
     const refills = await AutoPublish.refillAll();
     const queuedPerSite: Record<string, number> = {};
+
     for (const refill of refills) {
       if (refill.queued > 0) {
         queuedPerSite[refill.siteId] = refill.queued;
       }
     }
+
     await audit({ action: "bucket.refill", meta: queuedPerSite, target: "network" });
     revalidatePath("/dashboard/buckets");
+
     return { queuedPerSite, sitesTouched: Object.keys(queuedPerSite).length };
   });
 
@@ -75,13 +84,17 @@ type PublishNextResult = { ok: true } | { error: string; ok: false };
 
 export const publishNextFromBucketAction = async (siteId: string): Promise<PublishNextResult> => {
   await requireSession();
+
   try {
     const published = await AutoPublish.publishNext(siteId);
+
     if (!published) {
       return { error: "Bucket is empty", ok: false };
     }
+
     await audit({ action: "post.publish", target: `post:${published.postId}` });
     revalidatePath("/dashboard/buckets");
+
     return { ok: true };
   } catch (error) {
     return {

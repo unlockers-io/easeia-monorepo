@@ -11,9 +11,11 @@ import {
 
 const fd = (entries: Array<[string, string]>): FormData => {
   const form = new FormData();
+
   for (const [k, v] of entries) {
     form.append(k, v);
   }
+
   return form;
 };
 
@@ -23,6 +25,7 @@ describe("siteUpdateFromFormData", () => {
       ["id", "site-1"],
       ["isEnabled", "on"],
     ]);
+
     form.append("niches", Niche.PHOTOGRAPHY);
     form.append("niches", Niche.WEDDING);
     expect(siteUpdateFromFormData(form)).toEqual({
@@ -52,6 +55,7 @@ describe("siteUpdateFromFormData", () => {
       ["defaultCategory", " geral "],
       ["categorySlugMap", JSON.stringify({ "Edição de Vídeo": "video" })],
     ]);
+
     const { patch } = siteUpdateFromFormData(form);
     expect(patch.defaultCategory).toBe("geral");
     expect(patch.categorySlugMap).toEqual({ "Edição de Vídeo": "video" });
@@ -70,6 +74,7 @@ describe("siteUpdateFromFormData", () => {
         ["categorySlugMap", "{not json"],
       ]),
     );
+
     expect(patch.categorySlugMap).toBeUndefined();
   });
 });

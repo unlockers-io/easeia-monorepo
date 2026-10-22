@@ -4,16 +4,19 @@ import type { ResolvedLink } from "./classify";
 
 export const fabricatedHrefs = (resolved: ReadonlyArray<ResolvedLink>): Set<string> => {
   const out = new Set<string>();
+
   for (const link of resolved) {
     if (link.type === LinkType.EXTERNAL) {
       continue;
     }
+
     // toPostId is null both for an unresolvable slug and for a link the
     // classifier could not attribute to a site at all; both are fabricated.
     if (link.toPostId === null) {
       out.add(link.href);
     }
   }
+
   return out;
 };
 
@@ -27,13 +30,16 @@ const stripAnchor = (body: string, href: string): string => {
   let out = body.replace(mdRe, (_full, anchor: string) => anchor);
   const htmlRe = new RegExp(`<a\\s[^>]*href=["']${h}["'][^>]*>([\\s\\S]*?)</a>`, "giv");
   out = out.replace(htmlRe, (_full, inner: string) => inner);
+
   return out;
 };
 
 export const stripAnchors = (body: string, hrefs: Iterable<string>): string => {
   let out = body;
+
   for (const href of hrefs) {
     out = stripAnchor(out, href);
   }
+
   return out;
 };

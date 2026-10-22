@@ -42,6 +42,7 @@ type PostPageProps = {
 const PostPage = async ({ params, searchParams }: PostPageProps) => {
   const [{ id }, { error }] = await Promise.all([params, searchParams]);
   const post = await Posts.detail(id);
+
   if (!post) {
     notFound();
   }
@@ -54,6 +55,7 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
   // rewriter had flipped. `isLiveLink` is the same rule the dashboard and
   // network graph use.
   const liveOutbound = post.outbound.filter(isLiveLink);
+
   const moneySiteLinks =
     moneySiteDomain !== null && moneySiteDomain !== ""
       ? liveOutbound.filter((l) => l.toUrl.includes(moneySiteDomain))

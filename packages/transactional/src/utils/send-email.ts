@@ -13,6 +13,7 @@ const senderAddressSchema = z.string().refine(
   (val) => {
     const wrapped = /^.+<(?<address>[^<>\s]+)>$/v.exec(val);
     const email = wrapped ? wrapped[1] : val;
+
     return z.email().safeParse(email).success;
   },
   { message: "Must be a valid email or 'Display Name <email>' format" },
@@ -92,4 +93,5 @@ const createSendEmail =
 const sendEmail = createSendEmail(createResendClient);
 
 export { createSendEmail, sendEmail, senderAddressSchema };
+
 export type { ResendClientFactory };

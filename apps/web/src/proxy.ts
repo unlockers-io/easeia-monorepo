@@ -21,6 +21,7 @@ const getSessionOrNull = async (request: NextRequest) => {
       message: "proxy getSession failed; treating as unauthenticated",
       pathname: request.nextUrl.pathname,
     });
+
     return null;
   }
 };
@@ -31,6 +32,7 @@ export const proxy = async (request: NextRequest) => {
   if (pathname === "/") {
     const destination =
       getSessionCookie(request, { cookiePrefix: COOKIE_PREFIX }) === null ? "/login" : "/dashboard";
+
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
@@ -47,11 +49,13 @@ export const proxy = async (request: NextRequest) => {
   if (isProtectedRoute && !session) {
     const url = new URL("/login", request.url);
     url.searchParams.set("from", pathname);
+
     return NextResponse.redirect(url);
   }
 
   if (isAuthRoute && session) {
     const url = new URL("/dashboard", request.url);
+
     return NextResponse.redirect(url);
   }
 

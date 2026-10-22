@@ -19,12 +19,15 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const job = await queueFor(kind).getJob(id);
         await job?.remove();
       }
+
       await prisma.job.deleteMany({ where: { id: { in: ids } } });
       await closeJobs();
     });
+
     const record = async (delayMs = 0) => {
       const row = await enqueue({ ...input, delayMs });
       ids.push(row.id);
+
       return row;
     };
 

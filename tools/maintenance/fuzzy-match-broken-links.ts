@@ -16,19 +16,23 @@ type Hit = BrokenLink;
 const trigrams = (s: string): Set<string> => {
   const padded = `  ${s}  `;
   const out = new Set<string>();
+
   for (let i = 0; i < padded.length - 2; i++) {
     out.add(padded.slice(i, i + 3));
   }
+
   return out;
 };
 
 const jaccard = (a: Set<string>, b: Set<string>): number => {
   let inter = 0;
+
   for (const t of a) {
     if (b.has(t)) {
       inter++;
     }
   }
+
   return inter / (a.size + b.size - inter);
 };
 
@@ -36,6 +40,7 @@ const main = async () => {
   const broken: Array<Hit> = readBrokenLinks();
 
   const sites = await prisma.site.findMany({ select: { domain: true, id: true } });
+
   const domainToSiteId = new Map(
     sites.map((s) => [s.domain.replace(/^www\./i, "").toLowerCase(), s.id] as const),
   );
@@ -44,36 +49,47 @@ const main = async () => {
     select: { siteId: true, slug: true },
     where: { status: "PUBLISHED" },
   });
+
   const slugsBySite = new Map<string, Array<{ slug: string; tg: Set<string> }>>();
+
   for (const p of posts) {
     let list = slugsBySite.get(p.siteId);
+
     if (!list) {
       list = [];
       slugsBySite.set(p.siteId, list);
     }
+
     list.push({ slug: p.slug, tg: trigrams(p.slug) });
   }
 
   const out: Array<Hit & { matchScore: number; matchSlug: string | null }> = [];
+
   for (const hit of broken) {
     const siteId = domainToSiteId.get(hit.targetSiteDomain.replace(/^www\./i, "").toLowerCase());
+
     if (siteId === undefined || siteId === "") {
       out.push({ ...hit, matchScore: 0, matchSlug: null });
       continue;
     }
+
     const candidates = slugsBySite.get(siteId) ?? [];
     const targetTg = trigrams(hit.targetSlug);
     let best: { score: number; slug: string | null } = { score: 0, slug: null };
+
     for (const c of candidates) {
       const s = jaccard(targetTg, c.tg);
+
       if (s > best.score) {
         best = { score: s, slug: c.slug };
       }
     }
+
     out.push({ ...hit, matchScore: Math.round(best.score * 1000) / 1000, matchSlug: best.slug });
   }
 
   const buckets = { good: 0, none: 0, strong: 0, weak: 0 };
+
   for (const r of out) {
     if (r.matchScore >= 0.7) {
       buckets.strong++;
@@ -94,6 +110,7 @@ const main = async () => {
 
   console.log(`\n=== sample strong matches ===`);
   const strong = out.filter((r) => r.matchScore >= 0.7).slice(0, 12);
+
   for (const r of strong) {
     console.log(`  ${r.matchScore.toFixed(2)}  ${r.targetSiteDomain}`);
     console.log(`         broken:  ${r.targetSlug}`);
@@ -102,6 +119,7 @@ const main = async () => {
 
   console.log(`\n=== sample 0.5–0.7 matches ===`);
   const good = out.filter((r) => r.matchScore >= 0.5 && r.matchScore < 0.7).slice(0, 8);
+
   for (const r of good) {
     console.log(`  ${r.matchScore.toFixed(2)}  ${r.targetSiteDomain}`);
     console.log(`         broken:  ${r.targetSlug}`);

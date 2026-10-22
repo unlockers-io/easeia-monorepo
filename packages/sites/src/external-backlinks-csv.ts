@@ -16,8 +16,10 @@ const parseCsvLine = (line: string): Array<string> => {
   const out: Array<string> = [];
   let current = "";
   let inQuotes = false;
+
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
+
     if (inQuotes) {
       if (ch === '"') {
         if (line[i + 1] === '"') {
@@ -38,7 +40,9 @@ const parseCsvLine = (line: string): Array<string> => {
       current += ch;
     }
   }
+
   out.push(current);
+
   return out.map((s) => s.trim());
 };
 
@@ -52,6 +56,7 @@ const normalizeHeader = (s: string): string =>
 
 const matchHeader = (cell: string, patterns: ReadonlyArray<string>): boolean => {
   const n = normalizeHeader(cell);
+
   return patterns.includes(n);
 };
 
@@ -81,6 +86,7 @@ export const parseExternalBacklinksCsv = (
 ): ParseExternalBacklinksCsvResult => {
   const text = stripBom(csv).replaceAll(/\r\n?/gv, "\n");
   const lines = text.split("\n");
+
   const selfDomain =
     options.selfDomain !== undefined && options.selfDomain !== ""
       ? stripScheme(options.selfDomain)
@@ -96,19 +102,23 @@ export const parseExternalBacklinksCsv = (
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
+
     if (line.length === 0) {
       continue;
     }
+
     const cells = parseCsvLine(line);
 
     if (!headerSeen) {
       const siteCandidate = cells.findIndex((c) => matchHeader(c, SITE_HEADER_PATTERNS));
       const pagesCandidate = cells.findIndex((c) => matchHeader(c, LINKING_PAGES_HEADER_PATTERNS));
+
       if (siteCandidate !== -1 && pagesCandidate !== -1 && siteCandidate !== pagesCandidate) {
         siteIndex = siteCandidate;
         pagesIndex = pagesCandidate;
         headerSeen = true;
       }
+
       continue;
     }
 
@@ -126,14 +136,17 @@ export const parseExternalBacklinksCsv = (
       skipped++;
       continue;
     }
+
     if (selfDomain && sourceDomain === selfDomain) {
       skipped++;
       continue;
     }
+
     if (seenDomains.has(sourceDomain)) {
       skipped++;
       continue;
     }
+
     seenDomains.add(sourceDomain);
     rows.push({ linkingPages, sourceDomain });
   }

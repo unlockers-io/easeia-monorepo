@@ -11,6 +11,7 @@ export class DataForSeoNotConfiguredError extends DataForSeoError {
     this.name = "DataForSeoNotConfiguredError";
   }
 }
+
 export const isDataForSeoConfigured = () =>
   (process.env.DATAFORSEO_LOGIN?.trim() ?? "") !== "" &&
   (process.env.DATAFORSEO_PASSWORD?.trim() ?? "") !== "";
@@ -18,9 +19,11 @@ export const isDataForSeoConfigured = () =>
 export const loadCredentials = (): Credentials => {
   const login = process.env.DATAFORSEO_LOGIN?.trim();
   const password = process.env.DATAFORSEO_PASSWORD?.trim();
+
   if (login === undefined || login === "" || password === undefined || password === "") {
     throw new DataForSeoNotConfiguredError();
   }
+
   return { login, password };
 };
 

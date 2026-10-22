@@ -17,9 +17,11 @@ export const handleEmbed = async (ctx: ConsumerContext<"EMBED">): Promise<void> 
     select: { body: true, id: true, title: true },
     where: { id: postId },
   });
+
   if (!post) {
     log.warn("embed: post missing, skip");
     log.emit();
+
     return;
   }
 

@@ -82,4 +82,5 @@ const Pricing = () => (
     </div>
   </Section>
 );
+
 export { Pricing };

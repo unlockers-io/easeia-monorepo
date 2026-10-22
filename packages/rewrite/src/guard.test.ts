@@ -4,8 +4,10 @@ import { assertRewriteIsSane, RewriteOutputError } from "./guard";
 
 const P1 =
   "Reservar tempo para testes economiza retakes e ajuda o fotografo a escolher enquadramentos que favorecam seu look.";
+
 const P2 =
   "Se quiser ensaiar em espacos que facilitam producao e iluminacao natural, procure locacoes com opcoes de cenario variadas.";
+
 const P3 =
   "Praticar, fotografar e ajustar e a melhor forma de construir um guarda-roupa de fotos eficiente e consistente.";
 
@@ -39,21 +41,25 @@ describe("assertRewriteIsSane", () => {
       (_, i) =>
         `Paragrafo original numero ${i} com texto suficiente para contar como bloco substancial de prosa.`,
     ).join("\n\n");
+
     const inflated = Array.from(
       { length: 90 },
       (_, i) =>
         `Paragrafo inflado numero ${i} com texto suficiente para contar como bloco substancial de prosa.`,
     ).join("\n\n");
+
     expect(guard(long, inflated)).toThrow(/ceiling/v);
   });
 
   it("lets a short migration stub grow into a real article", () => {
     const stub = "Um stub curto herdado da migracao do WordPress, com poucas frases.";
+
     const grown = Array.from(
       { length: 20 },
       (_, i) =>
         `Paragrafo novo numero ${i} com texto suficiente para contar como bloco substancial de prosa.`,
     ).join("\n\n");
+
     expect(guard(stub, grown)).not.toThrow();
   });
 

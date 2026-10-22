@@ -18,6 +18,7 @@ import { JobStatusBadge } from "@/components/job-status-badge";
 const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const job = await getJob(id);
+
   if (!job) {
     notFound();
   }
@@ -122,9 +123,11 @@ const JobTitle = ({
   if (post) {
     return post.title;
   }
+
   if (site) {
     return site.domain;
   }
+
   return "Job";
 };
 

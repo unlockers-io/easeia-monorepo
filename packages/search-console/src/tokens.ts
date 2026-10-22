@@ -9,11 +9,13 @@ export type GoogleConnectionPublic = Omit<GoogleConnection, "accessToken" | "ref
 
 const stripTokens = (row: GoogleConnection): GoogleConnectionPublic => {
   const { accessToken: _a, refreshToken: _r, ...rest } = row;
+
   return rest;
 };
 
 export const loadConnection = async (userId: string): Promise<GoogleConnectionPublic | null> => {
   const row = await prisma.googleConnection.findUnique({ where: { userId } });
+
   return row ? stripTokens(row) : null;
 };
 
@@ -29,6 +31,7 @@ export const storeConnection = async (params: {
   if (typeof params.tokens.access_token !== "string" || params.tokens.access_token === "") {
     throw new GoogleAuthError("Google did not return an access token");
   }
+
   if (typeof params.tokens.expiry_date !== "number" || params.tokens.expiry_date === 0) {
     throw new GoogleAuthError("Google did not return token expiry");
   }
@@ -41,8 +44,10 @@ export const storeConnection = async (params: {
   if (typeof params.tokens.refresh_token !== "string" || params.tokens.refresh_token === "") {
     throw new GoogleAuthError("Google did not return a refresh token; reconnect and re-consent");
   }
+
   const accessToken = encryptSecret(params.tokens.access_token);
   const refreshToken = encryptSecret(params.tokens.refresh_token);
+
   const data = {
     accessToken,
     expiresAt: new Date(params.tokens.expiry_date),
@@ -51,10 +56,12 @@ export const storeConnection = async (params: {
     scope: params.tokens.scope ?? SEARCH_CONSOLE_SCOPE,
     userId: params.userId,
   };
+
   const row = await prisma.googleConnection.upsert({
     create: data,
     update: data,
     where: { userId: params.userId },
   });
+
   return stripTokens(row);
 };

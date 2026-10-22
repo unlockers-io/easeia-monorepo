@@ -9,6 +9,7 @@ const initWorkerLogger = (opts: { service: string }): void => {
 };
 
 type JobLogValue = boolean | number | string | null | undefined;
+
 type JobLogContext = Readonly<Record<string, JobLogValue>>;
 
 const createJobLogger = (ctx: JobLogContext) => createLogger(ctx);

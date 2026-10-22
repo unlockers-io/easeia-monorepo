@@ -14,7 +14,9 @@ type Props = {
 
 const BASE_CLASS =
   "flex min-h-11 shrink-0 items-center gap-3 text-sm whitespace-nowrap transition-colors max-md:px-2 md:min-h-0 md:border-b md:border-border md:py-2.5";
+
 const INACTIVE_CLASS = cn(BASE_CLASS, "font-medium text-muted-foreground hover:text-foreground");
+
 const ACTIVE_CLASS = cn(
   BASE_CLASS,
   "font-bold text-foreground max-md:shadow-(--shadow-nav-active)",
@@ -24,6 +26,7 @@ const Index = ({ active, value }: { active: boolean; value: string | undefined }
   if (value === undefined) {
     return null;
   }
+
   return (
     <span
       aria-hidden="true"

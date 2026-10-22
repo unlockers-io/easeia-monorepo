@@ -31,6 +31,7 @@ export const IntegrationsCard = async () => {
   const integrations = readIntegrations();
   const sites = await Sites.list();
   const ready = sites.filter(Sites.hasDeployHook).length;
+
   return (
     <Card id="integrations">
       <CardHeader>
@@ -55,6 +56,7 @@ export const IntegrationsCard = async () => {
             {(["openai", "dataforseo", "google", "mail", "r2"] as const).map((key) => {
               const status = integrations[key];
               const feature = FEATURES[key];
+
               return (
                 <TableRow key={key}>
                   <TableCell>{feature.name}</TableCell>

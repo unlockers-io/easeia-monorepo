@@ -41,15 +41,21 @@ export const postListQuerySchema = z.object({
 });
 
 export type PostCreate = z.infer<typeof postCreateSchema>;
+
 export type PostCreateInput = z.input<typeof postCreateSchema>;
+
 export type PostUpdate = z.infer<typeof postUpdateSchema>;
+
 export type PostUpdateInput = z.input<typeof postUpdateSchema>;
+
 export type PostListQuery = z.infer<typeof postListQuerySchema>;
+
 export type PostListQueryInput = z.input<typeof postListQuerySchema>;
 
 const splitCsv = (raw: string): Array<string> =>
   raw.split(",").flatMap((token) => {
     const trimmed = token.trim();
+
     return trimmed === "" ? [] : [trimmed];
   });
 
@@ -62,6 +68,7 @@ export const postCreateFromFormData = (formData: FormData): PostCreate => {
   const tagsRaw = formString(formData.get("tags"));
   const excerptRaw = formString(formData.get("excerpt"));
   const focusKeywordRaw = formString(formData.get("focusKeyword"));
+
   return postCreateSchema.parse({
     body: formData.get("body"),
     categories: splitCsv(categoriesRaw),

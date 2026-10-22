@@ -23,6 +23,7 @@ describe("groupSuffixedPosts", () => {
       post("guia-2", "bb"),
       post("guia-3", "ccc"),
     ]);
+
     expect(groups).toHaveLength(1);
     expect(groups[0]?.dupes.map((d) => d.slug)).toEqual(["guia-2", "guia-3"]);
   });
@@ -37,6 +38,7 @@ describe("groupSuffixedPosts", () => {
       post("guia-2", "the longest body of the three"),
       post("guia-3", "medium body"),
     ]);
+
     assert(group, "expected one group");
     const source = longestBody([group.base, ...group.dupes]);
     expect(source.slug).toBe("guia-2");
@@ -63,6 +65,7 @@ describe("longestBody", () => {
       { body: null, id: "a" },
       { body: "xx", id: "b" },
     ];
+
     expect(longestBody(candidates).id).toBe("b");
   });
 
@@ -71,6 +74,7 @@ describe("longestBody", () => {
       { body: "same", id: "base" },
       { body: "same", id: "copy" },
     ];
+
     expect(longestBody(candidates).id).toBe("base");
   });
 });

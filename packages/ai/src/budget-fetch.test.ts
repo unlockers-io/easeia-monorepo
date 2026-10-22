@@ -4,22 +4,28 @@ import { createBudgetedFetch } from "./budget-fetch";
 import { AiBudgetExceededError } from "./errors";
 
 const requestBody = { input: "Write a post", model: "gpt-5.6-luna" };
+
 const makeRequest = () =>
   new Request("https://api.openai.com/v1/responses", {
     body: JSON.stringify(requestBody),
     headers: { Authorization: "Bearer test", "Content-Type": "application/json" },
     method: "POST",
   });
+
 const usage = { input_tokens: 100, output_tokens: 200 };
+
 const setup = () => {
   const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json({ usage })));
+
   const store = {
     reserve: vi.fn((_month: string, _amount: number, _limit: number) => Promise.resolve(true)),
     settle: vi.fn((_month: string, _reserved: number, _cost: number) => Promise.resolve()),
   };
+
   const now = vi.fn(() => new Date("2026-09-14T12:00:00Z"));
   const startMonth = vi.fn<() => string | undefined>(() => undefined);
   const guarded = createBudgetedFetch({ fetch, limit: () => 18_000_000, now, startMonth, store });
+
   return { fetch, guarded, now, startMonth, store };
 };
 
@@ -32,6 +38,7 @@ describe("budgeted OpenAI transport", () => {
     fetch.mockImplementationOnce(async (input) => {
       const request = new Request(input);
       expect(await request.json()).toEqual(requestBody);
+
       return Response.json({ usage });
     });
     await guarded(makeRequest());
@@ -56,6 +63,7 @@ describe("budgeted OpenAI transport", () => {
       const request = new Request(input);
       expect(request.headers.get("Authorization")).toBe("Bearer test");
       expect(await request.json()).toMatchObject({ ...requestBody, max_output_tokens: 16_384 });
+
       return Response.json({ usage });
     });
     const response = await guarded(makeRequest());
@@ -110,6 +118,7 @@ describe("budgeted OpenAI transport", () => {
     now.mockReturnValue(new Date("2026-09-30T23:59:59Z"));
     fetch.mockImplementationOnce(() => {
       now.mockReturnValue(new Date("2026-10-01T00:00:01Z"));
+
       return Promise.resolve(Response.json({ usage }));
     });
     await guarded(makeRequest());

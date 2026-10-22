@@ -2,6 +2,7 @@ import { JobStatus, prisma } from "@repo/db";
 
 export const reapStuckJobs = async (maxAgeMs = 30 * 60 * 1000): Promise<{ reaped: number }> => {
   const cutoff = new Date(Date.now() - maxAgeMs);
+
   const result = await prisma.job.updateMany({
     data: {
       finishedAt: new Date(),
@@ -13,5 +14,6 @@ export const reapStuckJobs = async (maxAgeMs = 30 * 60 * 1000): Promise<{ reaped
       status: JobStatus.RUNNING,
     },
   });
+
   return { reaped: result.count };
 };

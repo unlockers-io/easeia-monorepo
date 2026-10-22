@@ -23,11 +23,13 @@ const post = {
 describe("handleGenerateImage", () => {
   it("generates a hero when none exists", async () => {
     const generateHero = vi.fn().mockResolvedValue({ key: "k", url: "u" });
+
     const handle = makeHandleGenerateImage({
       findPost: () => Promise.resolve(post),
       generateHero,
       hasHero: () => Promise.resolve(false),
     });
+
     await handle({ attemptsMade: 0, finalAttempt: false, jobId: "j", payload: { postId: "p1" } });
     expect(generateHero).toHaveBeenCalledExactlyOnceWith({
       post: expect.objectContaining({ id: "p1" }),
@@ -37,11 +39,13 @@ describe("handleGenerateImage", () => {
 
   it("is idempotent: skips generation when a hero already exists", async () => {
     const generateHero = vi.fn();
+
     const handle = makeHandleGenerateImage({
       findPost: () => Promise.resolve(post),
       generateHero,
       hasHero: () => Promise.resolve(true),
     });
+
     await handle({ attemptsMade: 0, finalAttempt: false, jobId: "j", payload: { postId: "p1" } });
     expect(generateHero).not.toHaveBeenCalled();
   });

@@ -17,7 +17,9 @@ export const filterByNiche = (
   if (postNiches.length === 0) {
     return [...candidates];
   }
+
   const set = new Set<string>(postNiches);
+
   return candidates.filter((c) => c.niches.some((n) => set.has(n)));
 };
 
@@ -37,13 +39,17 @@ export const findRelevantPages = async (
     include: { site: true },
     where: { id: postId },
   });
+
   if (post === null) {
     return [];
   }
+
   const { moneySiteId } = post.site;
+
   if (moneySiteId === null) {
     return [];
   }
+
   const rows = await prisma.$queryRaw<Array<Row>>`
     SELECT mp.id,
            mp.url,
@@ -57,7 +63,9 @@ export const findRelevantPages = async (
     ORDER BY similarity DESC
     LIMIT ${limit * 3}
   `;
+
   const filtered = filterByNiche(rows, post.niches);
+
   return filtered.slice(0, limit).map((r) => ({
     id: r.id,
     niches: r.niches,

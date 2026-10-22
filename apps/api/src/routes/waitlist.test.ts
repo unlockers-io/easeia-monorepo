@@ -16,12 +16,14 @@ import { createWaitlistRoutes } from "./waitlist";
 
 const makeApp = (limited = false) => {
   const save = vi.fn(() => Promise.resolve());
+
   const app = mountForTest(
     createWaitlistRoutes({
       rateLimit: limited ? createWaitlistRateLimit() : bypassMiddleware,
       save,
     }),
   );
+
   const post = (
     body: { email: string; source?: string; website?: string },
     headers: Record<string, string> = {},
@@ -31,6 +33,7 @@ const makeApp = (limited = false) => {
       headers: { "Content-Type": "application/json", ...headers },
       method: "POST",
     });
+
   return { post, save };
 };
 
@@ -66,17 +69,21 @@ describe("public waitlist", () => {
   });
   it("limits the sixth attempt even when untrusted forwarding headers change", async () => {
     const { post, save } = makeApp(true);
+
     for (let i = 0; i < 5; i += 1) {
       const attempt = await post(
         { email: "demo@example.com" },
         { "x-forwarded-for": `203.0.113.${i}` },
       );
+
       expect(attempt.status).toBe(201);
     }
+
     const response = await post(
       { email: "demo@example.com" },
       { "x-forwarded-for": "203.0.113.99" },
     );
+
     expect(response.status).toBe(429);
     expect(response.headers.get("Retry-After")).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(5);

@@ -19,13 +19,17 @@ describe.runIf(process.env.TEST_DATABASE === "true")("classification intake", ()
           vercelDeployHookUrl: "https://deploy.test/hook",
         },
       });
+
       siteId = site.id;
+
       const post = await prisma.post.create({
         data: { body: "Body", siteId, slug: "post", status, tags: ["Existing"], title: "Post" },
       });
+
       const classify = vi
         .fn<typeof classifyContent>()
         .mockResolvedValue({ niches: ["AUDIO"], tags: ["studio", "microphone", "recording"] });
+
       await classifyPost(post.id, classify);
       await classifyPost(post.id, classify);
       expect(await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).toMatchObject({

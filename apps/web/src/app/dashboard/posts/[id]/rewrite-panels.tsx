@@ -14,6 +14,7 @@ export const RewrittenBadge = ({ rewrittenAt }: { rewrittenAt: Date | null }) =>
   if (!rewrittenAt) {
     return <span className="text-xs text-muted-foreground">Not yet rewritten</span>;
   }
+
   return <Badge variant="secondary">Rewritten {new Date(rewrittenAt).toLocaleString()}</Badge>;
 };
 
@@ -35,6 +36,7 @@ export const MoneySiteLinksPanel = ({
       </Card>
     );
   }
+
   if (links.length === 0) {
     return (
       <Card>
@@ -44,6 +46,7 @@ export const MoneySiteLinksPanel = ({
       </Card>
     );
   }
+
   return (
     <Card>
       <CardContent className="px-0 pb-0">

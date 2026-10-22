@@ -16,15 +16,19 @@ test.describe("Change password", () => {
     settingsPage,
   }, testInfo) => {
     const email = makeTestEmail(testInfo);
+
     const signUp = await request.post(`${webUrl}/api/auth/sign-up/email`, {
       data: { email, name: "Change Password User", password: PASSWORD },
     });
+
     expect([200, 201]).toContain(signUp.status());
+
     if (process.env.RESEND_API_KEY) {
       const { url } = await verification.forVerifyEmail(email);
       const verified = await request.get(url);
       expect(verified.ok()).toBe(true);
     }
+
     await loginPage.goto();
     await loginPage.login(email, PASSWORD);
     await page.waitForURL("/dashboard");

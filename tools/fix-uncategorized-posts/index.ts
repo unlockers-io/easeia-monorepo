@@ -43,14 +43,17 @@ const isEnglishCategory = (raw: string): boolean => {
   if (hasPtDiacritics(raw)) {
     return false;
   }
+
   const tokens = raw
     .toLowerCase()
     .replaceAll(/[^a-z0-9\s]/gv, " ")
     .split(/\s+/v)
     .filter((t) => /[a-z]/v.test(t));
+
   if (tokens.length === 0) {
     return false;
   }
+
   return tokens.every((t) => EN_WORDS.has(t));
 };
 
@@ -71,12 +74,14 @@ const singularKey = (s: string): string =>
       if (w.endsWith("oes") || w.endsWith("aes")) {
         return `${w.slice(0, -3)}ao`;
       }
+
       return w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w;
     })
     .join(" ");
 
 const buildCandidates = (posts: ReadonlyArray<{ categories: Array<string> }>): Array<Candidate> => {
   const counts = new Map<string, number>();
+
   for (const p of posts) {
     for (const c of p.categories) {
       if (isUsableCategory(c) && !isEnglishCategory(c)) {
@@ -84,14 +89,18 @@ const buildCandidates = (posts: ReadonlyArray<{ categories: Array<string> }>): A
       }
     }
   }
+
   const byKey = new Map<string, Candidate>();
+
   for (const [name, count] of [...counts.entries()].toSorted((a, b) => b[1] - a[1])) {
     const key = singularKey(name);
     const current = byKey.get(key);
+
     if (!current || count > current.count) {
       byKey.set(key, { count, name });
     }
   }
+
   return [...byKey.values()].toSorted((a, b) => b.count - a.count).slice(0, MAX_CANDIDATES);
 };
 
@@ -101,11 +110,14 @@ const pickCategory = async (
 ): Promise<string> => {
   const names = candidates.map((c) => c.name);
   const firstName = names.at(0);
+
   if (firstName === undefined) {
     throw new Error("Cannot classify a post without existing categories");
   }
+
   const schema = z.object({ category: z.enum([firstName, ...names.slice(1)]) });
   const list = candidates.map((c) => `- ${c.name} (${c.count} posts)`).join("\n");
+
   const prompt = [
     "Você classifica posts de blog em UMA categoria (seção) já existente do site.",
     "Escolha a categoria existente em português que melhor descreve o post.",
@@ -120,6 +132,7 @@ const pickCategory = async (
   ].join("\n");
 
   const { category } = await generateStructured({ prompt, schema });
+
   return category;
 };
 
@@ -141,31 +154,39 @@ const main = async () => {
       select: { body: true, categories: true, id: true, niches: true, title: true },
       where: { siteId: site.id },
     });
+
     const empties = posts.filter((p) => p.categories.length === 0);
+
     if (empties.length === 0) {
       continue;
     }
+
     const candidates = buildCandidates(posts);
     console.log(`=== ${site.domain}  (${empties.length} to fix)`);
     console.log(`    candidates: ${candidates.map((c) => c.name).join(", ")}\n`);
 
     for (let i = 0; i < empties.length; i += CONCURRENCY) {
       const chunk = empties.slice(i, i + CONCURRENCY);
+
       const results = await Promise.allSettled(
         chunk.map((p) =>
           pickCategory({ body: p.body, niches: p.niches, title: p.title }, candidates),
         ),
       );
+
       for (const [j, res] of results.entries()) {
         const p = chunk.at(j);
+
         if (p === undefined) {
           continue;
         }
+
         if (res.status === "rejected") {
           failures.push({ domain: site.domain, title: p.title });
           console.log(`    [FAIL] ${p.title} :: ${String(res.reason).slice(0, 120)}`);
           continue;
         }
+
         proposals.push({
           category: res.value,
           domain: site.domain,
@@ -176,21 +197,27 @@ const main = async () => {
         console.log(`    → ${res.value.padEnd(26)} | ${p.title}`);
       }
     }
+
     console.log("");
   }
 
   const byCat = new Map<string, number>();
+
   for (const pr of proposals) {
     byCat.set(pr.category, (byCat.get(pr.category) ?? 0) + 1);
   }
+
   console.log("=== Chosen categories ===");
+
   for (const [c, n] of [...byCat.entries()].toSorted((a, b) => b[1] - a[1])) {
     console.log(`  ${String(n).padStart(3)}  ${c}`);
   }
+
   console.log(`\nTotal proposals: ${proposals.length}  failures: ${failures.length}`);
 
   if (apply) {
     let updated = 0;
+
     for (const pr of proposals) {
       await prisma.post.update({
         data: { categories: [pr.category] },
@@ -198,6 +225,7 @@ const main = async () => {
       });
       updated += 1;
     }
+
     console.log(`\nAPPLIED: ${updated} posts updated.`);
     await redeploySites(affectedSiteIds);
   } else {

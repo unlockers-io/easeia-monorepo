@@ -96,5 +96,6 @@ export const summarizeChecks = (checks: Readonly<Record<string, boolean>>): Audi
       ? []
       : [{ actionable: !NOT_ACTIONABLE.has(name), label: FAILURE_LABELS.get(name) ?? name, name }],
   );
+
   return { failed, passed: Object.keys(checks).length - failed.length };
 };

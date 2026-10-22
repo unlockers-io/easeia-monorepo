@@ -17,18 +17,23 @@ const standingOf = (snapshot: SiteSnapshot | null): Standing => {
   if (snapshot === null) {
     return "pending";
   }
+
   if (!snapshot.reachable) {
     return "unreachable";
   }
+
   if (snapshot.healthScore === null) {
     return "pending";
   }
+
   if (snapshot.healthScore < 50) {
     return "attention";
   }
+
   if (snapshot.healthScore < 60) {
     return "watch";
   }
+
   return "good";
 };
 
@@ -60,13 +65,17 @@ const trendLabel = (latest: SiteSnapshot | null, prior: SiteSnapshot | null): st
   if (latest?.healthScore === null || latest?.healthScore === undefined) {
     return "No score yet";
   }
+
   if (prior?.healthScore === null || prior?.healthScore === undefined) {
     return "No prior snapshot";
   }
+
   const delta = latest.healthScore - prior.healthScore;
+
   if (delta === 0) {
     return "Unchanged vs prior week";
   }
+
   return `${delta > 0 ? "+" : "−"}${Math.abs(delta)} vs prior week`;
 };
 
@@ -77,6 +86,7 @@ const formatLastPost = (days: number | null | undefined): string => {
   if (days === null || days === undefined) {
     return "—";
   }
+
   return days === 0 ? "today" : `${days}d`;
 };
 
@@ -89,4 +99,5 @@ export {
   standingOf,
   trendLabel,
 };
+
 export type { SiteCardModel, Standing };

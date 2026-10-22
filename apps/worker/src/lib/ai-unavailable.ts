@@ -21,6 +21,7 @@ export const skipOptionalAiWhenUnconfigured = <K extends JobKind>(
   if (!AI_OPTIONAL_KINDS.has(kind)) {
     return handler;
   }
+
   return async (ctx) => {
     try {
       await handler(ctx);
@@ -28,6 +29,7 @@ export const skipOptionalAiWhenUnconfigured = <K extends JobKind>(
       if (!(error instanceof AiNotConfiguredError)) {
         throw error;
       }
+
       log.warn({ jobId: ctx.jobId, kind, message: "AI is not configured; job skipped" });
       throw new JobSkippedError("AI is not configured");
     }

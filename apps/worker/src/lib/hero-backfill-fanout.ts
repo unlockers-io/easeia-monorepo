@@ -24,9 +24,11 @@ export const makeBackfillHeroes =
   ({ enqueueJob, findHeroless }: Deps) =>
   async (): Promise<{ enqueued: number }> => {
     const posts = await findHeroless();
+
     if (posts.length === 0) {
       return { enqueued: 0 };
     }
+
     const results = await Promise.allSettled(
       posts.map((p) =>
         enqueueJob({
@@ -37,7 +39,9 @@ export const makeBackfillHeroes =
         }),
       ),
     );
+
     const rejections = fanoutRejections(results);
+
     for (const { index, reason } of rejections) {
       log.error({
         err: reason,
@@ -46,6 +50,7 @@ export const makeBackfillHeroes =
         siteId: posts[index]?.siteId,
       });
     }
+
     const enqueued = results.length - rejections.length;
     log.info({
       enqueued,
@@ -54,6 +59,7 @@ export const makeBackfillHeroes =
       scanned: posts.length,
       truncated: posts.length === CAP,
     });
+
     return { enqueued };
   };
 

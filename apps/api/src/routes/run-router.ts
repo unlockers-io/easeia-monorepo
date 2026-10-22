@@ -30,5 +30,6 @@ export const createRunRouter = (deps: RunRouteDependencies) => {
     }),
     async (c) => c.json(await deps.readStatus(), 200),
   );
+
   return app;
 };

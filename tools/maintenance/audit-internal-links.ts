@@ -20,18 +20,23 @@ const normalizeDomain = (host: string): string => host.replace(/^www\./iu, "").t
 
 const extractLinks = (body: string): Array<{ anchor: string; href: string }> => {
   const out: Array<{ anchor: string; href: string }> = [];
+
   for (const [, text, href] of body.matchAll(MD_LINK)) {
     if (text === undefined || href === undefined) {
       throw new Error("extractLinks: markdown link matched without its capture groups");
     }
+
     out.push({ anchor: text.trim(), href: href.trim() });
   }
+
   for (const [, href, text] of body.matchAll(HTML_LINK)) {
     if (href === undefined || text === undefined) {
       throw new Error("extractLinks: anchor tag matched without its capture groups");
     }
+
     out.push({ anchor: stripHtml(text), href: href.trim() });
   }
+
   return out;
 };
 
@@ -40,6 +45,7 @@ const main = async () => {
     orderBy: { domain: "asc" },
     select: { domain: true, id: true },
   });
+
   const networkDomains = new Set(sites.map((s) => normalizeDomain(s.domain)));
   const domainToSite = new Map(sites.map((s) => [normalizeDomain(s.domain), s] as const));
 
@@ -50,12 +56,15 @@ const main = async () => {
   });
 
   const slugsBySite = new Map<string, Set<string>>();
+
   for (const p of allPosts) {
     let set = slugsBySite.get(p.siteId);
+
     if (!set) {
       set = new Set();
       slugsBySite.set(p.siteId, set);
     }
+
     set.add(p.slug);
   }
 
@@ -69,6 +78,7 @@ const main = async () => {
 
   for (const post of allPosts) {
     const fromSite = siteById.get(post.siteId);
+
     if (!fromSite) {
       continue;
     }
@@ -79,6 +89,7 @@ const main = async () => {
       // Resolve relative hrefs against the from-site domain so we treat
       // "/audio/foo/" and "https://audio-blog.example/audio/foo/" the same.
       let url: URL;
+
       try {
         url = new URL(link.href, `https://${normalizeDomain(fromSite.domain)}`);
       } catch {
@@ -90,25 +101,31 @@ const main = async () => {
       }
 
       const host = normalizeDomain(url.hostname);
+
       if (!networkDomains.has(host)) {
         externalCount++;
         continue;
       }
 
       const segments = url.pathname.split("/").filter(Boolean);
+
       if (segments.length < 2) {
         continue;
       }
+
       if (segments[0] === "tag" || segments[0] === "postagens" || segments[0] === "sobre-nos") {
         continue;
       }
 
       const targetCategory = segments.at(-2);
       const targetSlug = segments.at(-1);
+
       if (targetCategory === undefined || targetSlug === undefined) {
         continue;
       }
+
       const targetSite = domainToSite.get(host);
+
       if (!targetSite) {
         continue;
       }
@@ -124,9 +141,11 @@ const main = async () => {
         targetSiteDomain: targetSite.domain,
         targetSlug,
       };
+
       allInternal.push(hit);
 
       const slugs = slugsBySite.get(targetSite.id);
+
       if (!slugs || !slugs.has(targetSlug)) {
         broken.push(hit);
         postsWithBroken.add(post.id);
@@ -138,21 +157,25 @@ const main = async () => {
     string,
     { broken: number; internal: number; postsAffected: Set<string> }
   >();
+
   for (const h of allInternal) {
     const cur = summaryBySite.get(h.fromSiteDomain) ?? {
       broken: 0,
       internal: 0,
       postsAffected: new Set(),
     };
+
     cur.internal++;
     summaryBySite.set(h.fromSiteDomain, cur);
   }
+
   for (const h of broken) {
     const cur = summaryBySite.get(h.fromSiteDomain) ?? {
       broken: 0,
       internal: 0,
       postsAffected: new Set(),
     };
+
     cur.broken++;
     cur.postsAffected.add(h.fromPostId);
     summaryBySite.set(h.fromSiteDomain, cur);
@@ -167,6 +190,7 @@ const main = async () => {
   console.log(`posts affected:   ${postsWithBroken.size}`);
 
   console.log(`\n=== per site ===`);
+
   for (const [domain, s] of [...summaryBySite.entries()].toSorted(
     (a, b) => b[1].broken - a[1].broken,
   )) {

@@ -11,9 +11,11 @@ export const metadata: Metadata = {
 
 const AuthGate = async ({ children }: { children: ReactNode }) => {
   const session = await getSession();
+
   if (!session) {
     redirect("/login");
   }
+
   return children;
 };
 

@@ -17,14 +17,17 @@ const sanitizeAlt = (alt: string): string => alt.replaceAll(/[\[\]]/gv, "").trim
 export const applyBodyImages = (body: string, images: ReadonlyArray<BodyImage>): string => {
   const lines = body.split("\n");
   const inRange = images.filter((image) => image.line >= 1 && image.line <= lines.length);
+
   if (inRange.length === 0) {
     return body;
   }
 
   const descending = inRange.toSorted((a, b) => b.line - a.line);
+
   for (const image of descending) {
     lines.splice(image.line, 0, "", `![${sanitizeAlt(image.alt)}](${image.url})`, "");
   }
+
   return lines
     .join("\n")
     .replaceAll(/\n{3,}/gv, "\n\n")

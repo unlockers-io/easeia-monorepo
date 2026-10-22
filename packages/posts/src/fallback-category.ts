@@ -27,12 +27,14 @@ type SitePost = { categories: ReadonlyArray<string>; niches: ReadonlyArray<Niche
 const argmax = (counts: Map<string, number>): string | null => {
   let best: string | null = null;
   let bestN = 0;
+
   for (const [name, n] of counts) {
     if (n > bestN) {
       best = name;
       bestN = n;
     }
   }
+
   return best;
 };
 
@@ -43,15 +45,19 @@ const pickExistingCategory = (
   const nicheSet = new Set(postNiches);
   const overall = new Map<string, number>();
   const nicheMatched = new Map<string, number>();
+
   for (const p of sitePosts) {
     const overlaps = p.niches.some((n) => nicheSet.has(n));
+
     for (const c of p.categories) {
       overall.set(c, (overall.get(c) ?? 0) + 1);
+
       if (overlaps) {
         nicheMatched.set(c, (nicheMatched.get(c) ?? 0) + 1);
       }
     }
   }
+
   return argmax(nicheMatched) ?? argmax(overall);
 };
 
@@ -60,10 +66,14 @@ export const fallbackCategory = async (post: Pick<Post, "niches" | "siteId">): P
     select: { categories: true, niches: true },
     where: { categories: { isEmpty: false }, siteId: post.siteId },
   });
+
   const existing = pickExistingCategory(sitePosts, post.niches);
+
   if (existing !== null && existing !== "") {
     return existing;
   }
+
   const firstNiche = post.niches.at(0);
+
   return firstNiche ? NICHE_PT[firstNiche] : FALLBACK_CATEGORY;
 };

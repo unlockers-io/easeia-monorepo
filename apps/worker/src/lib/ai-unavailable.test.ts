@@ -33,6 +33,7 @@ describe("skipOptionalAiWhenUnconfigured", () => {
       JobKind.EMBED,
       failingWith(new AiNotConfiguredError()),
     );
+
     await expect(handle(ctx)).rejects.toBeInstanceOf(JobSkippedError);
   });
 
@@ -41,6 +42,7 @@ describe("skipOptionalAiWhenUnconfigured", () => {
       JobKind.GENERATE_IMAGE,
       failingWith(new AiBudgetExceededError("2026-10")),
     );
+
     await expect(handle(ctx)).rejects.toBeInstanceOf(AiBudgetExceededError);
   });
 
@@ -49,6 +51,7 @@ describe("skipOptionalAiWhenUnconfigured", () => {
       JobKind.REWRITE_POST,
       failingWith(new AiNotConfiguredError()),
     );
+
     await expect(handle(ctx)).rejects.toBeInstanceOf(AiNotConfiguredError);
   });
 });

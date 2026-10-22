@@ -28,6 +28,7 @@ describe("applyBodyImages", () => {
       { alt: "Painéis acústicos", line: 7, url: "https://img.easeia.com/b.jpg" },
       { alt: "Estúdio montado", line: 11, url: "https://img.easeia.com/c.jpg" },
     ]);
+
     expect(out).toBe(
       [
         "## Primeira seção",
@@ -56,6 +57,7 @@ describe("applyBodyImages", () => {
       { alt: "A", line: 1, url: "https://img.easeia.com/a.jpg" },
       { alt: "B", line: 9, url: "https://img.easeia.com/b.jpg" },
     ]);
+
     const lines = out.split("\n");
     expect(lines[lines.indexOf("![A](https://img.easeia.com/a.jpg)") - 1]).toBe("");
     expect(lines[lines.indexOf("![B](https://img.easeia.com/b.jpg)") - 2]).toBe(
@@ -87,6 +89,7 @@ describe("applyBodyImages", () => {
     const out = applyBodyImages("Uma linha.", [
       { alt: "Foto [1] do estúdio", line: 1, url: "https://img.easeia.com/a.jpg" },
     ]);
+
     expect(out).toContain("![Foto 1 do estúdio](https://img.easeia.com/a.jpg)");
   });
 });

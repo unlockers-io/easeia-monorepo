@@ -34,9 +34,11 @@ const requestHref = (input: RequestInfo | URL): string => {
   if (typeof input === "string") {
     return input;
   }
+
   if (input instanceof URL) {
     return input.href;
   }
+
   return input.url;
 };
 
@@ -46,17 +48,23 @@ const stubRoutes = (
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const requestUrl = requestHref(input);
     const method = (init?.method ?? "GET").toUpperCase();
+
     const route = routes.find(
       (r) => r.request === requestUrl && (r.method === undefined || r.method === method),
     );
+
     if (!route) {
       return Promise.resolve(new Response("not found", { status: 404 }));
     }
+
     const res = new Response(route.body ?? "", { status: route.status });
     Object.defineProperty(res, "url", { value: route.url ?? requestUrl });
+
     return Promise.resolve(res);
   });
+
   vi.stubGlobal("fetch", fetchMock);
+
   return fetchMock;
 };
 

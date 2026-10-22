@@ -31,21 +31,27 @@ const samplePost: BuildPost = {
 };
 
 type MalformedBuildPost = Omit<BuildPost, "slug"> & { slug: number };
+
 type TestPost = BuildPost | MalformedBuildPost;
 
 const setupFetchMock = (posts: ReadonlyArray<TestPost>) => {
   const fetchMock = vi.fn((input: string | URL, init?: RequestInit) => {
     const url = String(input);
     const auth = (init?.headers as Record<string, string> | undefined)?.Authorization;
+
     if (auth === undefined || auth === "" || !auth.startsWith("Bearer ") || auth === "Bearer ") {
       return new Response("unauthorized", { status: 401 });
     }
+
     if (url.endsWith("/posts")) {
       return Response.json({ data: posts }, { status: 200 });
     }
+
     return new Response("not found", { status: 404 });
   });
+
   vi.stubGlobal("fetch", fetchMock);
+
   return fetchMock;
 };
 
@@ -71,11 +77,13 @@ afterEach(() => {
 describe("easeiaLoader", () => {
   it("calls /api/build/sites/:siteId/posts with bearer auth and writes each entry to the store", async () => {
     const fetchMock = setupFetchMock([samplePost]);
+
     const loader = easeiaLoader({
       apiKey: "easeia_buildkey",
       apiUrl: "https://api.easeia.dev",
       siteId: "site_abc",
     });
+
     const ctx = makeContext();
     // @ts-expect-error — loose context typing for the test
     await loader.load(ctx);
@@ -113,11 +121,13 @@ describe("easeiaLoader", () => {
         },
       },
     ]);
+
     const loader = easeiaLoader({
       apiKey: "easeia_buildkey",
       apiUrl: "https://api.easeia.dev",
       siteId: "site_abc",
     });
+
     const ctx = makeContext();
     // @ts-expect-error — loose context typing for the test
     await loader.load(ctx);
@@ -136,6 +146,7 @@ describe("easeiaLoader", () => {
 
   it("rewrites __ASTRO_IMAGE_ placeholders into real img tags with dimensions from the manifest", async () => {
     const bodyImageUrl = "https://img.easeia.com/sites/s1/posts/p1/abc.jpg";
+
     const post: BuildPost = {
       ...samplePost,
       body: `intro\n\n![Equipe mede uma "galeria" & câmera](${bodyImageUrl})\n\noutro`,
@@ -144,6 +155,7 @@ describe("easeiaLoader", () => {
         { alt: "ignored", filename: "abc.jpg", height: 768, url: bodyImageUrl, width: 1344 },
       ],
     };
+
     setupFetchMock([post]);
     const ctx = makeContext();
     ctx.renderMarkdown.mockImplementation((content: string) =>
@@ -154,11 +166,13 @@ describe("easeiaLoader", () => {
         metadata: { headings: [] },
       }),
     );
+
     const loader = easeiaLoader({
       apiKey: "easeia_buildkey",
       apiUrl: "https://api.easeia.dev",
       siteId: "site_abc",
     });
+
     // @ts-expect-error: loose context typing for the test
     await loader.load(ctx);
 
@@ -183,28 +197,33 @@ describe("easeiaLoader", () => {
       html: '<img __ASTRO_IMAGE_="not-json">',
       metadata: { headings: [] },
     });
+
     const loader = easeiaLoader({
       apiKey: "easeia_buildkey",
       apiUrl: "https://api.easeia.dev",
       siteId: "site_abc",
     });
+
     // @ts-expect-error: loose context typing for the test
     await expect(loader.load(ctx)).rejects.toThrow(/placeholder/iv);
   });
 
   it("throws when the API returns 401", async () => {
     setupFetchMock([samplePost]);
+
     const loader = easeiaLoader({
       apiKey: "", // bad key
       apiUrl: "https://api.easeia.dev",
       siteId: "site_abc",
     });
+
     // @ts-expect-error — loose context typing for the test
     await expect(loader.load(makeContext())).rejects.toThrow(/401|unauthorized/iv);
   });
 
   it("rejects posts with malformed item fields", async () => {
     setupFetchMock([{ ...samplePost, slug: 42 }]);
+
     const loader = easeiaLoader({
       apiKey: "easeia_buildkey",
       apiUrl: "https://api.easeia.dev",

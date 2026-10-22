@@ -5,32 +5,39 @@ import * as Sites from "@repo/sites";
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]?.trim();
+
   if (value === undefined || value === "") {
     throw new Error(`${name} must be set to seed a money site.`);
   }
+
   return value;
 };
 
 const main = async (): Promise<void> => {
   const domain = requireEnv("MONEY_SITE_DOMAIN").toLowerCase();
+
   const data = {
     contentPathPrefix: requireEnv("MONEY_SITE_PATH_PREFIX"),
     isEnabled: true,
     name: requireEnv("MONEY_SITE_NAME"),
     sitemapUrl: requireEnv("MONEY_SITE_SITEMAP_URL"),
   };
+
   const moneySite = await prisma.moneySite.upsert({
     create: { ...data, domain },
     update: data,
     where: { domain },
   });
+
   console.log("MoneySite:", moneySite.id, moneySite.domain);
 
   const sites = await Sites.list();
   const unassigned = sites.filter((site) => site.isEnabled && site.moneySiteId === null);
+
   for (const site of unassigned) {
     await Sites.update(site.id, { moneySiteId: moneySite.id });
   }
+
   console.log(`assigned moneySiteId to ${unassigned.length} PBN sites`);
 };
 

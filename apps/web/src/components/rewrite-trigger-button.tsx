@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@repo/ui/components/button";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useState } from "react";
@@ -27,6 +28,7 @@ export const RewriteTriggerButton = ({
 
   const handleClick = async () => {
     setState({ kind: "pending" });
+
     try {
       unwrapAction(await rewritePostAction(postId));
       setState({ kind: "queued" });

@@ -16,6 +16,7 @@ setup("create and authenticate test user", async ({ page, request }) => {
   await mkdir("tests/e2e/.auth", { recursive: true });
 
   recordCleanup("user", TEST_USER.email);
+
   const signUpResponse = await request.post(`${webUrl}/api/auth/sign-up/email`, {
     data: {
       email: TEST_USER.email,
@@ -23,7 +24,9 @@ setup("create and authenticate test user", async ({ page, request }) => {
       password: TEST_USER.password,
     },
   });
+
   expect([200, 201, 409, 422]).toContain(signUpResponse.status());
+
   if (process.env.RESEND_API_KEY) {
     const { url } = await verification.forVerifyEmail(TEST_USER.email);
     const verified = await request.get(url);
