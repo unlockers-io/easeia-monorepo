@@ -114,15 +114,19 @@ const buildEmail = (email: TransactionalEmail): EmailBuild => {
     case "change-email-confirmation": {
       return TEMPLATES["change-email-confirmation"](email);
     }
+
     case "password-reset": {
       return TEMPLATES["password-reset"](email);
     }
+
     case "sign-up-attempt": {
       return TEMPLATES["sign-up-attempt"](email);
     }
+
     case "welcome": {
       return TEMPLATES.welcome(email);
     }
+
     default: {
       throw new TypeError("Unsupported transactional email type");
     }
@@ -134,6 +138,7 @@ type SendEmail = typeof sendEmail;
 const createSendTransactionalEmail =
   (send: SendEmail) => (email: TransactionalEmail, config: MailerConfig) => {
     const { subject, template, to } = buildEmail(email);
+
     return send({
       apiKey: config.apiKey,
       from: config.from,
@@ -150,4 +155,5 @@ const createSendTransactionalEmail =
 const sendTransactionalEmail = createSendTransactionalEmail(sendEmail);
 
 export type { MailerConfig, TransactionalEmail };
+
 export { createSendTransactionalEmail, sendTransactionalEmail };

@@ -56,6 +56,7 @@ const loadNetworkGraphData = async (): Promise<NetworkGraphData> => {
   ]);
 
   const moneySites = new Map<string, MoneySiteSummary>();
+
   for (const site of sites) {
     if (site.moneySite) {
       moneySites.set(site.moneySite.id, {
@@ -84,4 +85,5 @@ const loadNetworkGraphData = async (): Promise<NetworkGraphData> => {
 };
 
 export { loadNetworkGraphData };
+
 export type { MoneyEdge, MoneySiteSummary, NetworkGraphData, PbnEdge, PbnSiteSummary };

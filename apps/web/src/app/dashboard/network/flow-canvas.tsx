@@ -63,6 +63,7 @@ export const NetworkFilters = ({
               if (typeof v !== "string") {
                 return;
               }
+
               onMoneySiteChange(v);
             }}
             value={selectedMoneySiteId}

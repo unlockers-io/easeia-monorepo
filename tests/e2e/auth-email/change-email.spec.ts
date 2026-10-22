@@ -27,35 +27,44 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
     const signUp = await request.post(`${webUrl}/api/auth/sign-up/email`, {
       data: { email: currentEmail, name: "Change Me", password, username },
     });
+
     expect([200, 201]).toContain(signUp.status());
     const verify = await verification.forVerifyEmail(currentEmail);
     await page.goto(verify.url);
     await page.waitForURL(/\/dashboard$/);
+
     const signIn = await request.post(`${webUrl}/api/auth/sign-in/email`, {
       data: { email: currentEmail, password },
     });
+
     expect(signIn.status()).toBe(200);
 
     const setCookie = signIn.headers()["set-cookie"] ?? "";
+
     const cookieHeader = setCookie
       .split(/,(?=\s*[\w-]+=)/u)
       .map((c) => {
         const [nameValue = ""] = c.split(";");
+
         return nameValue.trim();
       })
       .filter(Boolean)
       .join("; ");
 
     const webHost = new URL(webUrl).hostname;
+
     const parsedCookies = setCookie
       .split(/,(?=\s*[\w-]+=)/u)
       .map((c) => {
         const [nameValue = ""] = c.split(";");
         const eq = nameValue.indexOf("=");
+
         return { name: nameValue.slice(0, eq).trim(), value: nameValue.slice(eq + 1).trim() };
       })
       .filter((c) => c.name);
+
     const browserCookies = [];
+
     for (const c of parsedCookies) {
       browserCookies.push({
         domain: webHost,
@@ -67,6 +76,7 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
         value: c.value,
       });
     }
+
     await page.context().addCookies(browserCookies);
 
     const since = Date.now();
@@ -79,6 +89,7 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
         Referer: `${webUrl}/`,
       },
     });
+
     expect(change.status()).toBe(200);
 
     const stage1Mail = await waitForEmail({
@@ -86,6 +97,7 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
       subject: /confirm|change/i,
       to: currentEmail,
     });
+
     expect(stage1Mail.last_event).not.toBe("bounced");
     const stage1Url = extractLink(stage1Mail, /\/api\/auth\/verify-email\?token=/);
 
@@ -96,6 +108,7 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
       sinceMs: since,
       to: newEmail,
     });
+
     expect(stage2Mail.last_event).not.toBe("bounced");
     const stage2Url = extractLink(stage2Mail, /\/api\/auth\/verify-email\?token=/);
 
@@ -108,9 +121,11 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
     expect(stale).toBeNull();
 
     await page.context().clearCookies();
+
     const oldLogin = await request.post(`${webUrl}/api/auth/sign-in/email`, {
       data: { email: currentEmail, password },
     });
+
     expect(oldLogin.status()).toBeGreaterThanOrEqual(400);
 
     await page.goto("/login");

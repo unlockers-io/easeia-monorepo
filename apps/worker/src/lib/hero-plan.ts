@@ -19,6 +19,7 @@ export type PlanHeroInput = {
 const filenameFromUrl = (url: string): string => {
   const u = new URL(url);
   const tail = u.pathname.slice(u.pathname.lastIndexOf("/") + 1);
+
   return tail || "image";
 };
 
@@ -42,6 +43,7 @@ export const planHero = ({
   if (foreignSource !== null) {
     const filename = filenameFromUrl(foreignSource);
     const upToDate = hero?.filename === filename && isR2Hosted(hero.blobUrl, r2PublicBaseUrl);
+
     return upToDate ? { kind: "ready" } : { filename, kind: "import", sourceUrl: foreignSource };
   }
 

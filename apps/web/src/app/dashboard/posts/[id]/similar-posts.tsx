@@ -30,6 +30,7 @@ const LIMIT = 5;
 
 export const SimilarPostsCard = async ({ postId }: { postId: string }) => {
   const { openai } = readIntegrations();
+
   if (!openai.configured) {
     return (
       <IntegrationNotConfiguredCard
@@ -39,6 +40,7 @@ export const SimilarPostsCard = async ({ postId }: { postId: string }) => {
       />
     );
   }
+
   if (!(await Posts.hasEmbedding(postId))) {
     return (
       <Card>
@@ -105,11 +107,14 @@ export const SimilarPostsCard = async ({ postId }: { postId: string }) => {
 
 const SimilarityBadge = ({ value }: { value: number }) => {
   const pct = (value * 100).toFixed(1);
+
   if (value >= 0.85) {
     return <Badge variant="default">{pct}%</Badge>;
   }
+
   if (value >= 0.7) {
     return <Badge variant="secondary">{pct}%</Badge>;
   }
+
   return <Badge variant="outline">{pct}%</Badge>;
 };

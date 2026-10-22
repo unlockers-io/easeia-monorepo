@@ -25,6 +25,7 @@ const dayOf = (value: Date | null): string =>
 
 const main = async (): Promise<void> => {
   const site = await prisma.site.findFirst({ select: { id: true }, where: { domain: DOMAIN } });
+
   if (!site) {
     throw new Error(`no site ${DOMAIN}`);
   }
@@ -34,9 +35,12 @@ const main = async (): Promise<void> => {
     select: { createdAt: true, id: true, publishedAt: true, slug: true },
     where: { siteId: site.id, status: "PUBLISHED" },
   });
+
   const cluster = posts.filter((post) => dayOf(post.publishedAt) === CLUSTER_DAY);
+
   if (cluster.length === 0) {
     console.log("nothing to restamp");
+
     return;
   }
 
@@ -66,12 +70,14 @@ const main = async (): Promise<void> => {
   console.log(`${DOMAIN}: ${cluster.length} posts share ${CLUSTER_DAY}`);
   console.log(`spreading across ${span} days, one every ${step.toFixed(2)} days`);
   console.log(`first ${dayOf(planned[0]?.at ?? null)}   last ${dayOf(planned.at(-1)?.at ?? null)}`);
+
   for (const post of planned.slice(0, 4)) {
     console.log(`  ${post.at.toISOString().slice(0, 16)}  /${post.slug.slice(0, 46)}`);
   }
 
   if (!APPLY) {
     console.log("\ndry run; pass --apply to write");
+
     return;
   }
 
@@ -89,9 +95,11 @@ const main = async (): Promise<void> => {
   for (const post of planned) {
     await prisma.post.update({ data: { publishedAt: post.at }, where: { id: post.id } });
   }
+
   await redeploySites([site.id]);
   console.log(`restamped ${planned.length} posts; ${DOMAIN} redeployed`);
 };
 
 await main();
+
 await prisma.$disconnect();

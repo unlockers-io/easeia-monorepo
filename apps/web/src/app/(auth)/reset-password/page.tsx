@@ -21,6 +21,7 @@ type Props = {
 
 const Reset = async ({ searchParams }: Props) => {
   const { token = "" } = await searchParams;
+
   if (token === "") {
     return (
       <>
@@ -43,6 +44,7 @@ const Reset = async ({ searchParams }: Props) => {
       </>
     );
   }
+
   return (
     <>
       <CardHeader className="text-center">

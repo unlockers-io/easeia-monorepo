@@ -48,25 +48,32 @@ export const bulkGenerateFixAdviceAction = async (
   input: BulkFixAdviceInput,
 ): Promise<BulkFixAdviceResult> => {
   const session = await getSession();
+
   if (!session) {
     return { error: "Not authenticated.", ok: false };
   }
+
   const parsed = bulkInputSchema.safeParse(input);
+
   if (!parsed.success) {
     return { error: "Invalid input.", ok: false };
   }
+
   const { checkNames, siteId } = parsed.data;
 
   const site = await Sites.find(siteId);
+
   if (!site) {
     return { error: "Site not found.", ok: false };
   }
+
   const siteContext = {
     domain: site.domain,
     niches: site.niches,
   };
 
   const unique = [...new Set(checkNames)];
+
   const results: Array<
     | { advice: FixAdvice; checkName: string; ok: true }
     | { checkName: string; error: string; ok: false }
@@ -74,28 +81,37 @@ export const bulkGenerateFixAdviceAction = async (
 
   for (let i = 0; i < unique.length; i += BULK_CONCURRENCY) {
     const chunk = unique.slice(i, i + BULK_CONCURRENCY);
+
     const batch = await Promise.allSettled(
       chunk.map(async (checkName) => {
         const cached = getCachedAdvice(siteId, checkName);
+
         if (cached) {
           return { advice: cached, checkName };
         }
+
         const advice = await callGenerator({ checkName, site: siteContext });
         setCachedAdvice(siteId, checkName, advice);
+
         return { advice, checkName };
       }),
     );
+
     for (const [idx, settled] of batch.entries()) {
       const checkName = chunk[idx];
+
       if (checkName === undefined || checkName === "") {
         continue;
       }
+
       if (settled.status === "fulfilled") {
         results.push({ advice: settled.value.advice, checkName, ok: true });
       } else {
         const reason: unknown = settled.reason;
+
         const message =
           reason instanceof AiUnavailableError ? reason.message : "Could not generate fix advice.";
+
         if (!(reason instanceof AiUnavailableError)) {
           log.error({
             checkName,
@@ -103,6 +119,7 @@ export const bulkGenerateFixAdviceAction = async (
             message: "bulkGenerateFixAdviceAction failed",
           });
         }
+
         results.push({ checkName, error: message, ok: false });
       }
     }

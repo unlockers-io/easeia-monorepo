@@ -10,6 +10,7 @@ import { seedAdmin } from "./admin";
 // This fixture is deliberately restricted to a disposable local *_demo database.
 const requireDemoDatabase = () => {
   const databaseUrl = new URL(process.env.DATABASE_URL ?? "");
+
   if (
     process.env.DEMO_SEED !== "true" ||
     !["localhost", "127.0.0.1"].includes(databaseUrl.hostname) ||
@@ -19,10 +20,13 @@ const requireDemoDatabase = () => {
       "Demo seed requires DEMO_SEED=true and a local database whose name ends in _demo.",
     );
   }
+
   const password = process.env.DEMO_ADMIN_PASSWORD;
+
   if (password === undefined || password.length < 12) {
     throw new Error("Set DEMO_ADMIN_PASSWORD to a unique password of at least 12 characters.");
   }
+
   process.env.SEED_ADMIN_EMAIL = "demo@example.com";
   process.env.SEED_ADMIN_NAME = "Demo Operator";
   process.env.SEED_ADMIN_PASSWORD = password;
@@ -72,9 +76,11 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
     moneySiteId: "demo-money-site",
     topicHints: site.keyword,
   });
+
   for (let day = 0; day < 14; day += 1) {
     const date = ago(day);
     date.setUTCHours(0, 0, 0, 0);
+
     const snapshot = {
       backlinksTotal: 32 + index * 9,
       daysSinceLastPublish: 1,
@@ -90,16 +96,19 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       reachable: true,
       referringDomains: 12 + index,
     };
+
     await prisma.siteSnapshot.upsert({
       create: { date, siteId, ...snapshot },
       update: snapshot,
       where: { siteId_date: { date, siteId } },
     });
   }
+
   for (let n = 0; n < 8; n += 1) {
     const id = `demo-post-${index}-${n}`;
     const published = n < 6;
     const body = `## Start with a clear plan\n\nThis is a synthetic article for the Easeia demo network. Choose one subject, make time to review it, and keep notes about what worked.\n\n## Look at the details\n\nA short checklist makes each session easier to prepare. Find more ideas in our [field notes](https://fieldnotes.example/journal/guide-1/) or compare [daylight studios](https://acmestudios.example/spaces/daylight/).\n\n## Review before publishing\n\nRead the draft, check each link, and add the context your readers need.`;
+
     const post = {
       body,
       categories: ["Journal"],
@@ -114,7 +123,9 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       tags: ["guides", "demo"],
       title: n === 0 ? site.topic : `${site.topic}: part ${n + 1}`,
     };
+
     await recordSeedPost({ id, ...post });
+
     if (published) {
       await recordCompletedJob({
         finishedAt: ago(n + 1),
@@ -132,9 +143,11 @@ const seedLinks = async () => {
   for (let index = 0; index < SITES.length; index += 1) {
     const next = (index + 1) % SITES.length;
     const nextSite = SITES[next];
+
     if (nextSite === undefined) {
       throw new Error(`seedLinks: no site at index ${next}`);
     }
+
     for (let n = 0; n < 6; n += 1) {
       const link = {
         anchorText: "related editorial guide",
@@ -146,11 +159,13 @@ const seedLinks = async () => {
         toUrl: `https://${nextSite.domain}/journal/guide-${n + 1}/`,
         type: "PBN" as const,
       };
+
       await prisma.link.upsert({
         create: { id: `demo-cross-${index}-${n}`, ...link },
         update: link,
         where: { id: `demo-cross-${index}-${n}` },
       });
+
       const moneyLink = {
         ...link,
         anchorText: "daylight studios",
@@ -158,6 +173,7 @@ const seedLinks = async () => {
         toUrl: "https://acmestudios.example/spaces/daylight/",
         type: "EXTERNAL" as const,
       };
+
       await prisma.link.upsert({
         create: { id: `demo-money-${index}-${n}`, ...moneyLink },
         update: moneyLink,
@@ -170,16 +186,19 @@ const seedLinks = async () => {
 const main = async () => {
   requireDemoDatabase();
   await seedAdmin();
+
   const moneySite = {
     domain: "acmestudios.example",
     name: "Acme Studios",
     sitemapUrl: "https://acmestudios.example/sitemap.xml",
   };
+
   await prisma.moneySite.upsert({
     create: { id: "demo-money-site", ...moneySite },
     update: moneySite,
     where: { id: "demo-money-site" },
   });
+
   for (const name of ["daylight", "portraits", "events"]) {
     const page = {
       excerpt: "Synthetic studio listing for launch screenshots.",
@@ -187,20 +206,24 @@ const main = async () => {
       title: `Acme ${name} studio`,
       url: `https://acmestudios.example/spaces/${name}/`,
     };
+
     await prisma.moneySitePage.upsert({
       create: { id: `demo-money-page-${name}`, ...page },
       update: page,
       where: { id: `demo-money-page-${name}` },
     });
   }
+
   for (const [index, site] of SITES.entries()) {
     await seedSite(site, index);
   }
+
   await seedLinks();
   console.log(
     "Seeded synthetic demo: 4 Astro sites, 1 money site, 32 posts, 48 links, 56 snapshots. Admin: demo@example.com",
   );
 };
+
 try {
   await main();
 } finally {

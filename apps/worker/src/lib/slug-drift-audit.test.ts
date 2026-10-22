@@ -22,6 +22,7 @@ const SITE = {
 const sitemapFetcher = (urls: Array<string>) => {
   const index = `<sitemapindex><sitemap><loc>https://www.example.com/sitemap-0.xml</loc></sitemap></sitemapindex>`;
   const page = `<urlset>${urls.map((u) => `<url><loc>${u}</loc></url>`).join("")}</urlset>`;
+
   return vi.fn((url: string) => Promise.resolve(url.endsWith("sitemap-index.xml") ? index : page));
 };
 
@@ -41,6 +42,7 @@ describe("auditSlugDrift", () => {
       findSites: () => Promise.resolve([SITE]),
       logger,
     });
+
     const result = await audit();
     expect(result).toEqual({ mismatched: 0, missing: 0, sitesChecked: 1, sitesSkipped: 0 });
     expect(logger.error).not.toHaveBeenCalled();
@@ -53,6 +55,7 @@ describe("auditSlugDrift", () => {
       findSites: () => Promise.resolve([SITE]),
       logger,
     });
+
     const result = await audit();
     expect(result.mismatched).toBe(1);
     expect(logger.error).toHaveBeenCalledWith(
@@ -72,6 +75,7 @@ describe("auditSlugDrift", () => {
       findSites: () => Promise.resolve([SITE]),
       logger,
     });
+
     const result = await audit();
     expect(result.missing).toBe(1);
     expect(result.mismatched).toBe(0);
@@ -84,6 +88,7 @@ describe("auditSlugDrift", () => {
       findSites: () => Promise.resolve([SITE]),
       logger,
     });
+
     const result = await audit();
     expect(result).toMatchObject({ mismatched: 0, missing: 0 });
   });
@@ -95,6 +100,7 @@ describe("auditSlugDrift", () => {
       findSites: () => Promise.resolve([SITE]),
       logger,
     });
+
     const result = await audit();
     expect(result).toEqual({ mismatched: 0, missing: 0, sitesChecked: 0, sitesSkipped: 1 });
     expect(logger.warn).toHaveBeenCalled();
@@ -102,12 +108,14 @@ describe("auditSlugDrift", () => {
 
   it("skips sites with no published posts", async () => {
     const fetchText = vi.fn();
+
     const audit = makeAuditSlugDrift({
       fetchText,
       findPosts: () => Promise.resolve([]),
       findSites: () => Promise.resolve([SITE]),
       logger,
     });
+
     const result = await audit();
     expect(result.sitesChecked).toBe(0);
     expect(fetchText).not.toHaveBeenCalled();

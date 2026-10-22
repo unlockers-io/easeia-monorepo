@@ -29,9 +29,11 @@ const main = async () => {
 
   for (const site of sites) {
     const manifestPath = join(MANIFEST_DIR, `${site.domain}.json`);
+
     const manifest = z
       .array(manifestEntrySchema)
       .parse(JSON.parse(readFileSync(manifestPath, "utf8")));
+
     const withWpImage = new Set(manifest.map((e) => e.slug));
 
     const posts = await prisma.post.findMany({
@@ -72,9 +74,11 @@ const main = async () => {
   }
 
   console.log(`=== orphans per site ===`);
+
   for (const s of summary) {
     console.log(`  ${s.domain.padEnd(28)} ${s.count}`);
   }
+
   console.log(`\ntotal orphans: ${total}`);
 
   await prisma.$disconnect();

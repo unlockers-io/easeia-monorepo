@@ -8,6 +8,7 @@ import { createJobLogger } from "../lib/logger";
 export const extractSourceDomain = (rawUrl: string): string | null => {
   try {
     const u = new URL(rawUrl);
+
     return u.hostname.replace(/^www\./v, "").toLowerCase();
   } catch {
     return null;
@@ -19,15 +20,19 @@ export const aggregateByDomain = (
   rows: ReadonlyArray<{ referringUrl: string }>,
 ): Map<string, Set<string>> => {
   const pagesByDomain = new Map<string, Set<string>>();
+
   for (const row of rows) {
     const domain = extractSourceDomain(row.referringUrl);
+
     if (domain === null || domain === "") {
       continue;
     }
+
     const set = pagesByDomain.get(domain) ?? new Set<string>();
     set.add(row.referringUrl);
     pagesByDomain.set(domain, set);
   }
+
   return pagesByDomain;
 };
 
@@ -38,6 +43,7 @@ const reaggregateForSite = async (
   if (observed.size === 0) {
     return { domains: 0 };
   }
+
   const all = await prisma.gscReferringUrl.findMany({
     select: { referringUrl: true },
     where: { siteId },
@@ -91,9 +97,11 @@ export const handleCrawlGscLinks = async (
     },
     where: { id: payload.postId },
   });
+
   if (!post) {
     log.warn("crawl-gsc-links: post missing, skipping");
     log.emit();
+
     return;
   }
 
@@ -102,10 +110,12 @@ export const handleCrawlGscLinks = async (
   const inspectionUrl = postPublicUrl(post.site, post);
 
   const searchConsole = await forSite(post.site.domain);
+
   if (searchConsole.status !== "ok") {
     log.set({ searchConsole: searchConsole.status });
     log.warn("crawl-gsc-links: Search Console unavailable, skipping");
     log.emit();
+
     return;
   }
 
@@ -138,6 +148,7 @@ export const handleCrawlGscLinks = async (
       .map((u) => extractSourceDomain(u))
       .filter((d): d is string => d !== null && d !== ""),
   );
+
   const agg = await reaggregateForSite(post.siteId, observedDomains);
 
   log.set({

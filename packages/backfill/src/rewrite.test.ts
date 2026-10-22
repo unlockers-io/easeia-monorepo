@@ -17,16 +17,20 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped rewrite backfil
   });
   it("advances through an empty crawl catalog and freezes eligible posts", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
+
     const site = await prisma.site.create({
       data: {
         domain: `rewrite-${crypto.randomUUID()}.test`,
         vercelDeployHookUrl: "https://deploy.test/hook",
       },
     });
+
     siteId = site.id;
+
     const post = await prisma.post.create({
       data: { body: "Body", siteId, slug: "post", status: "PUBLISHED", title: "Post" },
     });
+
     const started = await rewriteBackfill.start({ force: false });
     runId = started.runId;
     await rewriteBackfill.tick();

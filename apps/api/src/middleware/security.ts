@@ -10,9 +10,11 @@ const API_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 export const apiRateLimitKey = (c: Context<{ Variables: Partial<AuthVariables> }>): string => {
   const actor = c.get("actor");
+
   if (actor !== undefined && actor.id !== "") {
     return `actor:${actor.kind}:${actor.id}`;
   }
+
   return `ip:${getClientIp(c)}`;
 };
 

@@ -19,6 +19,7 @@ const metadata: Metadata = {
 
 const Recovery = async () => {
   await connection();
+
   return readIntegrations().mail.configured ? (
     <RecoverForm />
   ) : (

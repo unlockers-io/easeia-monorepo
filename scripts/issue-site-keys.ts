@@ -22,13 +22,16 @@ const main = async () => {
 
   for (const site of sites) {
     const name = `${site.domain} build`;
+
     const existing = keys.find(
       (key) => key.name === name && key.revokedAt === null && key.siteId === site.id,
     );
+
     if (existing) {
       console.log(`  skip ${site.domain} — key "${name}" already exists (id=${existing.id})`);
       continue;
     }
+
     const { token } = await createApiKey({ name, scopes: ["content:read"], siteId: site.id });
     out.push({
       domain: site.domain,

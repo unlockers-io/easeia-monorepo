@@ -16,6 +16,7 @@ type OAuthEnv = {
 const loadEnv = (): OAuthEnv => {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+
   if (
     clientId === undefined ||
     clientId === "" ||
@@ -26,11 +27,13 @@ const loadEnv = (): OAuthEnv => {
       "GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be set",
     );
   }
+
   return { clientId, clientSecret };
 };
 
 export const oauthClient = (redirectUri?: string): OAuth2Client => {
   const env = loadEnv();
+
   return new OAuth2Client({
     clientId: env.clientId,
     clientSecret: env.clientSecret,
@@ -40,6 +43,7 @@ export const oauthClient = (redirectUri?: string): OAuth2Client => {
 
 export const buildAuthUrl = (params: { redirectUri: string; state: string }): string => {
   const client = oauthClient(params.redirectUri);
+
   return client.generateAuthUrl({
     access_type: "offline",
     include_granted_scopes: true,
@@ -55,5 +59,6 @@ export const exchangeCode = async (params: {
 }): Promise<Credentials> => {
   const client = oauthClient(params.redirectUri);
   const { tokens } = await client.getToken(params.code);
+
   return tokens;
 };

@@ -33,7 +33,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const site = await prisma.site.create({
         data: { domain: `${run}.test`, vercelDeployHookUrl: "https://deploy.test/hook" },
       });
+
       siteIds.push(site.id);
+
       const { job, post } = await Posts.create({
         body: "<p>Body.</p>",
         categories: ["Casamentos"],
@@ -51,11 +53,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       });
 
       const published = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
+
       const { data: deploys } = await listJobs({
         kinds: [JobKind.TRIGGER_DEPLOY],
         limit: 1,
         siteId: site.id,
       });
+
       const [deploy] = deploys;
       expect(published.status).toBe(PostStatus.PUBLISHED);
       expect(deploy?.createdAt.getTime()).toBeGreaterThanOrEqual(

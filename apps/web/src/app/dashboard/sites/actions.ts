@@ -15,6 +15,7 @@ export type BackfillAllResult =
 
 export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllResult> => {
   const session = await getSession();
+
   if (!session) {
     return { error: "Not authenticated.", ok: false };
   }
@@ -28,6 +29,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
     select: { id: true },
     where: { isEnabled: true },
   });
+
   if (sites.length === 0) {
     return { ok: true, queued: 0, skipped: 0 };
   }
@@ -43,6 +45,7 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
   );
 
   const rejections = fanoutRejections(results);
+
   for (const { index, reason } of rejections) {
     log.error({
       err: reason,
@@ -50,10 +53,12 @@ export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllRe
       siteId: sites[index]?.id,
     });
   }
+
   const skipped = rejections.length;
   const queued = results.length - skipped;
   await audit({ action: "backlinks.backfill", meta: { queued, skipped }, target: "network" });
 
   revalidatePath("/dashboard/sites");
+
   return { ok: true, queued, skipped };
 };

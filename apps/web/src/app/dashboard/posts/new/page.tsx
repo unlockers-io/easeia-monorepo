@@ -32,12 +32,14 @@ const NICHE_OPTIONS = Object.values(Niche);
 
 const NewPostPage = async ({ searchParams }: { searchParams: Promise<{ error?: string }> }) => {
   await connection();
+
   const [{ error }, sites] = await Promise.all([
     searchParams,
     prisma.site.findMany({ orderBy: { domain: "asc" }, where: { isEnabled: true } }),
   ]);
 
   const [firstSite] = sites;
+
   if (firstSite === undefined) {
     return (
       <Card>

@@ -17,6 +17,7 @@ describe("filterByNiche", () => {
       [row({ niches: ["WEDDING"] }), row({ id: "p2", niches: ["TECH"] })],
       ["WEDDING", "FASHION"],
     );
+
     expect(out.map((r) => r.id)).toEqual(["p1"]);
   });
 

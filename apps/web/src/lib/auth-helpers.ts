@@ -18,14 +18,17 @@ export const getSession = cache(async () => {
       error: error instanceof Error ? error.message : String(error),
       message: "getSession failed",
     });
+
     return null;
   }
 });
 
 export const requireSession = async () => {
   const session = await getSession();
+
   if (!session) {
     throw new Error("Unauthorized");
   }
+
   return session;
 };

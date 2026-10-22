@@ -10,11 +10,13 @@ export const handleCrawlMoneySite = async (
   const { jobId, payload } = ctx;
   const log = createJobLogger({ jobId, queue: "crawl-money-site" });
   const result = await crawlSitemap(payload.moneySiteId);
+
   // eslint-disable-next-line react-doctor/server-sequential-independent-await -- not independent: findMany reads the pages crawlSitemap just upserted
   const pages = await prisma.moneySitePage.findMany({
     select: { id: true },
     where: { moneySiteId: payload.moneySiteId },
   });
+
   log.set({
     discovered: result.discovered,
     moneySiteId: payload.moneySiteId,

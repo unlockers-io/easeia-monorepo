@@ -74,10 +74,12 @@ type RepairOutcome = {
 
 const repairOne = async (row: Row): Promise<RepairOutcome> => {
   const normalized = normalizeBody(row.body, row.language);
+
   if (normalized !== row.body) {
     if (normalized.trim().length === 0) {
       return { reason: "normalizeBody produced an empty body", row, status: "skipped" };
     }
+
     return { after: normalized, method: "normalized", row, status: "ok" };
   }
 
@@ -87,9 +89,11 @@ const repairOne = async (row: Row): Promise<RepairOutcome> => {
   if (after.includes(String.raw`\*`) || after.includes(String.raw`\#`)) {
     return { reason: "still contains escaped markdown", row, status: "skipped" };
   }
+
   if (!after.includes("\n")) {
     return { reason: "no line breaks restored", row, status: "skipped" };
   }
+
   if (after.length < row.body.length * 0.6 || after.length > row.body.length * 1.6) {
     return {
       reason: `length drift (${row.body.length} → ${after.length})`,
@@ -97,10 +101,12 @@ const repairOne = async (row: Row): Promise<RepairOutcome> => {
       status: "skipped",
     };
   }
+
   const inWords = wordBag(row.body);
   const outWords = wordBag(after);
   const missing = [...inWords].filter((w) => !outWords.has(w));
   const coverage = inWords.size === 0 ? 1 : 1 - missing.length / inWords.size;
+
   if (coverage < 0.92) {
     return { reason: `word coverage ${(coverage * 100).toFixed(0)}%`, row, status: "skipped" };
   }
@@ -112,22 +118,28 @@ const newlineCount = (s: string): number => (s.match(/\n/g) ?? []).length;
 
 const main = async (): Promise<number> => {
   const rows = await selectCorrupted();
+
   if (rows.length === 0) {
     console.log("No corrupted bodies found. Nothing to repair.");
+
     return 0;
   }
 
   const bySite = new Map<string, number>();
+
   for (const r of rows) {
     bySite.set(r.siteId, (bySite.get(r.siteId) ?? 0) + 1);
   }
+
   console.log(
     `Found ${rows.length} corrupted bodies across ${bySite.size} sites (${APPLY ? "APPLY" : "dry run"}).\n`,
   );
 
   const outcomes: Array<RepairOutcome> = [];
+
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
+
     const settled = await Promise.all(
       batch.map(async (row): Promise<RepairOutcome> => {
         try {
@@ -137,6 +149,7 @@ const main = async (): Promise<number> => {
         }
       }),
     );
+
     outcomes.push(...settled);
     console.log(`  processed ${Math.min(i + BATCH_SIZE, rows.length)}/${rows.length}`);
   }
@@ -145,34 +158,42 @@ const main = async (): Promise<number> => {
   const skipped = outcomes.filter((o) => o.status === "skipped");
 
   console.log(`\n=== results ===`);
+
   for (const o of repaired) {
     console.log(
       `  [ok:${o.method ?? "?"}] ${o.row.slug.padEnd(58)} nl ${newlineCount(o.row.body)} → ${newlineCount(o.after ?? "")}`,
     );
   }
+
   for (const o of skipped) {
     console.log(`  [skip]  ${o.row.slug.padEnd(60)} ${o.reason}`);
   }
+
   console.log(`\nrepaired=${repaired.length} skipped=${skipped.length}`);
 
   if (!APPLY) {
     const sample = repaired.at(0);
+
     if (sample !== undefined) {
       console.log(`\n--- sample preview: ${sample.row.slug} ---`);
       console.log(`BEFORE: ${JSON.stringify(sample.row.body.slice(0, 200))}`);
       console.log(`AFTER : ${JSON.stringify((sample.after ?? "").slice(0, 200))}`);
     }
+
     console.log("\nDry run — no writes. Re-run with --apply to persist.");
+
     return skipped.length > 0 ? 1 : 0;
   }
 
   let written = 0;
+
   for (const o of repaired) {
     await reviseBody(o.row.id, { body: o.after ?? o.row.body, from: o.row.body });
     written++;
   }
 
   console.log(`\nWrote ${written} bodies.`);
+
   return skipped.length > 0 ? 1 : 0;
 };
 

@@ -36,13 +36,19 @@ const app = createOpenAPIApp();
 const identify = createIdentify(auth);
 
 app.use("*", requestId());
+
 app.use("*", honoEvlog());
+
 app.use("*", async (c: Context, next: Next) => {
   await identify(c.get("log"), c.req.raw.headers, c.req.path);
+
   return next();
 });
+
 app.use("*", compress());
+
 app.use("*", requestSizeLimit());
+
 app.use(
   "*",
   cors({
@@ -128,6 +134,7 @@ app.openapi(readyzRoute, async (c) => {
     );
   } catch (error) {
     c.get("log").error(error instanceof Error ? error : "readiness check failed");
+
     return c.json(
       {
         checks: { database: "unhealthy" as const },
@@ -140,14 +147,23 @@ app.openapi(readyzRoute, async (c) => {
 });
 
 app.route("/api/api-keys", apiKeyRoutes);
+
 app.route("/api/backfill", backfillRoutes);
+
 app.route("/api/build", buildRoutes);
+
 app.route("/api/jobs", jobRoutes);
+
 app.route("/api/posts", postRoutes);
+
 app.route("/api/money-sites", moneySiteRoutes);
+
 app.route("/api/sites", siteRoutes);
+
 app.route("/api/rewrite", rewriteRoutes);
+
 app.route("/api/suggestions", suggestionRoutes);
+
 app.route("/api/waitlist", waitlistRoutes);
 
 // Same metadata as /openapi.json; only the spec version differs. Duplicating the
@@ -182,6 +198,7 @@ serve({
 
 const shutdown = async (signal: string): Promise<void> => {
   log.info("server", `${signal} received, shutting down gracefully...`);
+
   try {
     await prisma.$disconnect();
   } catch (error) {

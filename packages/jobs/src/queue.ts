@@ -11,11 +11,15 @@ export const redisConnection = (): Redis => {
   if (connection) {
     return connection;
   }
+
   const url = process.env.REDIS_URL;
+
   if (url === undefined || url === "") {
     throw new Error("REDIS_URL is required to enqueue or consume Jobs");
   }
+
   connection = new Redis(url, { maxRetriesPerRequest: null });
+
   return connection;
 };
 
@@ -47,11 +51,14 @@ export const QUEUE_NAMES = {
 } satisfies QueueNamesContract;
 
 const queues = new Map<JobKind, Queue>();
+
 export const queueFor = (kind: JobKind): Queue => {
   const cached = queues.get(kind);
+
   if (cached) {
     return cached;
   }
+
   const q = new Queue(QUEUE_NAMES[kind], {
     connection: redisConnection(),
     defaultJobOptions: {
@@ -61,7 +68,9 @@ export const queueFor = (kind: JobKind): Queue => {
       removeOnFail: { age: 60 * 60 * 24 * 7, count: 500 },
     },
   });
+
   queues.set(kind, q);
+
   return q;
 };
 
@@ -73,6 +82,7 @@ export const queueFor = (kind: JobKind): Queue => {
 export const closeQueues = async (): Promise<void> => {
   await Promise.allSettled([...queues.values()].map((q) => q.close()));
   queues.clear();
+
   if (connection) {
     await connection.quit().catch(() => undefined);
     connection = null;
@@ -109,10 +119,13 @@ export const enqueue = async <K extends JobKind>(
   tx: Prisma.TransactionClient = prisma,
 ) => {
   const data = rowFor(input);
+
   if (input.run === undefined) {
     return tx.job.create({ data });
   }
+
   const id = `${input.run.id}-${input.run.phase}-${input.kind}-${input.run.member}`;
+
   return tx.job.upsert({ create: { ...data, id }, update: {}, where: { id } });
 };
 
@@ -123,11 +136,14 @@ const enqueueUnless = (blocking: Prisma.JobWhereInput) => {
   ) => {
     const lockKey = `${input.kind}:${input.siteId ?? ""}`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
     const busy = await tx.job.count({
       where: { ...blocking, kind: input.kind, siteId: input.siteId },
     });
+
     return busy > 0 ? null : enqueue(input, tx);
   };
+
   return <K extends JobKind>(input: EnqueueInput<K>, tx?: Prisma.TransactionClient) =>
     tx === undefined ? prisma.$transaction((db) => insert(input, db)) : insert(input, tx);
 };
@@ -175,6 +191,7 @@ export const recordCompletedJob = async <K extends JobKind>({
     startedAt: finishedAt,
     status: JobStatus.DONE,
   };
+
   await prisma.job.upsert({ create: { id, ...row }, update: row, where: { id } });
 };
 

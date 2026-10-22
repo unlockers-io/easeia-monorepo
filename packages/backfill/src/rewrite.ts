@@ -18,6 +18,7 @@ export const rewriteBackfill = createBackfill({
   members: async ({ force }: { force: boolean }) => {
     assertAiConfigured();
     const sites = await Sites.list();
+
     const [posts, moneySites] = await Promise.all([
       prisma.post.findMany({
         select: { id: true },
@@ -33,6 +34,7 @@ export const rewriteBackfill = createBackfill({
       }),
       prisma.moneySite.findMany({ select: { id: true }, where: { isEnabled: true } }),
     ]);
+
     return {
       force,
       moneySiteIds: moneySites.map((site) => site.id),

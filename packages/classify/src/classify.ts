@@ -33,20 +33,25 @@ export const mergeTags = (
 ): Array<string> => {
   const seen = new Set<string>();
   const out: Array<string> = [];
+
   for (const t of existing) {
     const n = normalizeTag(t);
+
     if (!seen.has(n) && !matchesNicheEnum(n)) {
       seen.add(n);
       out.push(n);
     }
   }
+
   for (const t of fresh) {
     const n = normalizeTag(t);
+
     if (!seen.has(n) && !matchesNicheEnum(n)) {
       seen.add(n);
       out.push(n);
     }
   }
+
   return out;
 };
 
@@ -66,13 +71,16 @@ export const classifyContent = async (
   input: ClassifyContentInput,
 ): Promise<ClassifyContentResult> => {
   const body = stripHtml(input.body).slice(0, MAX_BODY_CHARS);
+
   const prompt = buildClassifyPrompt({
     body,
     siteDomain: input.siteDomain,
     siteNiches: input.siteNiches,
     title: input.title,
   });
+
   const output = await generateStructured({ prompt, schema });
+
   return { niches: output.niches, tags: output.tags };
 };
 
@@ -84,15 +92,18 @@ export const classifyPost = async (
     include: { site: { select: { domain: true, niches: true } } },
     where: { id: postId },
   });
+
   if (!post) {
     return;
   }
+
   const result = await classify({
     body: post.body,
     siteDomain: post.site.domain,
     siteNiches: post.site.niches,
     title: post.title,
   });
+
   const mergedTags = mergeTags(post.tags, result.tags);
   await update(postId, { niches: result.niches, tags: mergedTags });
 };

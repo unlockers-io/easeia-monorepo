@@ -47,12 +47,14 @@ const SERP_COMPETITOR_LIMIT = 8;
 const fetchSerpCompetitors = async (input: SerpLookup): Promise<ReadonlyArray<SerpCompetitor>> => {
   try {
     const result = await dataForSeo.serpOrganic(input, input.keyword);
+
     return result.top
       .filter((p) => p.domain !== input.domain.toLowerCase())
       .slice(0, SERP_COMPETITOR_LIMIT)
       .map((p) => ({ description: p.description, title: p.title }));
   } catch (error) {
     workerLog.warn({ err: error, keyword: input.keyword, message: "serp fetch failed" });
+
     return [];
   }
 };
@@ -65,9 +67,11 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
     log.set({ siteId });
 
     const site = await dependencies.findSite(siteId);
+
     if (!site || !site.isEnabled) {
       log.warn("generate-post: site missing or disabled");
       log.emit();
+
       return;
     }
 
@@ -84,6 +88,7 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
       searchQueries,
       topicHints: site.topicHints,
     });
+
     log.set({ focusKeyword: topic.focusKeyword });
 
     const competitors = await dependencies.fetchSerpCompetitors({
@@ -154,6 +159,7 @@ const handleGeneratePost = createHandleGeneratePost({
       take: 30,
       where: { siteId },
     });
+
     return posts.map((p) => p.title);
   },
   findSite: (siteId) =>
@@ -167,4 +173,5 @@ const handleGeneratePost = createHandleGeneratePost({
 });
 
 export { createHandleGeneratePost, handleGeneratePost };
+
 export type { GeneratePostDependencies, SiteForGeneration };

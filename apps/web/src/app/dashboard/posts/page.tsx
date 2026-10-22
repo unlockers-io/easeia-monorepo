@@ -37,6 +37,7 @@ const toArray = (input: string | Array<string> | undefined): Array<string> => {
   if (input === undefined || input === "") {
     return [];
   }
+
   return Array.isArray(input) ? input : [input];
 };
 
@@ -59,6 +60,7 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
     prisma.post.count(),
     Sites.list(),
   ]);
+
   const latestJobs = await findLatestJobByPost(posts.map((p) => p.id));
   const domainOf = new Map(sites.map((site) => [site.id, site.domain]));
 
@@ -69,6 +71,7 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
 
   const rows: Array<PostRow> = posts.map((p) => {
     const job = latestJobs.get(p.id);
+
     return {
       activityAt: (p.publishedAt ?? p.scheduledAt ?? p.updatedAt).toISOString(),
       id: p.id,

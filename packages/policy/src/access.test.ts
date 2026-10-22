@@ -17,14 +17,17 @@ import {
 const issueActor = async (input: ApiKeyCreate) => {
   const issued = await createApiKey(input);
   const actor = await authenticate(`Bearer ${issued.token}`);
+
   if (actor === null) {
     throw new Error("expected an API key actor");
   }
+
   return { actor, issued };
 };
 
 const findListed = async (id: string) => {
   const keys = await listApiKeys();
+
   return keys.find((key) => key.id === id);
 };
 
@@ -36,6 +39,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
     const [a, b] = await Promise.all(
       ["a", "b"].map((name) => prisma.site.create({ data: { domain: `${name}.${run}.test` } })),
     );
+
     sites.a = a?.id ?? "";
     sites.b = b?.id ?? "";
   });
@@ -148,6 +152,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
 
   it("records audit rows for an admin actor and an API actor", async () => {
     const admin: Actor = { id: "user_admin", kind: "user" };
+
     const { actor: apiActor } = await issueActor({
       name: `${run} writer`,
       scopes: ["posts:write"],
@@ -164,6 +169,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
       orderBy: { createdAt: "asc" },
       where: { target: { endsWith: run } },
     });
+
     expect(rows).toEqual([
       expect.objectContaining({
         action: "site.update",

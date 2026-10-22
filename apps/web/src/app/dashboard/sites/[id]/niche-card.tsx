@@ -11,6 +11,7 @@ import { fetchLocalStats } from "./insights";
 export const NicheCard = async ({ siteId }: { siteId: string }) => {
   const stats = await fetchLocalStats(siteId);
   const max = stats.byNiche[0]?.count ?? 0;
+
   return (
     <Card>
       <CardHeader>

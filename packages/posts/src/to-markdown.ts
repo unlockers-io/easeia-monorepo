@@ -26,20 +26,24 @@ const buildTurndown = (): TurndownService => {
     linkStyle: "inlined",
     strongDelimiter: "**",
   });
+
   td.use(gfm);
 
   td.addRule("figure", {
     filter: "figure",
     replacement: (content, node) => {
       const img = node.querySelector("img");
+
       if (!img) {
         return `\n\n${content}\n\n`;
       }
+
       const captionEl = node.querySelector("figcaption");
       const src = img.getAttribute("src") ?? "";
       const alt = img.getAttribute("alt") ?? "";
       const caption = captionEl?.textContent.trim() ?? "";
       const imgMd = `![${alt}](${src})`;
+
       return caption ? `${imgMd}\n\n*${caption}*` : imgMd;
     },
   });
@@ -68,11 +72,14 @@ export const toMarkdown = (raw: string): string => {
   if (GUTENBERG.test(raw)) {
     return htmlToMarkdown(stripGutenbergFences(raw));
   }
+
   if (!HTML_STRUCTURE.test(raw)) {
     return raw;
   }
+
   if (MARKDOWN_BLOCK.test(raw) && raw.includes("\n\n")) {
     return raw;
   }
+
   return htmlToMarkdown(raw);
 };

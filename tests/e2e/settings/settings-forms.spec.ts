@@ -9,6 +9,7 @@ test.describe("Settings forms", () => {
     const currentPassword = page.getByLabel("Current password");
     const newPassword = page.getByLabel("New password", { exact: true });
     const confirmPassword = page.getByLabel("Confirm new password");
+
     const changePassword = page.getByRole("button", {
       includeHidden: true,
       name: "Change password",

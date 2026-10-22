@@ -12,6 +12,7 @@ import { GITHUB_URL, SITE_URL } from "@/lib/urls";
 const SITE_NAME = "Easeia";
 const TAGLINE = "Open-source dashboard for private blog networks";
 const SHORT_DESCRIPTION = "An open-source dashboard for private blog networks.";
+
 const LONG_DESCRIPTION =
   "Run a private blog network from one dashboard. AI drafts, scheduled Astro publishing, money-site links, and search reports. Free MIT self-hosting; Cloud waitlist.";
 

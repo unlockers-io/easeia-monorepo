@@ -20,8 +20,11 @@ const fixAdviceSchema = z.object({
 });
 
 export type FixAdviceSeverity = z.infer<typeof severitySchema>;
+
 export type FixAdviceCategory = z.infer<typeof categorySchema>;
+
 export type FixStep = z.infer<typeof fixStepSchema>;
+
 export type FixAdvice = z.infer<typeof fixAdviceSchema>;
 
 export type FixAdviceInput = {
@@ -34,6 +37,7 @@ export type FixAdviceInput = {
 
 const buildPrompt = (input: FixAdviceInput): string => {
   const niches = input.site.niches.length === 0 ? "unspecified" : input.site.niches.join(", ");
+
   return [
     "You are an SEO + web operations engineer. A DataForSEO on-page",
     "audit flagged a failing check on a site. Produce a concise, opinionated",

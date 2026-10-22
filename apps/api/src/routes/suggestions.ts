@@ -25,8 +25,11 @@ import { recordAudit } from "@/middleware/audit";
 import { apiRateLimit } from "@/middleware/security";
 
 type SuggestionListInput = z.infer<typeof suggestionListQuerySchema>;
+
 type SuggestionListItem = z.infer<typeof suggestionPublicSchema>;
+
 type SuggestionResult = z.infer<typeof suggestionDecisionSchema>["link"];
+
 type SuggestionRouteDependencies = {
   apiAuth: MiddlewareHandler;
   approveSuggestion: (id: string) => Promise<SuggestionResult>;
@@ -61,6 +64,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
     async (c) => {
       const parsed = c.req.valid("query");
       const rows = await dependencies.listSuggestions(parsed);
+
       return c.json(
         {
           data: rows.slice(0, parsed.limit),
@@ -91,6 +95,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
       const id = c.req.valid("param").id;
       const link = await dependencies.approveSuggestion(id);
       await dependencies.audit(c, { action: "link.approve", target: `link:${id}` });
+
       return c.json({ link }, 200);
     },
   );
@@ -113,6 +118,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
       const id = c.req.valid("param").id;
       const link = await dependencies.rejectSuggestion(id);
       await dependencies.audit(c, { action: "link.reject", target: `link:${id}` });
+
       return c.json({ link }, 200);
     },
   );
@@ -142,6 +148,7 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
       const parsed = c.req.valid("json");
       const link = await dependencies.editSuggestionAnchor(id, parsed.anchorText);
       await dependencies.audit(c, { action: "link.update", target: `link:${id}` });
+
       return c.json({ link }, 200);
     },
   );
@@ -161,4 +168,5 @@ const suggestionRoutes = createSuggestionRoutes({
 });
 
 export { createSuggestionRoutes, suggestionRoutes };
+
 export type { SuggestionRouteDependencies };

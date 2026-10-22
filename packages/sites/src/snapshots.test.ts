@@ -15,6 +15,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     const createSite = async (name: string, isEnabled = true) => {
       const site = await prisma.site.create({ data: { domain: `${name}.${run}.test`, isEnabled } });
       siteIds.push(site.id);
+
       return site.id;
     };
 

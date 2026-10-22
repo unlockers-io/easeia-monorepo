@@ -4,14 +4,19 @@ import { analyzeBody, dedupeBody, splitBlocks } from "./dedupe-body";
 
 const P1 =
   "Reservar tempo para testes economiza retakes e ajuda o fotografo a escolher enquadramentos que favorecam seu look.";
+
 const P2 =
   "Se quiser ensaiar em espacos que facilitam producao e iluminacao natural, procure locacoes com opcoes de cenario variadas.";
+
 const P3 =
   "Praticar, fotografar e ajustar e a melhor forma de construir um guarda-roupa de fotos eficiente e consistente.";
+
 const P4 =
   "Fotografe de perto e de corpo inteiro para avaliar se a meia atrai a atencao certa ou distrai do rosto do modelo.";
+
 const P5 =
   "Preparacao reduz erros no dia: organize looks numerados, leve kit de costura e faca uma rapida prova com a camera.";
+
 const P6 =
   "Teste uma foto com cada paleta em luz natural para confirmar qual cor levanta mais a expressao do rosto da modelo.";
 
@@ -83,6 +88,7 @@ describe("dedupeBody: corruption", () => {
       ...Array.from({ length: 57 }, () => version2),
       ...Array.from({ length: 3975 }, () => version3),
     ];
+
     expect(dedupeBody(versions.join("\n\n"))).toBe(version3);
   });
 
@@ -121,6 +127,7 @@ describe("dedupeBody: content that repeats legitimately", () => {
       "90-94",
       P2,
     );
+
     expect(dedupeBody(table)).toBe(table);
   });
 

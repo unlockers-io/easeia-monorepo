@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@repo/ui/components/button";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,10 +28,13 @@ const moneySitesPayloadSchema = z.object({ data: z.array(moneySiteSchema) });
 type MoneySite = z.infer<typeof moneySiteSchema>;
 
 const QUERY_KEY = ["money-sites"] as const;
+
 const fetchAll = async (): Promise<Array<MoneySite>> => {
   const data = unwrapAction(await listMoneySitesAction());
+
   return moneySitesPayloadSchema.parse({ data }).data;
 };
+
 const create = async (input: {
   contentPathPrefix?: string;
   domain: string;
@@ -39,12 +43,14 @@ const create = async (input: {
 }): Promise<void> => {
   unwrapAction(await createMoneySiteAction(input));
 };
+
 const recrawl = async (id: string): Promise<void> => {
   unwrapAction(await recrawlMoneySiteAction(id));
 };
 
 const MoneySitesPage = () => {
   const queryClient = useQueryClient();
+
   const [form, setForm] = useState({
     contentPathPrefix: "",
     domain: "",
@@ -87,9 +93,11 @@ const MoneySitesPage = () => {
 
   const handleCreate = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!form.domain || !form.sitemapUrl || !form.name) {
       return;
     }
+
     createSite({
       contentPathPrefix: form.contentPathPrefix || undefined,
       domain: form.domain,

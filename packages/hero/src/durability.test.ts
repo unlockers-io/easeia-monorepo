@@ -20,17 +20,22 @@ describe.runIf(process.env.TEST_DATABASE === "true")("durable hero completion", 
         vercelDeployHookUrl: "https://deploy.test/hook",
       },
     });
+
     siteId = site.id;
+
     const post = await prisma.post.create({
       data: { body: "Body", siteId, slug: "post", status: "PUBLISHED", title: "Post" },
     });
+
     const fake = createFakeOpenAi();
+
     const deps = {
       blob: {
         upload: () => Promise.resolve({ key: "image.jpg", url: "https://cdn.test/image.jpg" }),
       },
       generateImage: fake.ai.generateImage,
     };
+
     await prisma.$executeRawUnsafe(
       `CREATE FUNCTION thermo_fail_hero() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."siteId" = '${siteId}' THEN RAISE EXCEPTION 'injected hero intent failure'; END IF; RETURN NEW; END $$`,
     );

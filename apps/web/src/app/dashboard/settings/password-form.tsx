@@ -63,10 +63,12 @@ const { useAppForm } = createFormHook({
 export const PasswordForm = () => {
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+
   const form = useAppForm({
     defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
     onSubmit: async ({ value }) => {
       setMessage(null);
+
       const result = await authClient
         .changePassword({
           currentPassword: value.currentPassword,
@@ -74,24 +76,31 @@ export const PasswordForm = () => {
           revokeOtherSessions: true,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         setMessage(result);
+
         return;
       }
+
       if (result.error) {
         setMessage(result.error.message ?? "Could not change password.");
+
         return;
       }
+
       form.reset();
       setMessage("Password changed. Your other sessions have been signed out.");
       router.refresh();
     },
     validators: { onChangeAsync: changePasswordSchema },
   });
+
   const submit = async () => {
     await form.validate("submit");
     await form.handleSubmit();
   };
+
   return (
     <Card>
       <CardHeader>

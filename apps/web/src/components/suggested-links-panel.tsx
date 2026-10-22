@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@repo/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ const fetchSuggestions = async (postId: string): Promise<Array<Item>> =>
   itemsPayloadSchema.parse(
     unwrapAction(await listSuggestionsAction({ fromPostId: postId, limit: 20 })),
   ).data;
+
 const decideSuggestion = async (id: string, action: "approve" | "reject"): Promise<void> => {
   unwrapAction(await decideSuggestionAction(id, action));
 };
@@ -63,6 +65,7 @@ export const SuggestedLinksPanel = ({ postId }: { postId: string }) => {
   if (isPending) {
     return <p className="text-sm text-muted-foreground">Loading suggestions…</p>;
   }
+
   if (isError) {
     return (
       <div role="alert">
@@ -79,6 +82,7 @@ export const SuggestedLinksPanel = ({ postId }: { postId: string }) => {
       </div>
     );
   }
+
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">No pending suggestions.</p>;
   }

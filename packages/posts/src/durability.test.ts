@@ -8,6 +8,7 @@ const dropFailure = async () => {
   await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS thermo_fail_intent ON "Job"');
   await prisma.$executeRawUnsafe("DROP FUNCTION IF EXISTS thermo_fail_intent()");
 };
+
 const failIntents = async (postId: string) => {
   await prisma.$executeRawUnsafe(
     `CREATE FUNCTION thermo_fail_intent() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."postId" = '${postId}' AND NEW.kind = 'EMBED' THEN RAISE EXCEPTION 'injected intent insertion failure'; END IF; RETURN NEW; END $$`,
@@ -19,6 +20,7 @@ const failIntents = async (postId: string) => {
 
 describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences", () => {
   let siteId = "";
+
   const fixture = async (status: "DRAFT" | "PUBLISHED" = "PUBLISHED") => {
     const site = await prisma.site.create({
       data: {
@@ -26,7 +28,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
         vercelDeployHookUrl: "https://deploy.test/hook",
       },
     });
+
     siteId = site.id;
+
     return prisma.post.create({
       data: {
         body: "Before",
@@ -38,6 +42,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
       },
     });
   };
+
   afterEach(async () => {
     await dropFailure();
     await prisma.job.deleteMany({ where: { OR: [{ siteId }, { post: { siteId } }] } });
@@ -92,9 +97,11 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
 
   it("preserves earlier batch intents when a later title repair fails", async () => {
     const first = await fixture();
+
     const second = await prisma.post.create({
       data: { body: "Before", siteId, slug: "second", status: "PUBLISHED", title: "Second" },
     });
+
     await update(first.id, { excerpt: null, tags: ["Tag"], title: "Repaired" });
     await failIntents(second.id);
     await expect(update(second.id, { title: "Broken" })).rejects.toThrow(

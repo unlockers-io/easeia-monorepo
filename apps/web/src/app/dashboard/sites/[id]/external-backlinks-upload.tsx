@@ -37,16 +37,20 @@ export const ExternalBacklinksUpload = ({
 
   const handleCsvSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!file) {
       setCsvFeedback({ kind: "error", message: "Choose a CSV file first." });
+
       return;
     }
+
     startCsvTransition(async () => {
       try {
         const text = await file.text();
         const result = await uploadExternalBacklinksAction(siteId, text);
         setCsvFeedback({ kind: "success", ...result });
         setFile(null);
+
         if (inputRef.current) {
           inputRef.current.value = "";
         }
@@ -64,6 +68,7 @@ export const ExternalBacklinksUpload = ({
     startApiTransition(async () => {
       try {
         const result = await startGscBacklinkBackfillAction(siteId);
+
         if (result.ok) {
           setApiFeedback({ kind: "queued" });
         } else {

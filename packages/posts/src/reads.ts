@@ -9,9 +9,11 @@ export const requirePost = async (
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Post> => {
   const post = await tx.post.findUnique({ where: { id } });
+
   if (!post) {
     throw new PostNotFoundError(id);
   }
+
   return post;
 };
 
@@ -25,24 +27,30 @@ export const list = async (input: PostListQueryInput): Promise<ListResult> => {
     postListQuerySchema,
     input,
   );
+
   const hasCursor = cursor !== undefined && cursor !== "";
   const niches = niche === undefined ? [] : [niche].flat();
   const where: Prisma.PostWhereInput = {};
+
   if (siteId !== undefined && siteId !== "") {
     where.siteId = siteId;
   }
+
   if (status) {
     where.status = status;
   }
+
   if (niches.length > 0) {
     where.niches = { hasSome: niches };
   }
+
   if (q !== undefined && q !== "") {
     where.OR = [
       { title: { contains: q, mode: "insensitive" } },
       { slug: { contains: q, mode: "insensitive" } },
     ];
   }
+
   const rows = await prisma.post.findMany({
     cursor: hasCursor ? { id: cursor } : undefined,
     orderBy: { createdAt: sort === "oldest" ? "asc" : "desc" },
@@ -50,7 +58,9 @@ export const list = async (input: PostListQueryInput): Promise<ListResult> => {
     take: limit + 1,
     where,
   });
+
   const nextCursor = rows.length > limit ? rows[limit]?.id : undefined;
+
   return { data: rows.slice(0, limit), meta: { nextCursor } };
 };
 

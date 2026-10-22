@@ -4,6 +4,7 @@ import { enqueueUnlessInFlight } from "@repo/jobs";
 const startOfUtcDay = (date: Date): Date => {
   const day = new Date(date);
   day.setUTCHours(0, 0, 0, 0);
+
   return day;
 };
 
@@ -12,6 +13,7 @@ export const requestSnapshots = async (now = new Date()): Promise<{ queued: numb
     select: { id: true },
     where: { isEnabled: true, snapshots: { none: { date: startOfUtcDay(now) } } },
   });
+
   const jobs = await Promise.all(
     sites.map((site) =>
       enqueueUnlessInFlight({
@@ -21,5 +23,6 @@ export const requestSnapshots = async (now = new Date()): Promise<{ queued: numb
       }),
     ),
   );
+
   return { queued: jobs.filter((job) => job !== null).length };
 };

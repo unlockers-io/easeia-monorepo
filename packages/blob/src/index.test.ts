@@ -6,34 +6,40 @@ import type { BlobBackend, R2Config } from "./index";
 describe("buildBlobKey", () => {
   it("derives a deterministic per-site/post key with the original extension", () => {
     const bytes = new Uint8Array([1, 2, 3, 4, 5]);
+
     const key = buildBlobKey({
       bytes,
       filename: "hero.jpg",
       postId: "post_xyz",
       siteId: "site_abc",
     });
+
     expect(key).toBe("sites/site_abc/posts/post_xyz/74f81fe167d99b4c.jpg");
   });
 
   it("lower-cases the extension and strips leading dots", () => {
     const bytes = new Uint8Array([9]);
+
     const key = buildBlobKey({
       bytes,
       filename: "IMG.PNG",
       postId: "p",
       siteId: "s",
     });
+
     expect(key.endsWith(".png")).toBe(true);
   });
 
   it("falls back to .bin when filename has no extension", () => {
     const bytes = new Uint8Array([0]);
+
     const key = buildBlobKey({
       bytes,
       filename: "no-extension",
       postId: "p",
       siteId: "s",
     });
+
     expect(key.endsWith(".bin")).toBe(true);
   });
 });
@@ -48,6 +54,7 @@ describe("hashBytes", () => {
 });
 
 type ListObjectsPage = Awaited<ReturnType<BlobBackend["listObjects"]>>;
+
 type BackendCall = { input: object; name: keyof BlobBackend };
 
 const listResponses: Array<ListObjectsPage> = [];
@@ -56,14 +63,17 @@ const backendCalls: Array<BackendCall> = [];
 const backend: BlobBackend = {
   deleteObject: (input) => {
     backendCalls.push({ input, name: "deleteObject" });
+
     return Promise.resolve();
   },
   listObjects: (input) => {
     backendCalls.push({ input, name: "listObjects" });
+
     return Promise.resolve(listResponses.shift() ?? { Contents: [], IsTruncated: false });
   },
   putObject: (input) => {
     backendCalls.push({ input, name: "putObject" });
+
     return Promise.resolve();
   },
 };
@@ -75,6 +85,7 @@ const config: R2Config = {
   publicBaseUrl: "https://images.example.com/",
   secretAccessKey: "test-secret-key",
 };
+
 const validEnvironment: NodeJS.ProcessEnv = {
   R2_ACCESS_KEY_ID: config.accessKeyId,
   R2_BUCKET: config.bucket,

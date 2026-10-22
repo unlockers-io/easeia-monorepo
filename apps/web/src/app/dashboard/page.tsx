@@ -28,6 +28,7 @@ import { AttentionRow } from "./site-card";
 import type { SiteCardModel } from "./site-card-model";
 
 type MoneySiteSummary = Pick<MoneySite, "id" | "name" | "domain">;
+
 type SiteWithSnapshots = Site & {
   moneySite: MoneySiteSummary | null;
   snapshots: Array<SiteSnapshot>;
@@ -37,6 +38,7 @@ const avgTone = (avg: number | null): StatItem["tone"] => {
   if (avg === null) {
     return "muted";
   }
+
   return avg < 60 ? "destructive" : "default";
 };
 
@@ -45,6 +47,7 @@ const needsAttention = (c: SiteCardModel): boolean =>
 
 const DashboardContent = async () => {
   const session = await getSession();
+
   if (!session) {
     redirect("/login");
   }
@@ -76,6 +79,7 @@ const DashboardContent = async () => {
       if (c.latest?.createdAt) {
         acc.push(c.latest.createdAt);
       }
+
       return acc;
     }, [])
     .toSorted((a, b) => b.getTime() - a.getTime())
@@ -240,6 +244,7 @@ const AttentionList = ({
       </p>
     );
   }
+
   if (flagged.length === 0) {
     return (
       <p className="py-5 text-sm text-muted-foreground">
@@ -247,6 +252,7 @@ const AttentionList = ({
       </p>
     );
   }
+
   return flagged.map((card) => <AttentionRow card={card} key={card.site.id} />);
 };
 
@@ -274,20 +280,26 @@ const buildSiteCardModel = (site: SiteWithSnapshots): SiteCardModel => {
 const scoreAscFirst = (a: SiteCardModel, b: SiteCardModel): number => {
   const aReach = a.latest?.reachable ?? true;
   const bReach = b.latest?.reachable ?? true;
+
   if (aReach !== bReach) {
     return aReach ? 1 : -1;
   }
+
   const aScore = a.latest?.healthScore ?? null;
   const bScore = b.latest?.healthScore ?? null;
+
   if (aScore === null && bScore === null) {
     return a.site.domain.localeCompare(b.site.domain);
   }
+
   if (aScore === null) {
     return -1;
   }
+
   if (bScore === null) {
     return 1;
   }
+
   return aScore - bScore;
 };
 
@@ -301,15 +313,20 @@ type NetworkRollup = {
 
 const buildNetworkRollup = (cards: Array<SiteCardModel>, backlinksTotal: number): NetworkRollup => {
   const totalSites = cards.length;
+
   const scored = cards.reduce<Array<number>>((acc, c) => {
     if (typeof c.latest?.healthScore === "number") {
       acc.push(c.latest.healthScore);
     }
+
     return acc;
   }, []);
+
   const avgScore =
     scored.length === 0 ? null : Math.round(scored.reduce((sum, s) => sum + s, 0) / scored.length);
+
   const postsLast7d = cards.reduce((sum, c) => sum + (c.latest?.postsLast7d ?? 0), 0);
+
   return {
     avgScore,
     backlinksTotal,
@@ -331,6 +348,7 @@ const jobStatusMarks: Record<JobStatus, StatusMark> = {
 
 const JobStatusMark = ({ status }: { status: JobStatus }) => {
   const mark = jobStatusMarks[status];
+
   return (
     <span className={`text-xs font-extrabold tracking-wide uppercase ${mark.className}`}>
       {mark.label}

@@ -16,10 +16,13 @@ import { createSiteRoutes } from "./sites";
 import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
 
 const updateMock = vi.fn(() => Promise.resolve(fakeSite({ id: "s1", moneySiteId: "m1" })));
+
 const createMock = vi.fn(() =>
   Promise.resolve(fakeSite({ id: "s1", vercelDeployHookUrl: "https://deploy.example/secret" })),
 );
+
 const requirePermission = vi.fn(allowAction);
+
 const siteRoutes = createSiteRoutes({
   apiAuth: bypassMiddleware,
   audit: vi.fn().mockResolvedValue(undefined),
@@ -80,6 +83,7 @@ describe("site create and update", () => {
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
+
     expect(response.status).toBe(201);
     expect(requirePermission).toHaveBeenCalledWith("sites:write");
     expect(createMock).toHaveBeenCalledWith(
@@ -91,11 +95,13 @@ describe("site create and update", () => {
   });
   it("returns a conflict for a duplicate domain", async () => {
     createMock.mockRejectedValueOnce(new SiteDomainTakenError());
+
     const response = await app.request("/", {
       body: JSON.stringify({ domain: "photo-blog.example" }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
+
     expect(response.status).toBe(409);
   });
   it("updates just the submitted fields", async () => {
@@ -104,6 +110,7 @@ describe("site create and update", () => {
       headers: { "Content-Type": "application/json" },
       method: "PATCH",
     });
+
     expect(response.status).toBe(200);
     expect(updateMock).toHaveBeenCalledWith("s1", { vercelProjectName: "photos" });
   });

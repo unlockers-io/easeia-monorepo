@@ -24,10 +24,12 @@ describe("identifyUser", () => {
 describe("createIdentify", () => {
   it("resolves the request session and enriches its logger", async () => {
     const headers = new Headers({ cookie: "session=test" });
+
     const session = {
       session: { id: "session-1" },
       user: { email: "alice@example.com", id: "user-1" },
     };
+
     const getSession = vi.fn().mockResolvedValue(session);
     const log = createRequestLogger({ method: "GET", path: "/api/posts" });
 

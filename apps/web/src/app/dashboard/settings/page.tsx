@@ -52,6 +52,7 @@ const ConnectionCard = async ({ userId }: { userId: string }) => {
 
   let verifiedCount: number | null = null;
   let errorMessage: string | null = null;
+
   try {
     const sites = await listVerifiedSites(userId);
     verifiedCount = sites.length;

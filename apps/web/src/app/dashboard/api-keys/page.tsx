@@ -25,6 +25,7 @@ import { CreateKeyDialog } from "./create-key-dialog";
 
 const ApiKeysPage = async () => {
   await connection();
+
   const [keys, sites] = await Promise.all([
     listApiKeys(),
     prisma.site.findMany({

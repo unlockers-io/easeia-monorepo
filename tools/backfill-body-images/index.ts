@@ -16,6 +16,7 @@ type Args = {
 
 const flagValue = (argv: ReadonlyArray<string>, flag: string): string | null => {
   const index = argv.indexOf(flag);
+
   return index === -1 ? null : (argv[index + 1] ?? null);
 };
 
@@ -23,22 +24,27 @@ const parseArgs = (argv: ReadonlyArray<string>): Args => {
   const all = argv.includes("--all");
   const rawLimit = flagValue(argv, "--limit");
   const limit = rawLimit === null ? null : Math.trunc(Number(rawLimit));
+
   if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
     throw new Error(`--limit must be a positive integer, got "${rawLimit}"`);
   }
+
   if (!all && limit === null) {
     throw new Error("Pass --limit <n> to bound the run, or --all to sweep every eligible post.");
   }
+
   return { all, dryRun: argv.includes("--dry-run"), limit, siteId: flagValue(argv, "--site") };
 };
 
 const main = async (): Promise<number> => {
   const args = parseArgs(process.argv.slice(2));
+
   // The worker rechecks this predicate before modifying a post.
   const where: Prisma.PostWhereInput = {
     body: { not: { contains: "![" } },
     status: "PUBLISHED",
   };
+
   if (args.siteId !== null) {
     where.siteId = args.siteId;
   }
@@ -52,18 +58,23 @@ const main = async (): Promise<number> => {
 
   if (posts.length === 0) {
     console.log("No published posts are missing body images.");
+
     return 0;
   }
 
   const estimate = (posts.length * COST_PER_POST_USD).toFixed(2);
+
   if (args.dryRun) {
     console.log(`Would enqueue GENERATE_BODY_IMAGES for ${posts.length} posts (~$${estimate}).`);
+
     for (const post of posts.slice(0, 10)) {
       console.log(`  ${post.slug}`);
     }
+
     if (posts.length > 10) {
       console.log(`  … and ${posts.length - 10} more`);
     }
+
     return 0;
   }
 
@@ -71,6 +82,7 @@ const main = async (): Promise<number> => {
 
   let enqueued = 0;
   let failed = 0;
+
   for (const post of posts) {
     try {
       await enqueue({
@@ -80,6 +92,7 @@ const main = async (): Promise<number> => {
         siteId: post.siteId,
       });
       enqueued++;
+
       if (enqueued % 50 === 0) {
         console.log(`  ${enqueued}/${posts.length}`);
       }
@@ -90,6 +103,7 @@ const main = async (): Promise<number> => {
   }
 
   console.log(`Done. enqueued=${enqueued} failed=${failed}`);
+
   return failed > 0 ? 1 : 0;
 };
 
@@ -98,6 +112,7 @@ const cleanup = async (): Promise<void> => {
 };
 
 let exitCode = 0;
+
 try {
   exitCode = await main();
 } catch (error) {
@@ -106,4 +121,5 @@ try {
 } finally {
   await cleanup();
 }
+
 process.exit(exitCode);

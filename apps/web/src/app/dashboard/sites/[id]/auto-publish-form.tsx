@@ -47,14 +47,18 @@ const describeStatus = ({
       ? `Paused. Last auto-published ${formatDate(lastAutoPublishedAt)}.`
       : "Paused. Toggle on + set cadence to start.";
   }
+
   if (!lastAutoPublishedAt) {
     return "Running. First post lands within the next hour (assuming the bucket has a draft).";
   }
+
   const nextDue = new Date(lastAutoPublishedAt.getTime() + cadenceDays * 24 * 60 * 60 * 1000);
   const now = Date.now();
+
   if (nextDue.getTime() <= now) {
     return `Running. Next post lands within the next hour (last: ${formatDate(lastAutoPublishedAt)}).`;
   }
+
   return `Running. Next post: ${formatDateTime(nextDue)} (last: ${formatDate(lastAutoPublishedAt)}).`;
 };
 
@@ -101,21 +105,27 @@ const autoPublishReducer = (
     case "enabled.toggle": {
       return { ...state, enabled: action.value };
     }
+
     case "language.set": {
       return { ...state, language: action.value };
     }
+
     case "cadenceDays.set": {
       return { ...state, cadenceDays: action.value };
     }
+
     case "topicHints.set": {
       return { ...state, topicHints: action.value };
     }
+
     case "bucketTarget.set": {
       return { ...state, bucketTarget: action.value };
     }
+
     case "bucketRefillAt.set": {
       return { ...state, bucketRefillAt: action.value };
     }
+
     case "save.done": {
       return {
         ...state,
@@ -123,6 +133,7 @@ const autoPublishReducer = (
         savedAt: action.errors.length === 0 ? new Date() : state.savedAt,
       };
     }
+
     default: {
       return state;
     }
@@ -169,6 +180,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
         language,
         topicHints,
       });
+
       dispatch({ errors: result.errors, type: "save.done" });
     });
   };

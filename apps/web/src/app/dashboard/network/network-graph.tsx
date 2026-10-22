@@ -36,6 +36,7 @@ type Props = {
 const PbnSiteNodeComponent = ({ data, selected }: NodeProps<PbnSiteNode>) => {
   const visibleNiches = data.niches.slice(0, 3);
   const hiddenCount = data.niches.length - visibleNiches.length;
+
   return (
     <div
       className={`group min-w-55 rounded-xl border bg-card px-4 py-3 text-card-foreground motion-safe:transition ${
@@ -105,28 +106,36 @@ const edgeWidth = (count: number, max: number, ceiling: number): number => {
   if (max <= 0) {
     return 1;
   }
+
   const t = Math.log10(count + 1) / Math.log10(max + 1);
+
   return Math.max(0.75, t * ceiling);
 };
 
 const collapsePbnEdges = (edges: Array<NetworkEdge>): Array<NetworkEdge> => {
   const seen = new Map<string, NetworkEdge>();
+
   for (const e of edges) {
     const pairKey = [e.source, e.target].toSorted().join("|");
     const existing = seen.get(pairKey);
+
     if (!existing) {
       seen.set(pairKey, e);
       continue;
     }
+
     const count = (existing.data?.count ?? 0) + (e.data?.count ?? 0);
+
     const merged: NetworkEdge = {
       ...existing,
       data: { count, kind: "pbn-to-pbn" },
       label: count.toLocaleString(),
       markerStart: { color: PBN_EDGE_STROKE, type: MarkerType.ArrowClosed },
     };
+
     seen.set(pairKey, merged);
   }
+
   return [...seen.values()];
 };
 
@@ -147,6 +156,7 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
     const moneyNode = nodes.find(
       (n) => n.type === "money-site" && n.data.id === selectedMoneySiteId,
     );
+
     if (!moneyNode) {
       return { laidEdges: [], laidNodes: [] };
     }
@@ -154,16 +164,19 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
     const pbnInNetwork = nodes.filter(
       (n): n is PbnSiteNode => n.type === "pbn-site" && n.data.moneySiteId === selectedMoneySiteId,
     );
+
     const pbnIds = new Set(pbnInNetwork.map((n) => n.id));
 
     const moneyEdges = edges.filter(
       (e) => e.data?.kind === "pbn-to-money" && e.target === moneyNode.id && pbnIds.has(e.source),
     );
+
     const sitesFeedingMoney = new Set(moneyEdges.map((e) => e.source));
 
     const visiblePbn = hideOrphans
       ? pbnInNetwork.filter((n) => sitesFeedingMoney.has(n.id))
       : pbnInNetwork;
+
     const visiblePbnIds = new Set(visiblePbn.map((n) => n.id));
 
     const pbnEdges = showPbnLinks
@@ -185,17 +198,22 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
       (m, e) => (e.data?.kind === "pbn-to-pbn" ? Math.max(m, e.data.count) : m),
       0,
     );
+
     const maxMoney = outEdges.reduce(
       (m, e) => (e.data?.kind === "pbn-to-money" ? Math.max(m, e.data.count) : m),
       0,
     );
 
     const focusActive = focusedNodeId !== null;
+
     const incident = (e: NetworkEdge): boolean =>
       e.source === focusedNodeId || e.target === focusedNodeId;
+
     const activeNodeIds = new Set<string>();
+
     if (focusActive) {
       activeNodeIds.add(focusedNodeId);
+
       for (const e of outEdges) {
         if (incident(e)) {
           activeNodeIds.add(e.source);
@@ -205,8 +223,10 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
     }
 
     const styledEdges: Array<NetworkEdge> = [];
+
     for (const edge of outEdges) {
       const dim = focusActive && !incident(edge);
+
       if (edge.data?.kind === "pbn-to-money") {
         const width = edgeWidth(edge.data.count, maxMoney, 6);
         styledEdges.push({
@@ -225,6 +245,7 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
         });
         continue;
       }
+
       const width = edgeWidth(edge.data?.count ?? 1, maxPbn, 3);
       styledEdges.push({
         ...edge,
@@ -243,6 +264,7 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
     }
 
     const dimmedNodes: Array<NetworkNode> = [];
+
     for (const node of outNodes) {
       const faded = focusActive && !activeNodeIds.has(node.id);
       dimmedNodes.push({
@@ -261,8 +283,10 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
       } else {
         push(`/dashboard/money-sites/${node.data.id}`);
       }
+
       return;
     }
+
     setFocusedNodeId((current) => (current === node.id ? null : node.id));
   };
 
@@ -316,4 +340,5 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
 };
 
 export { NetworkGraph };
+
 export type { MoneySiteOption };

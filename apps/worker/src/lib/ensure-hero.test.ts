@@ -78,6 +78,7 @@ describe("ensureHero", () => {
     const deps = makeDeps({
       generateHero: vi.fn().mockRejectedValue(new Error("openai down")),
     });
+
     await makeEnsureHero(deps)({
       autogenEnabled: true,
       post: herolessPost,
@@ -96,6 +97,7 @@ describe("ensureHero", () => {
       ),
       r2PublicBaseUrl: "https://img.easeia.com",
     });
+
     await makeEnsureHero(deps)({
       autogenEnabled: true,
       post: herolessPost,

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 type Tone = "default" | "destructive" | "success" | "muted";
+
 type Emphasis = "lead" | "minor";
 
 type ToneClassContract = Record<Tone, string>;
@@ -56,6 +57,7 @@ const lgGridClass = (tracks: number): string =>
 const StatCell = ({ item }: { item: StatItem }) => {
   const tone = item.tone ?? "default";
   const emphasis = item.emphasis ?? "default";
+
   const inner = (
     <div className="flex min-w-0 flex-col py-4 md:pr-4">
       <p
@@ -77,9 +79,11 @@ const StatCell = ({ item }: { item: StatItem }) => {
       )}
     </div>
   );
+
   const cellClass = `border-b border-border md:border-b-0 md:border-r md:last:border-r-0 ${
     emphasis === "lead" ? "lg:col-span-2" : ""
   }`;
+
   if (item.href !== undefined && item.href !== "") {
     return (
       <li className={cellClass}>
@@ -92,6 +96,7 @@ const StatCell = ({ item }: { item: StatItem }) => {
       </li>
     );
   }
+
   return <li className={cellClass}>{inner}</li>;
 };
 
@@ -112,6 +117,7 @@ export const StatGrid = ({
 }) => {
   const tracks = items.reduce((sum, item) => sum + (item.emphasis === "lead" ? 2 : 1), 0);
   const lg = lgGridClass(items.some((i) => i.emphasis === "lead") ? tracks : columns);
+
   return (
     <ul
       className={`grid grid-cols-2 gap-x-4 border-b border-b-border md:grid-cols-3 ${

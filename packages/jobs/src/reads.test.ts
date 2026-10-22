@@ -15,13 +15,17 @@ describe.runIf(process.env.TEST_DATABASE === "true")("findLatestJobByPost", () =
   it("returns each post's newest Job and skips posts without one", async () => {
     const site = await prisma.site.create({ data: { domain: `${run}.test` } });
     siteId = site.id;
+
     const post = (slug: string) =>
       prisma.post.create({ data: { body: "b", siteId, slug, title: slug } });
+
     const [busy, idle] = await Promise.all([post("busy"), post("idle")]);
+
     const job = (createdAt: Date, status: JobStatus) =>
       prisma.job.create({
         data: { createdAt, kind: JobKind.PUBLISH, payload: {}, postId: busy.id, status },
       });
+
     await job(new Date(Date.now() - 60_000), JobStatus.DONE);
     const latest = await job(new Date(), JobStatus.FAILED);
 

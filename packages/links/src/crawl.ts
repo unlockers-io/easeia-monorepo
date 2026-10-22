@@ -20,10 +20,12 @@ const resolveToPostIds = async (
   classified: ReadonlyArray<ClassifiedLink>,
 ): Promise<Array<ResolvedLink>> => {
   const candidatesBySite = new Map<string, Set<string>>();
+
   for (const link of classified) {
     if (link.toSiteId === null || link.slug === null) {
       continue;
     }
+
     const set = candidatesBySite.get(link.toSiteId) ?? new Set();
     set.add(link.slug);
     candidatesBySite.set(link.toSiteId, set);
@@ -40,11 +42,13 @@ const resolveToPostIds = async (
   );
 
   const lookup = new Map<string, string>();
+
   for (const { matches, siteId } of lookups) {
     for (const m of matches) {
       lookup.set(`${siteId}|${m.slug}`, m.id);
     }
   }
+
   return classified.map((link) => ({
     ...link,
     toPostId:
@@ -60,6 +64,7 @@ const resolveBodyLinks = async (post: {
   siteId: string;
 }): Promise<Array<ResolvedLink>> => {
   const network = await prisma.site.findMany({ select: { domain: true, id: true } });
+
   return resolveToPostIds(
     classifyLinks({
       base: `https://${post.domain}`,
@@ -76,11 +81,13 @@ export const crawlPost = async (postId: string): Promise<CrawlSummary | null> =>
     include: { site: { select: { domain: true } } },
     where: { id: postId },
   });
+
   if (post === null || post.body === "") {
     return null;
   }
 
   const resolved = await resolveBodyLinks({ ...post, domain: post.site.domain });
+
   const rows = resolved.map((link) => ({
     anchorText: link.anchorText.slice(0, MAX_ANCHOR_LENGTH),
     fromPostId: post.id,
@@ -95,10 +102,12 @@ export const crawlPost = async (postId: string): Promise<CrawlSummary | null> =>
   }));
 
   const crawledTargets = new Set(rows.flatMap((r) => (r.toPostId === null ? [] : [r.toPostId])));
+
   const recorded = await prisma.link.findMany({
     select: { id: true, toPostId: true, toUrl: true },
     where: { ...liveLinkWhere, fromPostId: post.id, source: { not: LinkSource.IMPORTED } },
   });
+
   const superseded = recorded.filter(
     (link) =>
       !post.body.includes(link.toUrl) ||
@@ -126,8 +135,11 @@ export const pruneFabricatedLinks = async (
     if (post.body === "") {
       return { body: post.body, result: [] };
     }
+
     const bad = fabricatedHrefs(await resolveBodyLinks(post));
+
     return { body: stripAnchors(post.body, bad), result: [...bad] };
   });
+
   return { stripped: stripped ?? [] };
 };

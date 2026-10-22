@@ -25,9 +25,11 @@ const runFor = (row: Pick<Job, "runId" | "phase">): ConsumerContext<JobKind>["ru
   if (row.runId === null) {
     return undefined;
   }
+
   if (row.phase === null) {
     throw new Error("Run child is missing its phase");
   }
+
   return { id: row.runId, phase: row.phase };
 };
 
@@ -37,8 +39,10 @@ const recordFailure = async (jobId: string, error: unknown, retry: boolean): Pro
       data: { finishedAt: new Date(), lastError: error.message, status: JobStatus.SKIPPED },
       where: { id: jobId },
     });
+
     return;
   }
+
   const lastError = describeError(error);
   await prisma.job.update({
     data: {
@@ -56,13 +60,16 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
     QUEUE_NAMES[options.kind],
     async (bull: BullJob<JobPayloads[K]>) => {
       const jobId = bull.id;
+
       if (jobId === undefined || jobId === "") {
         throw new UnrecoverableError(`BullMQ job has no id (kind=${options.kind})`);
       }
+
       const attemptsMade = bull.attemptsMade;
       const finalAttempt = attemptsMade + 1 >= (bull.opts.attempts ?? 1);
 
       const startedAt = new Date();
+
       const row = await prisma.job.upsert({
         create: {
           attempts: 1,
@@ -84,13 +91,17 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
           jobId,
           payload: bull.data,
         };
+
         const run = runFor(row);
+
         if (run !== undefined) {
           context.run = run;
         }
+
         await options.handler(context);
       } catch (error) {
         await recordFailure(jobId, error, !finalAttempt && (options.isRetryable?.(error) ?? true));
+
         return;
       }
 

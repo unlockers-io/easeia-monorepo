@@ -5,6 +5,7 @@ import { createFakeBlobStore } from "./fake";
 describe("createFakeBlobStore", () => {
   it("uploads and lists for the same site", async () => {
     const store = createFakeBlobStore();
+
     const a = await store.upload({
       bytes: new Uint8Array([1]),
       filename: "a.jpg",
@@ -12,6 +13,7 @@ describe("createFakeBlobStore", () => {
       postId: "p1",
       siteId: "s1",
     });
+
     const b = await store.upload({
       bytes: new Uint8Array([2]),
       filename: "b.png",
@@ -19,6 +21,7 @@ describe("createFakeBlobStore", () => {
       postId: "p2",
       siteId: "s1",
     });
+
     const items = await store.listForSite("s1");
     expect(items.map((i) => i.key).toSorted()).toEqual([a.key, b.key].toSorted());
     expect(items.find((i) => i.key === a.key)?.url).toBe(a.url);
@@ -38,6 +41,7 @@ describe("createFakeBlobStore", () => {
 
   it("remove deletes by key", async () => {
     const store = createFakeBlobStore();
+
     const { key } = await store.upload({
       bytes: new Uint8Array([1]),
       filename: "a.jpg",
@@ -45,6 +49,7 @@ describe("createFakeBlobStore", () => {
       postId: "p1",
       siteId: "s1",
     });
+
     await store.remove(key);
     expect(await store.listForSite("s1")).toEqual([]);
   });
@@ -65,6 +70,7 @@ describe("createFakeBlobStore", () => {
 
   it("uses the same key derivation as buildBlobKey", async () => {
     const store = createFakeBlobStore();
+
     const { key } = await store.upload({
       bytes: new Uint8Array([1, 2, 3, 4, 5]),
       filename: "hero.jpg",
@@ -72,6 +78,7 @@ describe("createFakeBlobStore", () => {
       postId: "post_xyz",
       siteId: "site_abc",
     });
+
     expect(key).toBe("sites/site_abc/posts/post_xyz/74f81fe167d99b4c.jpg");
   });
 });
@@ -79,6 +86,7 @@ describe("createFakeBlobStore", () => {
 describe("fake store URL composition", () => {
   it("matches the real join for a base with no trailing slash", async () => {
     const store = createFakeBlobStore("https://img.easeia.com");
+
     const { url } = await store.upload({
       bytes: new Uint8Array([1]),
       filename: "a.jpg",
@@ -94,6 +102,7 @@ describe("fake store URL composition", () => {
 
   it("matches the real join for a base with a trailing slash", async () => {
     const store = createFakeBlobStore("https://img.easeia.com/");
+
     const { url } = await store.upload({
       bytes: new Uint8Array([1]),
       filename: "a.jpg",

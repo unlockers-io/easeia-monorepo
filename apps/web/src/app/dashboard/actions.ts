@@ -13,9 +13,11 @@ import { sitePublishedPostsTag } from "@/lib/cache-tags";
 
 const requiredId = (formData: FormData) => {
   const id = formData.get("id");
+
   if (typeof id !== "string" || id === "") {
     throw new Error("id is required");
   }
+
   return id;
 };
 
@@ -33,14 +35,17 @@ const withError = (path: string, error: Sites.DomainError): string =>
 export const createPostAction = async (formData: FormData) => {
   await requireSession();
   let result: Posts.CreateResult;
+
   try {
     result = await Posts.create(postCreateFromFormData(formData));
   } catch (error) {
     if (error instanceof Sites.DomainError) {
       redirect(withError("/dashboard/posts/new", error));
     }
+
     throw error;
   }
+
   await audit({ action: "post.create", target: `post:${result.post.id}` });
   revalidatePath("/dashboard/posts");
   redirect(`/dashboard/posts/${result.post.id}`);
@@ -50,14 +55,17 @@ export const publishPostAction = async (formData: FormData) => {
   await requireSession();
   const id = requiredId(formData);
   let result: Posts.PublishResult;
+
   try {
     result = await Posts.publish(id);
   } catch (error) {
     if (error instanceof Sites.DomainError) {
       redirect(withError(`/dashboard/posts/${id}`, error));
     }
+
     throw error;
   }
+
   await audit({ action: "post.publish", target: `post:${id}` });
   updateTag(sitePublishedPostsTag(result.post.siteId));
   revalidatePath(`/dashboard/posts/${id}`);
@@ -86,14 +94,17 @@ export const createSiteAction = async (
 ): Promise<{ id: string; ok: true } | { error: string; ok: false }> => {
   await requireSession();
   const parsed = siteCreateSchema.safeParse(input);
+
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the site details.", ok: false };
   }
+
   try {
     const site = await Sites.create(parsed.data);
     await audit({ action: "site.create", target: `site:${site.id}` });
     revalidatePath("/dashboard/sites");
     revalidatePath("/dashboard/posts/new");
+
     return { id: site.id, ok: true };
   } catch (error) {
     return {

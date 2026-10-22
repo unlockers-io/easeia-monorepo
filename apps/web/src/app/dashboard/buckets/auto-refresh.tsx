@@ -11,15 +11,19 @@ export const AutoRefresh = ({ inflight }: { inflight: number }) => {
     if (inflight === 0) {
       return undefined;
     }
+
     const tick = () => {
       if (document.visibilityState === "visible") {
         refresh();
       }
     };
+
     const handle = window.setInterval(tick, POLL_MS);
+
     return () => {
       window.clearInterval(handle);
     };
   }, [refresh, inflight]);
+
   return null;
 };

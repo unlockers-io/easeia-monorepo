@@ -6,6 +6,7 @@ export const siteDomainSchema = z
   .trim()
   .transform((value, ctx) => {
     const url = URL.parse(/^https?:\/\//iv.test(value) ? value : `https://${value}`);
+
     if (
       (/^[a-z][a-z0-9+.\-]*:/iv.test(value) && !/^https?:\/\//iv.test(value)) ||
       url === null ||
@@ -15,8 +16,10 @@ export const siteDomainSchema = z
       url.port !== ""
     ) {
       ctx.addIssue({ code: "custom", message: "Enter a domain such as photo-blog.example." });
+
       return z.NEVER;
     }
+
     return url.hostname.toLowerCase().replace(/\.$/v, "");
   })
   .pipe(z.hostname().max(253));
@@ -80,6 +83,7 @@ const parseCategorySlugMap = (input: string): z.infer<typeof categorySlugMapSche
   try {
     const value: unknown = JSON.parse(input);
     const parsed = categorySlugMapSchema.safeParse(value);
+
     return parsed.success ? parsed.data : undefined;
   } catch {
     return undefined;
@@ -95,30 +99,38 @@ export const siteUpdatePatchSchema = siteCreateSchema.partial().extend({
 });
 
 export type SiteUpdatePatch = z.infer<typeof siteUpdatePatchSchema>;
+
 type SiteUpdateSubmission = { id: string; patch: SiteUpdatePatch };
 
 const categoryUrlFields = (formData: FormData): Partial<SiteUpdatePatch> => {
   const fields: Partial<SiteUpdatePatch> = {};
   const rawDefault = formData.get("defaultCategory");
+
   if (typeof rawDefault === "string" && rawDefault.trim().length > 0) {
     fields.defaultCategory = rawDefault.trim();
   }
+
   const rawMap = formData.get("categorySlugMap");
+
   if (typeof rawMap === "string" && rawMap.length > 0) {
     const categorySlugMap = parseCategorySlugMap(rawMap);
+
     if (categorySlugMap !== undefined) {
       fields.categorySlugMap = categorySlugMap;
     }
   }
+
   return fields;
 };
 
 export const siteUpdateFromFormData = (formData: FormData): SiteUpdateSubmission => {
   const idValue = formData.get("id");
   const id = typeof idValue === "string" ? idValue : "";
+
   if (!id) {
     throw new Error("Site update requires id");
   }
+
   const patch = siteUpdatePatchSchema.parse({
     isEnabled: formData.get("isEnabled") === "on",
     niches: formData.getAll("niches").flatMap((value) => {
@@ -126,5 +138,6 @@ export const siteUpdateFromFormData = (formData: FormData): SiteUpdateSubmission
     }),
     ...categoryUrlFields(formData),
   });
+
   return { id, patch };
 };

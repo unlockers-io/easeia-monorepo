@@ -15,21 +15,27 @@ const APPLY = process.argv.includes("--apply");
 
 const flagValue = (name: string): string | undefined => {
   const idx = process.argv.indexOf(`--${name}`);
+
   if (idx === -1) {
     return undefined;
   }
+
   return process.argv[idx + 1];
 };
 
 const numberFlag = (name: string, fallback: number | undefined): number | undefined => {
   const raw = flagValue(name);
+
   if (raw === undefined) {
     return fallback;
   }
+
   const parsed = Math.trunc(Number(raw));
+
   if (Number.isNaN(parsed) || parsed < 0) {
     throw new Error(`--${name} expects a non-negative integer, got "${raw}"`);
   }
+
   return parsed;
 };
 
@@ -70,24 +76,29 @@ const main = async (): Promise<number> => {
 
   if (posts.length === 0) {
     console.log("No posts matched. Nothing to regenerate.");
+
     return 0;
   }
 
   const bySite = new Map<string, number>();
+
   for (const post of posts) {
     bySite.set(post.site.domain, (bySite.get(post.site.domain) ?? 0) + 1);
   }
+
   console.log(
     `${posts.length} posts across ${bySite.size} sites, created after ${since.toISOString().slice(0, 10)} (${APPLY ? "APPLY" : "dry run"}).`,
   );
   console.log(`Estimated spend: $${(posts.length * USD_PER_IMAGE).toFixed(2)}\n`);
   const perSite = [...bySite.entries()].toSorted(([a], [b]) => a.localeCompare(b));
+
   for (const [domain, count] of perSite) {
     console.log(`  ${domain.padEnd(26)} ${count}`);
   }
 
   if (!APPLY) {
     console.log("\nDry run, no images generated. Re-run with --apply to regenerate.");
+
     return 0;
   }
 
@@ -97,6 +108,7 @@ const main = async (): Promise<number> => {
 
   for (const post of posts) {
     const staleKeys = post.images.map((image) => image.blobKey);
+
     try {
       await generateHero({
         post: {
@@ -123,6 +135,7 @@ const main = async (): Promise<number> => {
     // new key and the PostImage row now points elsewhere. Delete the
     // superseded object or R2 accumulates one orphan per regeneration.
     const removals = await Promise.allSettled(staleKeys.map((key) => remove(key)));
+
     for (const removal of removals) {
       if (removal.status === "rejected") {
         console.warn(`  orphan blob left behind for ${post.slug}: ${String(removal.reason)}`);
@@ -132,14 +145,18 @@ const main = async (): Promise<number> => {
     if (done % 10 === 0) {
       console.log(`  ${done}/${posts.length} (failed ${failures.length})`);
     }
+
     await sleep(PAUSE_MS);
   }
 
   console.log(`\nRegenerated ${done}, failed ${failures.length}.`);
+
   for (const failure of failures) {
     console.log(`  [fail] ${failure.domain}/${failure.slug}: ${failure.error}`);
   }
+
   await redeploySites(affectedSiteIds);
+
   return failures.length > 0 ? 1 : 0;
 };
 

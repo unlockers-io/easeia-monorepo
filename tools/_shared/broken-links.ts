@@ -27,6 +27,7 @@ const brokenLinkSchema: z.ZodType<BrokenLink> = z.object({
   targetSiteDomain: z.string(),
   targetSlug: z.string(),
 });
+
 const brokenLinksSchema = z.array(brokenLinkSchema);
 
 export const writeBrokenLinks = (rows: ReadonlyArray<BrokenLink>): void => {

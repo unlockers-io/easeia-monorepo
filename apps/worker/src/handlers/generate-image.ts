@@ -52,16 +52,21 @@ export const makeHandleGenerateImage =
     log.info("generate-image: start");
 
     const post = await findPost(postId);
+
     if (!post) {
       log.warn("generate-image: post not found; skipping");
       log.emit();
+
       return;
     }
+
     if (await hasHero(postId)) {
       log.info("generate-image: hero already exists; skipping");
       log.emit();
+
       return;
     }
+
     await generateHero({
       post: {
         categories: post.categories,

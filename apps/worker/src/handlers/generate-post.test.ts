@@ -19,6 +19,7 @@ const fetchSearchQueries = vi.fn<GeneratePostDependencies["fetchSearchQueries"]>
 const fetchSerpCompetitors = vi.fn<GeneratePostDependencies["fetchSerpCompetitors"]>();
 const findRecentTitles = vi.fn<GeneratePostDependencies["findRecentTitles"]>();
 const proposeTopic = vi.fn<GeneratePostDependencies["proposeTopic"]>();
+
 const log = {
   emit: vi.fn(),
   error: vi.fn(),
@@ -26,10 +27,13 @@ const log = {
   set: vi.fn(),
   warn: vi.fn(),
 };
+
 const createdPost = { post: { id: "post_1" } } as Awaited<
   ReturnType<GeneratePostDependencies["createPost"]>
 >;
+
 const enqueuedJob = { id: "job_bi" } as Awaited<ReturnType<GeneratePostDependencies["enqueueJob"]>>;
+
 const dependencies: GeneratePostDependencies = {
   bodyImagesEnabled: true,
   createLogger: () => log,
@@ -43,6 +47,7 @@ const dependencies: GeneratePostDependencies = {
   proposeTopic,
   selectAnchors,
 };
+
 const handleGeneratePost = createHandleGeneratePost(dependencies);
 
 describe("handleGeneratePost", () => {
@@ -132,6 +137,7 @@ describe("handleGeneratePost", () => {
     } else {
       expect(enqueueJob).not.toHaveBeenCalled();
     }
+
     expect(createPost).toHaveBeenCalledOnce();
   });
 

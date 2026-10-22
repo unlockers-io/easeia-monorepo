@@ -8,6 +8,7 @@ vi.hoisted(() => {
     WP_ENCRYPTION_KEY: "test-encryption-key",
   });
 });
+
 import { backfillRoutes } from "../routes/backfill";
 import { moneySiteRoutes } from "../routes/money-sites";
 import { rewriteRoutes } from "../routes/rewrite";

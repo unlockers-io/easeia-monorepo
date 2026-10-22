@@ -19,8 +19,10 @@ const META_BATCH = 5;
 
 const argValue = (flag: string): string | undefined => {
   const i = process.argv.indexOf(flag);
+
   return i === -1 ? undefined : process.argv[i + 1];
 };
+
 const SITE = argValue("--site");
 
 const selectPosts = async (siteId: string | undefined): Promise<Array<ListedPost>> =>
@@ -46,6 +48,7 @@ const metaTargets = (posts: ReadonlyArray<ListedPost>): Array<MetaTarget> =>
   posts.flatMap((post) => {
     const fixTitle = classifyTitleLength(post.title) !== "ok";
     const fixDescription = classifyDescriptionLength(post.excerpt) !== "ok";
+
     return fixTitle || fixDescription ? [{ ...post, fixDescription, fixTitle }] : [];
   });
 
@@ -62,6 +65,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
     },
     where: { id: post.id },
   });
+
   if (!row) {
     return { id: post.id, reason: "not found", siteId: post.siteId, status: "skipped" };
   }
@@ -78,6 +82,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
 
   const nextTitle = post.fixTitle ? suggestion.title : row.title;
   const nextExcerpt = post.fixDescription ? suggestion.description : row.excerpt;
+
   if (post.fixTitle && classifyTitleLength(nextTitle) !== "ok") {
     return {
       id: post.id,
@@ -86,6 +91,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
       status: "skipped",
     };
   }
+
   if (post.fixDescription && classifyDescriptionLength(nextExcerpt) !== "ok") {
     return {
       id: post.id,
@@ -98,6 +104,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
   if (APPLY) {
     await update(post.id, { excerpt: nextExcerpt, title: nextTitle });
   }
+
   return { id: post.id, siteId: post.siteId, status: "fixed" };
 };
 
@@ -119,12 +126,15 @@ const runInboundPass = async (
   console.log(`\nInbound pass: ${orphans.length} posts with 0 in-content inbound links`);
   const planned = await planInboundFixes(orphans);
   console.log(`  planned source→orphan links: ${planned.length}`);
+
   if (!APPLY) {
     return;
   }
+
   for (const fix of planned) {
     await applyInboundFix(fix);
   }
+
   console.log(`  wrote ${planned.length} inbound links`);
 };
 
@@ -134,42 +144,56 @@ const settleMetaBatch = (
 ) => {
   let fixed = 0;
   let skipped = 0;
+
   for (const [j, res] of settled.entries()) {
     const target = batch.at(j);
+
     if (target === undefined) {
       continue;
     }
+
     if (res.status === "fulfilled" && res.value.status === "fixed") {
       fixed += 1;
       continue;
     }
+
     skipped += 1;
+
     const reason =
       res.status === "fulfilled" ? (res.value.reason ?? "skipped") : String(res.reason);
+
     console.log(`  skip ${target.slug}: ${reason}`);
   }
+
   return { fixed, skipped };
 };
 
 const runMetaPass = async (posts: ReadonlyArray<ListedPost>): Promise<void> => {
   const targets = metaTargets(posts);
   console.log(`\nMeta pass: ${targets.length} posts with title/excerpt out of range`);
+
   if (!APPLY) {
     const sample = targets.slice(0, 8);
+
     for (const t of sample) {
       const bits = [
         t.fixTitle ? `title ${t.title.length}ch` : null,
         t.fixDescription ? `excerpt ${t.excerpt?.length ?? 0}ch` : null,
       ].filter((bit): bit is string => bit !== null);
+
       console.log(`  ${t.slug}  ${bits.join(", ")}`);
     }
+
     if (targets.length > sample.length) {
       console.log(`  … +${targets.length - sample.length} more`);
     }
+
     return;
   }
+
   let fixed = 0;
   let skipped = 0;
+
   for (let i = 0; i < targets.length; i += META_BATCH) {
     const batch = targets.slice(i, i + META_BATCH);
     const settled = await Promise.allSettled(batch.map(fixMetaOne));
@@ -178,6 +202,7 @@ const runMetaPass = async (posts: ReadonlyArray<ListedPost>): Promise<void> => {
     skipped += step.skipped;
     console.log(`  processed ${Math.min(i + META_BATCH, targets.length)}/${targets.length}`);
   }
+
   console.log(`  fixed=${fixed} skipped=${skipped}`);
 };
 
@@ -189,8 +214,10 @@ const main = async (): Promise<number> => {
           select: { domain: true, id: true },
           where: { domain: SITE },
         });
+
   if (SITE !== undefined && SITE !== "" && site === null) {
     console.error(`unknown site ${SITE}`);
+
     return 1;
   }
 
@@ -210,6 +237,7 @@ const main = async (): Promise<number> => {
   if (!SKIP_LINKS) {
     await runInboundPass(posts, inbound);
   }
+
   if (!SKIP_META) {
     await runMetaPass(posts);
   }
@@ -217,6 +245,7 @@ const main = async (): Promise<number> => {
   if (!APPLY) {
     console.log("\nDry run — no writes. Re-run with --apply to persist.");
   }
+
   return 0;
 };
 

@@ -15,6 +15,7 @@ const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
 
 const statusOf = async (id: string) => {
   const post = await prisma.post.findUniqueOrThrow({ where: { id } });
+
   return post.status;
 };
 
@@ -22,12 +23,14 @@ const siteRow = (id: string) => prisma.site.findUniqueOrThrow({ where: { id } })
 
 const stampOf = async (id: string) => {
   const site = await siteRow(id);
+
   return site.lastAutoPublishedAt;
 };
 
 const tickFor = async (ids: ReadonlyArray<string>) => {
   const result = await AutoPublish.tick();
   const mine = new Set(ids);
+
   return {
     published: result.published.filter((entry) => mine.has(entry.siteId)),
     refills: result.refills.filter((entry) => mine.has(entry.siteId)),
@@ -48,15 +51,19 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
     const createSite = async (data: Partial<Prisma.SiteCreateInput> = {}): Promise<string> => {
       sequence += 1;
+
       const site = await prisma.site.create({
         data: { domain: `s${sequence}.${run}.test`, vercelDeployHookUrl: HOOK, ...data },
       });
+
       siteIds.push(site.id);
+
       return site.id;
     };
 
     const createDraft = async (siteId: string, scheduledAt?: Date) => {
       sequence += 1;
+
       const { post } = await Posts.create({
         body: "<p>Body.</p>",
         categories: ["Casamentos"],
@@ -67,6 +74,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         tags: [],
         title: `Post ${sequence}`,
       });
+
       return post.id;
     };
 
@@ -91,23 +99,29 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const never = await createSite({ autoPublishEnabled: true, cadenceDays: 3 });
         const neverOldest = await createDraft(never);
         const neverNewer = await createDraft(never);
+
         const elapsed = await createSite({
           autoPublishEnabled: true,
           cadenceDays: 2,
           lastAutoPublishedAt: daysAgo(3),
         });
+
         const elapsedDraft = await createDraft(elapsed);
+
         const recent = await createSite({
           autoPublishEnabled: true,
           cadenceDays: 7,
           lastAutoPublishedAt: daysAgo(1),
         });
+
         const recentDraft = await createDraft(recent);
+
         const disabled = await createSite({
           autoPublishEnabled: true,
           cadenceDays: 1,
           isEnabled: false,
         });
+
         const off = await createSite({ autoPublishEnabled: false, cadenceDays: 1 });
         const empty = await createSite({ autoPublishEnabled: true, cadenceDays: 1 });
         const onlyScheduled = await createSite({ autoPublishEnabled: true, cadenceDays: 1 });
@@ -150,6 +164,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
           cadenceDays: 1,
           vercelDeployHookUrl: null,
         });
+
         const draft = await createDraft(siteId);
 
         const result = await tickFor([siteId]);
@@ -173,11 +188,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         ]);
 
         expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
+
         for (const outcome of outcomes) {
           if (outcome.status === "rejected") {
             expect(outcome.reason).toBeInstanceOf(PostStateError);
           }
         }
+
         expect(await statusOf(draft)).toBe(PostStatus.SCHEDULED);
         expect(await publishJobs(draft)).toBe(1);
         expect(await stampOf(siteId)).not.toBeNull();
@@ -203,11 +220,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       it("caps a tick's refill and skips disabled or unconfigured Sites", async () => {
         const large = await createSite({ bucketRefillAt: 50, bucketTarget: 100 });
+
         const disabled = await createSite({
           bucketRefillAt: 2,
           bucketTarget: 4,
           isEnabled: false,
         });
+
         const unconfigured = await createSite();
 
         const { refills } = await tickFor([large, disabled, unconfigured]);
@@ -276,6 +295,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       it("rejects an invalid schedule without writing it", async () => {
         const siteId = await createSite({ cadenceDays: 7 });
+
         const rejections = [
           { autoPublishEnabled: true, cadenceDays: null },
           { autoPublishEnabled: false, bucket: { refillAt: 3, target: null }, cadenceDays: 7 },
@@ -287,6 +307,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
             AutoPublishConfigError,
           );
         }
+
         await expect(
           AutoPublish.applyNetworkDefaults({
             bucket: { refillAt: null, target: null },

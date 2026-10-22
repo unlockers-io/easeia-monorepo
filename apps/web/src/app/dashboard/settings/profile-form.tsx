@@ -22,24 +22,31 @@ import { profileSchema } from "@/lib/form-schemas";
 export const ProfileForm = ({ email, name }: { email: string; name: string }) => {
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
+
   const form = useForm({
     defaultValues: { name },
     onSubmit: async ({ value }) => {
       setMessage(null);
       const result = await authClient.updateUser(value).catch(authFailureMessage);
+
       if (typeof result === "string") {
         setMessage(result);
+
         return;
       }
+
       if (result.error) {
         setMessage(result.error.message ?? "Could not update profile.");
+
         return;
       }
+
       setMessage("Profile saved.");
       router.refresh();
     },
     validators: { onBlur: profileSchema, onChange: profileSchema },
   });
+
   return (
     <Card>
       <CardHeader>

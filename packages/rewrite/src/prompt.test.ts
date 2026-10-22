@@ -44,6 +44,7 @@ describe("buildRewritePrompt", () => {
       siteLanguage: "PT",
       siteNiches: ["WEDDING"],
     });
+
     expect(out).toContain("WRITING VOICE RULES");
     expect(out).toContain("ANTI-AI PATTERNS");
     expect(out).toContain("COPY EDITING: SEVEN SWEEPS");

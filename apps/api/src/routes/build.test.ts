@@ -23,6 +23,7 @@ import { allowAction, bypassMiddleware } from "./test-harness";
 const findImages = vi.fn<BuildRouteDependencies["findImages"]>();
 const findPosts = vi.fn<BuildRouteDependencies["findPosts"]>();
 const findSite = vi.fn<BuildRouteDependencies["findSite"]>();
+
 const buildRoutes = createBuildRoutes({
   apiAuth: bypassMiddleware,
   findImages,
@@ -77,6 +78,7 @@ const authorPayloadSchema = z.object({ data: z.array(postWithAuthorSchema) });
 
 const manifest = async () => {
   const res = await buildRoutes.request("/sites/s1/manifest");
+
   return { body: manifestBodySchema.parse(await res.json()), status: res.status };
 };
 

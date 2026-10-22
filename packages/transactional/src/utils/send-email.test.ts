@@ -5,9 +5,11 @@ import { createSendEmail } from "./send-email";
 import type { ResendClientFactory } from "./send-email";
 
 const sendMock = vi.fn();
+
 const createClient: ResendClientFactory = () => ({
   emails: { send: sendMock },
 });
+
 const sendEmail = createSendEmail(createClient);
 
 describe("sendEmail from validation", () => {

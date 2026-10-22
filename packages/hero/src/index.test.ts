@@ -14,6 +14,7 @@ describe("buildHeroPrompt", () => {
       tags: ["microfone", "estudio"],
       title: "Guia de Microfones",
     });
+
     expect(prompt).toContain("Professional audio studio scene");
     expect(prompt).toContain('"Guia de Microfones"');
     expect(prompt).toContain("Themes: microfone, estudio");
@@ -42,10 +43,12 @@ describe("buildHeroPrompt", () => {
       ["guia-de-microfones", "tratamento-acustico", "gravacao-de-voz", "mixagem-em-casa"].map(
         (slug) => {
           const prompt = buildHeroPrompt(audioStyle, { slug, tags: [], title: "T" });
+
           return prompt.slice(prompt.indexOf("Shot as: "), prompt.indexOf("16:9"));
         },
       ),
     );
+
     expect(looks.size).toBe(4);
   });
 
@@ -67,6 +70,7 @@ describe("buildBodyImagePrompt", () => {
       index: 1,
       subject: "hands adjusting a mixing console fader",
     });
+
     expect(prompt).toContain("Professional audio studio scene");
     expect(prompt).toContain('"hands adjusting a mixing console fader"');
     expect(prompt).toContain("16:9 landscape framing");
@@ -76,9 +80,11 @@ describe("buildBodyImagePrompt", () => {
     const looks = new Set(
       [1, 2, 3, 4].map((index) => {
         const prompt = buildBodyImagePrompt({ ...base, index, subject: "a studio" });
+
         return prompt.slice(prompt.indexOf("Shot as: "), prompt.indexOf("16:9"));
       }),
     );
+
     expect(looks.size).toBe(4);
   });
 
@@ -89,6 +95,7 @@ describe("buildBodyImagePrompt", () => {
       style: null,
       subject: "a desk",
     });
+
     expect(prompt).toContain("Editorial blog photograph");
   });
 
@@ -108,17 +115,20 @@ describe("generateHero", () => {
     tags: ["microfone"],
     title: "Guia de Microfones",
   };
+
   const site = { imageStyle: audioStyle };
 
   it("generates, converts, uploads, and persists the hero", async () => {
     const fake = createFakeOpenAi();
     const calls: Record<string, unknown> = {};
+
     const result = await generateHero(
       { post, site },
       {
         blob: {
           upload: (input) => {
             calls.upload = input;
+
             return Promise.resolve({
               key: "sites/site_1/posts/post_1/abc.jpg",
               url: "https://img.easeia.com/sites/site_1/posts/post_1/abc.jpg",
@@ -128,6 +138,7 @@ describe("generateHero", () => {
         generateImage: fake.ai.generateImage,
         writeHero: (input) => {
           calls.writeHero = input;
+
           return Promise.resolve();
         },
       },

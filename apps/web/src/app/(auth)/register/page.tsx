@@ -22,6 +22,7 @@ type Props = {
 
 const Registration = async ({ searchParams }: Props) => {
   const signup = await getSignupState();
+
   if (!signup.open) {
     return (
       <>
@@ -43,6 +44,7 @@ const Registration = async ({ searchParams }: Props) => {
       </>
     );
   }
+
   return (
     <>
       <CardHeader className="text-center">

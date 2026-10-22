@@ -5,12 +5,14 @@
  */
 
 export { computeHealthScore, type ScoreInputs } from "./score";
+
 export {
   buildRecommendations,
   type Recommendation,
   type RecommendationContext,
   type RecommendationPriority,
 } from "./recommendations";
+
 export {
   SEO_DESCRIPTION_MAX,
   SEO_DESCRIPTION_MIN,

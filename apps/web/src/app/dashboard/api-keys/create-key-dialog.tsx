@@ -70,30 +70,39 @@ const createKeyReducer = (state: CreateKeyState, action: CreateKeyAction): Creat
     case "copied.set": {
       return { ...state, copied: action.value };
     }
+
     case "create.error": {
       return { ...state, error: action.value };
     }
+
     case "create.success": {
       return { ...state, error: undefined, token: action.value };
     }
+
     case "name.set": {
       return { ...state, name: action.value };
     }
+
     case "open.set": {
       return action.value ? { ...state, open: true } : createInitialState();
     }
+
     case "pick.toggle": {
       const picked = new Set(state.picked);
+
       if (picked.has(action.value)) {
         picked.delete(action.value);
       } else {
         picked.add(action.value);
       }
+
       return { ...state, picked };
     }
+
     case "site.set": {
       return { ...state, siteId: action.value };
     }
+
     default: {
       return state;
     }
@@ -123,10 +132,13 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
         scopes: [...picked],
         siteId: needsSite && siteId !== "" ? siteId : undefined,
       });
+
       if (!result.ok) {
         dispatch({ type: "create.error", value: result.error });
+
         return;
       }
+
       dispatch({ type: "create.success", value: result.data });
     });
   };
@@ -135,6 +147,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
     if (token === undefined || token === "") {
       return;
     }
+
     try {
       await navigator.clipboard.writeText(token);
       dispatch({ type: "copied.set", value: true });
@@ -216,6 +229,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                 <div className="flex flex-wrap gap-2">
                   {scopes.map((s) => {
                     const active = picked.has(s);
+
                     return (
                       <button
                         aria-pressed={active}

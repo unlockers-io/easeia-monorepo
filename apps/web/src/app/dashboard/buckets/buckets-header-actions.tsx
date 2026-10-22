@@ -63,21 +63,27 @@ const dialogFormReducer = (state: DialogFormState, action: DialogFormAction): Di
     case "open.set": {
       return { ...state, open: action.value };
     }
+
     case "cadenceDays.set": {
       return { ...state, cadenceDays: action.value };
     }
+
     case "bucketTarget.set": {
       return { ...state, bucketTarget: action.value };
     }
+
     case "bucketRefillAt.set": {
       return { ...state, bucketRefillAt: action.value };
     }
+
     case "overwrite.set": {
       return { ...state, overwrite: action.value };
     }
+
     case "result.set": {
       return { ...state, result: action.result };
     }
+
     default: {
       return state;
     }
@@ -105,10 +111,13 @@ const NetworkDefaultsDialog = () => {
           cadenceDays: toNumberOrNull(form.cadenceDays),
           scope: form.overwrite ? "overwrite" : "unconfigured",
         });
+
         if (result.errors.length > 0) {
           dispatch({ result: { kind: "error", messages: result.errors }, type: "result.set" });
+
           return;
         }
+
         dispatch({
           result: {
             bucketSites: result.bucketSitesUpdated,
@@ -299,10 +308,13 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
     startTransition(async () => {
       try {
         const result = await refillAllNeedyBucketsAction();
+
         if (!result.ok) {
           setState({ kind: "error", message: result.error });
+
           return;
         }
+
         const { queuedPerSite, sitesTouched } = result.data;
         const total = Object.values(queuedPerSite).reduce((sum, n) => sum + n, 0);
         setState({ kind: "done", sitesTouched, total });

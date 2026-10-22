@@ -22,6 +22,7 @@ describe("parseExternalBacklinksCsv", () => {
 
   it("strips a UTF-8 BOM and normalizes scheme/www prefixes", () => {
     const bom = "﻿";
+
     const csv = [
       `${bom}Site,Pages linking to your site`,
       "https://www.forbes.com/,42",

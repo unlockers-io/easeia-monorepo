@@ -25,14 +25,19 @@ const RecoverForm = () => {
           redirectTo: `${window.location.origin}/reset-password`,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         toast.error(result);
+
         return;
       }
+
       if (result.error) {
         toast.error(result.error.message ?? "Failed to send password reset email");
+
         return;
       }
+
       setSubmittedEmail(value.email);
     },
     validators: { onSubmit: recoverSchema },
@@ -72,6 +77,7 @@ const RecoverForm = () => {
         <form.Field name="email">
           {(field) => {
             const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>

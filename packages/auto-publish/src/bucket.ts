@@ -30,11 +30,14 @@ const supplyBySite = async (siteIds: ReadonlyArray<string>): Promise<Map<string,
     }),
     countInFlightBySite(JobKind.GENERATE_POST, siteIds),
   ]);
+
   const draftsBySite = new Map(drafts.map((row) => [row.siteId, row._count.id]));
+
   return new Map(
     siteIds.map((siteId) => {
       const draftCount = draftsBySite.get(siteId) ?? 0;
       const inflightCount = inflight.get(siteId) ?? 0;
+
       return [
         siteId,
         { drafts: draftCount, inflight: inflightCount, total: draftCount + inflightCount },
@@ -53,14 +56,17 @@ const refillCount = ({ bucketRefillAt, bucketTarget }: BucketFields, supply: Sup
 
 const refillSite = async (site: RefillSite, supply: Supply): Promise<Refill> => {
   const queued = refillCount(site, supply);
+
   if (queued > 0) {
     assertAiConfigured();
   }
+
   await Promise.all(
     Array.from({ length: queued }, () =>
       enqueue({ kind: JobKind.GENERATE_POST, payload: { siteId: site.id }, siteId: site.id }),
     ),
   );
+
   return { domain: site.domain, queued, siteId: site.id, supply };
 };
 
@@ -76,12 +82,15 @@ export const refillAll = async (): Promise<Array<Refill>> => {
     select: REFILL_SELECT,
     where: { bucketRefillAt: { not: null }, bucketTarget: { not: null }, isEnabled: true },
   });
+
   const supplies = await supplyBySite(sites.map((site) => site.id));
+
   return Promise.all(sites.map((site) => refillSite(site, supplyOf(supplies, site.id))));
 };
 
 export const refill = async (siteId: string): Promise<Refill> => {
   const site = await Sites.requireEnabled(siteId);
+
   return refillSite(site, supplyOf(await supplyBySite([siteId]), siteId));
 };
 
@@ -110,9 +119,12 @@ export const readBuckets = async (now: Date) => {
     },
     where: { isEnabled: true },
   });
+
   const supplies = await supplyBySite(sites.map((site) => site.id));
+
   return sites.map((site) => {
     const supply = supplyOf(supplies, site.id);
+
     return {
       autoPublishEnabled: site.autoPublishEnabled,
       bucketRefillAt: site.bucketRefillAt,

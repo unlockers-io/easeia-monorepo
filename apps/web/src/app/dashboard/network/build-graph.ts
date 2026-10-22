@@ -19,13 +19,16 @@ type MoneySiteNodeData = {
 };
 
 type PbnSiteNode = Node<PbnSiteNodeData, "pbn-site">;
+
 type MoneySiteNode = Node<MoneySiteNodeData, "money-site">;
+
 type NetworkNode = PbnSiteNode | MoneySiteNode;
 
 type NetworkEdgeData = {
   count: number;
   kind: "pbn-to-pbn" | "pbn-to-money";
 };
+
 type NetworkEdge = Edge<NetworkEdgeData>;
 
 type BuildGraphInput = {
@@ -98,6 +101,7 @@ const buildGraph = (input: BuildGraphInput): BuildGraphResult => {
 };
 
 export { buildGraph, MONEY_NODE_PREFIX, PBN_NODE_PREFIX };
+
 export type {
   BuildGraphInput,
   BuildGraphResult,

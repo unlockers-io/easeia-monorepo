@@ -6,9 +6,11 @@ import { postCreateFromFormData } from "./posts";
 
 const fd = (entries: Array<[string, string]>): FormData => {
   const form = new FormData();
+
   for (const [k, v] of entries) {
     form.append(k, v);
   }
+
   return form;
 };
 
@@ -38,6 +40,7 @@ describe("postCreateFromFormData", () => {
     const out = postCreateFromFormData(
       fd([...required, ["categories", "  Wed, Photo "], ["tags", "weddings, portraits, "]]),
     );
+
     expect(out.categories).toEqual(["Wed", "Photo"]);
     expect(out.tags).toEqual(["weddings", "portraits"]);
   });

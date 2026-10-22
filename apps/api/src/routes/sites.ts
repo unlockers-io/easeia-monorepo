@@ -25,10 +25,13 @@ type SiteRouteDependencies = {
 const itemResponse = z.object({ data: sitePublicSchema }).openapi("SiteResponse");
 const listResponse = z.object({ data: z.array(sitePublicSchema) });
 const moneySiteInput = z.object({ moneySiteId: z.string().min(1).nullable() });
+
 const moneySiteResponse = z.object({
   data: z.object({ id: z.string(), moneySiteId: z.string().nullable() }),
 });
+
 const itemContent = { "application/json": { schema: itemResponse } };
+
 const errors = {
   400: errorResponse("Invalid request"),
   401: errorResponse("Missing or invalid bearer token"),
@@ -64,6 +67,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
     }),
     async (c) => {
       const sites = await deps.listSites();
+
       return c.json({ data: sites.map(Sites.toPublic) }, 200);
     },
   );
@@ -80,6 +84,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
     }),
     async (c) => {
       const site = await deps.loadSite(c.req.valid("param").id);
+
       return c.json({ data: Sites.toPublic(site) }, 200);
     },
   );
@@ -99,6 +104,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
     async (c) => {
       const site = await deps.createSite(c.req.valid("json"));
       await deps.audit(c, { action: "site.create", target: `site:${site.id}` });
+
       return c.json({ data: Sites.toPublic(site) }, 201);
     },
   );
@@ -122,6 +128,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
     async (c) => {
       const site = await deps.updateSite(c.req.valid("param").id, c.req.valid("json"));
       await deps.audit(c, { action: "site.update", target: `site:${site.id}` });
+
       return c.json({ data: Sites.toPublic(site) }, 200);
     },
   );
@@ -157,9 +164,11 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
     async (c) => {
       const site = await deps.updateSite(c.req.valid("param").id, c.req.valid("json"));
       await deps.audit(c, { action: "site.update", target: `site:${site.id}` });
+
       return c.json({ data: { id: site.id, moneySiteId: site.moneySiteId } }, 200);
     },
   );
+
   return routes;
 };
 
@@ -173,5 +182,7 @@ const siteRoutes = createSiteRoutes({
   requirePermission: requireAction,
   updateSite: Sites.update,
 });
+
 export { createSiteRoutes, siteRoutes };
+
 export type { SiteRouteDependencies };

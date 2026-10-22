@@ -15,9 +15,11 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Postgres AI allowance", ()
 
   it("atomically limits concurrent reservations, refunds, and halts an underestimated month", async () => {
     await prisma.aiMonthlyBudget.deleteMany({ where: { month: { in: [month, nextMonth] } } });
+
     const results = await Promise.all(
       Array.from({ length: 40 }, () => budgetStore.reserve(month, 100, 1000)),
     );
+
     expect(results.filter(Boolean)).toHaveLength(10);
     const row = await prisma.aiMonthlyBudget.findUniqueOrThrow({ where: { month } });
     expect(row.usedMicroUsd).toBe(1000n);

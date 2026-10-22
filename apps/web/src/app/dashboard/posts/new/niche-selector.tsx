@@ -17,11 +17,13 @@ const NicheSelector = ({ niches }: Props) => {
   const toggle = (n: Niche) => {
     setSelected((prev) => {
       const next = new Set(prev);
+
       if (next.has(n)) {
         next.delete(n);
       } else {
         next.add(n);
       }
+
       return next;
     });
   };
@@ -35,6 +37,7 @@ const NicheSelector = ({ niches }: Props) => {
       ))}
       {niches.map((n) => {
         const active = selected.has(n);
+
         return (
           <button
             aria-pressed={active}

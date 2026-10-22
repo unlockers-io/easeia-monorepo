@@ -15,6 +15,7 @@ const PROVIDERS = {
 } as const;
 
 type IntegrationStatus = { configured: boolean; missing: Array<string> };
+
 type Integrations = Record<keyof typeof PROVIDERS, IntegrationStatus>;
 
 export const readIntegrations = (
@@ -22,8 +23,10 @@ export const readIntegrations = (
 ): Integrations => {
   const status = (keys: ReadonlyArray<string>): IntegrationStatus => {
     const missing = keys.filter((key) => (env[key]?.trim() ?? "") === "");
+
     return { configured: missing.length === 0, missing };
   };
+
   return {
     dataforseo: status(PROVIDERS.dataforseo),
     google: status(PROVIDERS.google),

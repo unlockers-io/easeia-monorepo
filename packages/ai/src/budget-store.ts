@@ -10,10 +10,12 @@ const budgetStore: AiBudgetStore = {
     if (amount > limit) {
       return false;
     }
+
     await prisma.aiMonthlyBudget.createMany({
       data: [{ month }],
       skipDuplicates: true,
     });
+
     const result = await prisma.aiMonthlyBudget.updateMany({
       data: { usedMicroUsd: { increment: BigInt(amount) } },
       where: {
@@ -22,6 +24,7 @@ const budgetStore: AiBudgetStore = {
         usedMicroUsd: { lte: BigInt(limit - amount) },
       },
     });
+
     return result.count === 1;
   },
   settle: async (month, reserved, cost) => {
@@ -36,4 +39,5 @@ const budgetStore: AiBudgetStore = {
 };
 
 export { budgetStore };
+
 export type { AiBudgetStore };

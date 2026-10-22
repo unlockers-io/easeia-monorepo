@@ -8,6 +8,7 @@ describe("loginSchema", () => {
       email: "user@example.com",
       password: "securepassword",
     });
+
     expect(result.success).toBe(true);
   });
 
@@ -16,6 +17,7 @@ describe("loginSchema", () => {
       email: "not-an-email",
       password: "securepassword",
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -24,6 +26,7 @@ describe("loginSchema", () => {
       email: "",
       password: "securepassword",
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -32,6 +35,7 @@ describe("loginSchema", () => {
       email: "user@example.com",
       password: "short",
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -40,6 +44,7 @@ describe("loginSchema", () => {
       email: "user@example.com",
       password: "123456789012",
     });
+
     expect(result.success).toBe(true);
   });
 });
@@ -121,6 +126,7 @@ describe("resetPasswordSchema", () => {
       confirmPassword: "newpassword12",
       password: "newpassword12",
     });
+
     expect(result.success).toBe(true);
   });
 
@@ -129,6 +135,7 @@ describe("resetPasswordSchema", () => {
       confirmPassword: "newpassword12",
       password: "short",
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -137,6 +144,7 @@ describe("resetPasswordSchema", () => {
       confirmPassword: "short",
       password: "newpassword12",
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -145,6 +153,7 @@ describe("resetPasswordSchema", () => {
       confirmPassword: "123456789012",
       password: "123456789012",
     });
+
     expect(result.success).toBe(true);
   });
 });

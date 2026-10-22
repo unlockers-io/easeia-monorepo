@@ -37,6 +37,7 @@ const formSchema = z.object({
       "Enter an HTTP(S) deploy hook URL or leave it blank.",
     ),
 });
+
 const defaultValues: z.input<typeof formSchema> = {
   domain: "",
   isEnabled: true,
@@ -51,15 +52,19 @@ export const SiteCreateDialog = () => {
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const router = useRouter();
+
   const form = useForm({
     defaultValues,
     onSubmit: async ({ value }) => {
       setError(null);
       const result = await createSiteAction(value);
+
       if (!result.ok) {
         setError(result.error);
+
         return;
       }
+
       setOpen(false);
       form.reset();
       router.push(`/dashboard/sites/${result.id}`);
@@ -67,6 +72,7 @@ export const SiteCreateDialog = () => {
     },
     validators: { onBlur: formSchema, onChange: formSchema },
   });
+
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger disabled={!ready} render={<Button>Add site</Button>} />

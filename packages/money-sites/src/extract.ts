@@ -17,6 +17,7 @@ export const extractPageContent = (html: string): PageContent => {
   // Read head metadata before pruning, so additions to the selector list below
   // cannot start removing it.
   const title = document.querySelector("title")?.textContent.trim() ?? null;
+
   const metaDescription =
     document.querySelector('meta[name="description"]')?.getAttribute("content")?.trim() ?? null;
 
@@ -25,13 +26,17 @@ export const extractPageContent = (html: string): PageContent => {
       el.remove();
     }
   }
+
   const buckets: Array<string> = [];
+
   for (const el of document.querySelectorAll("h1, h2, h3, h4, h5, h6, p, li, td, dd")) {
     const text = el.textContent.replaceAll(/\s+/gv, " ").trim();
+
     if (text) {
       buckets.push(text);
     }
   }
+
   return { bodyText: buckets.join("\n\n"), metaDescription, title };
 };
 

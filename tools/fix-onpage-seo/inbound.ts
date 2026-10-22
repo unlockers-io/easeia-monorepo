@@ -46,8 +46,10 @@ const fallbackSources = async (orphan: ListedPost): Promise<Array<SourceCandidat
       status: PostStatus.PUBLISHED,
     },
   });
+
   const sharesCategory = (post: { categories: Array<string> }): number =>
     post.categories.some((c) => orphan.categories.includes(c)) ? 1 : 0;
+
   return rows.toSorted((a, b) => sharesCategory(b) - sharesCategory(a));
 };
 
@@ -57,6 +59,7 @@ const pickSource = async (
 ): Promise<SourceCandidate | undefined> => {
   const similar = await similarSources(orphan.id, orphan.siteId);
   const candidates = similar.length > 0 ? similar : await fallbackSources(orphan);
+
   return candidates.find(
     (candidate) =>
       (addedBySource.get(candidate.id) ?? 0) < MAX_NEW_PER_SOURCE &&
@@ -69,14 +72,18 @@ export const planInboundFixes = async (
 ): Promise<Array<LinkFix>> => {
   const addedBySource = new Map<string, number>();
   const planned: Array<LinkFix> = [];
+
   for (const orphan of orphans) {
     const picked = await pickSource(orphan, addedBySource);
+
     if (picked === undefined) {
       continue;
     }
+
     addedBySource.set(picked.id, (addedBySource.get(picked.id) ?? 0) + 1);
     planned.push({ orphanId: orphan.id, siteId: orphan.siteId, sourceId: picked.id });
   }
+
   return planned;
 };
 

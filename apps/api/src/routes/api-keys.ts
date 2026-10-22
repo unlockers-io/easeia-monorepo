@@ -110,6 +110,7 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
       meta: { scopes: issued.scopes },
       target: `apikey:${issued.id}`,
     });
+
     return c.json({ data: issued }, 201);
   });
 
@@ -138,6 +139,7 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
     const { id } = c.req.valid("param");
     await deps.revokeKey(id);
     await deps.audit(c, { action: "apikey.revoke", target: `apikey:${id}` });
+
     return c.json({ ok: true as const }, 200);
   });
 

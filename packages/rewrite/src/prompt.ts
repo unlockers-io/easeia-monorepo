@@ -29,6 +29,7 @@ export type RewritePromptInput = {
 
 export const buildRewritePrompt = (input: RewritePromptInput): string => {
   const languageName = SITE_LANGUAGE_HUMAN[input.siteLanguage];
+
   const lines = [
     REWRITER_SYSTEM_PROMPT,
     "",
@@ -57,5 +58,6 @@ export const buildRewritePrompt = (input: RewritePromptInput): string => {
     "Original body:",
     input.post.body.slice(0, MAX_BODY_CHARS),
   ];
+
   return lines.filter((line) => line !== "").join("\n");
 };

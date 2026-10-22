@@ -8,13 +8,17 @@ import { log } from "./logger";
 const fetchTopSearchQueries = async (domain: string): Promise<Array<string>> => {
   try {
     const site = await forSite(domain);
+
     if (site.status !== "ok") {
       return [];
     }
+
     const rows = await site.topQueries({ days: 28, limit: 20 });
+
     return rows.map((r) => r.query);
   } catch (error) {
     log.warn({ domain, err: error, message: "gsc top queries fetch failed" });
+
     return [];
   }
 };

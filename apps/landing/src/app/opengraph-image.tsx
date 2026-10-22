@@ -5,6 +5,7 @@ import { ImageResponse } from "next/og";
 const alt = "Easeia \u00b7 An open-source dashboard for private blog networks.";
 const size = { height: 630, width: 1200 };
 const contentType = "image/png";
+
 const OpengraphImage = () => {
   return new ImageResponse(
     <svg height={630} viewBox="0 0 1200 630" width={1200}>
@@ -27,5 +28,7 @@ const OpengraphImage = () => {
     size,
   );
 };
+
 export { alt, contentType, size };
+
 export default OpengraphImage;

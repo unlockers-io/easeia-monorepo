@@ -42,6 +42,7 @@ const ScheduleTable = ({ cards }: { cards: ReadonlyArray<SiteCardModel> }) => (
       {cards.map(({ latest, moneySite, site }) => {
         const standing = standingOf(latest);
         const score = latest?.healthScore;
+
         return (
           <TableRow key={site.id}>
             <TableCell className="pl-0 text-right">

@@ -43,6 +43,7 @@ test.describe("Instant navigation", () => {
     const marker = await page.evaluate(
       () => (window as typeof window & { noReloadMarker?: boolean }).noReloadMarker,
     );
+
     expect(marker).toBe(true);
   });
 
@@ -111,6 +112,7 @@ test.describe("Instant navigation", () => {
     const marker = await page.evaluate(
       () => (window as typeof window & { noReloadMarker?: boolean }).noReloadMarker,
     );
+
     expect(marker).toBe(true);
   });
 });

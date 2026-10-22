@@ -22,19 +22,24 @@ const main = async (): Promise<number> => {
   console.log(`Inspecting ${links.length} resolved link${links.length === 1 ? "" : "s"}…`);
 
   let updated = 0;
+
   for (const link of links) {
     if (!link.toPost) {
       continue;
     }
+
     const next = postPublicUrl(link.toPost.site, link.toPost);
+
     if (next === link.toUrl) {
       continue;
     }
+
     await prisma.link.update({ data: { toUrl: next }, where: { id: link.id } });
     updated += 1;
   }
 
   console.log(`Done. ${updated} link${updated === 1 ? "" : "s"} rewritten.`);
+
   return 0;
 };
 

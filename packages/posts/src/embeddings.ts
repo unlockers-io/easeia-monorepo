@@ -18,6 +18,7 @@ export const recordEmbedding = async (
       `Embedding dimension mismatch: expected ${EMBEDDING_DIM}, got ${vector.length}`,
     );
   }
+
   await prisma.$executeRawUnsafe(
     `UPDATE "Post" SET embedding = $1::vector WHERE id = $2`,
     toVectorLiteral(vector),
@@ -55,6 +56,7 @@ export const findSimilar = async (postId: string, limit: number): Promise<Array<
     ORDER BY p.embedding <=> ref.embedding ASC
     LIMIT ${limit}
   `;
+
   return rows.map((r) => ({
     domain: r.domain,
     id: r.id,
@@ -69,5 +71,6 @@ export const hasEmbedding = async (postId: string): Promise<boolean> => {
   const rows = await prisma.$queryRaw<Array<{ has: boolean }>>`
     SELECT (embedding IS NOT NULL) AS has FROM "Post" WHERE id = ${postId}
   `;
+
   return rows[0]?.has ?? false;
 };

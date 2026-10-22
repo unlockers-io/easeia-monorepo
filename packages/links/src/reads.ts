@@ -17,6 +17,7 @@ export const countInternalInboundLinks = async (
   if (postIds.length === 0) {
     return new Map();
   }
+
   const rows = await prisma.link.groupBy({
     _count: { toPostId: true },
     by: ["toPostId"],
@@ -27,12 +28,15 @@ export const countInternalInboundLinks = async (
       type: LinkType.INTERNAL,
     },
   });
+
   const counts = new Map<string, number>();
+
   for (const row of rows) {
     if (row.toPostId !== null) {
       counts.set(row.toPostId, row._count.toPostId);
     }
   }
+
   return counts;
 };
 
@@ -46,6 +50,7 @@ export const pbnBacklinkSummary = async (
     select: { fromPost: { select: { siteId: true } }, fromPostId: true },
     where: siteBacklinksWhere(siteId),
   });
+
   return {
     backlinks: rows.length,
     referringPosts: new Set(rows.map((r) => r.fromPostId)).size,
@@ -73,6 +78,7 @@ export const recentPbnBacklinks = (siteId: string, limit: number) =>
   });
 
 type PbnEdge = { count: number; fromSiteId: string; toSiteId: string };
+
 type MoneyEdge = { count: number; fromSiteId: string; moneySiteId: string };
 
 export const networkLinkEdges = async (): Promise<{
@@ -101,6 +107,7 @@ export const networkLinkEdges = async (): Promise<{
       GROUP BY fp."siteId", ms.id
     `,
   ]);
+
   return {
     moneyEdges: moneyRows.map((r) => ({
       count: Number(r.count),

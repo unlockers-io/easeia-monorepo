@@ -63,6 +63,7 @@ const EXPECTED_ERRORS = [GoogleAuthError, GoogleNotConfiguredError];
 
 export const SearchConsoleCard = async ({ domain }: { domain: string }) => {
   const resolved = await tryProvider(() => forSite(domain), EXPECTED_ERRORS);
+
   if (!resolved.ok) {
     return (
       <ProviderErrorCard
@@ -73,10 +74,13 @@ export const SearchConsoleCard = async ({ domain }: { domain: string }) => {
       />
     );
   }
+
   const site = resolved.data;
+
   if (site.status === "not_connected") {
     return <NotConnected />;
   }
+
   if (site.status === "not_verified") {
     return <NotVerified domain={domain} />;
   }
@@ -89,6 +93,7 @@ export const SearchConsoleCard = async ({ domain }: { domain: string }) => {
       ]),
     EXPECTED_ERRORS,
   );
+
   if (!fetched.ok) {
     return (
       <ProviderErrorCard
@@ -99,6 +104,7 @@ export const SearchConsoleCard = async ({ domain }: { domain: string }) => {
       />
     );
   }
+
   const [agg, queries] = fetched.data;
 
   return (
@@ -181,11 +187,14 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
 
 const PositionBadge = ({ position }: { position: number }) => {
   const rounded = position.toFixed(1);
+
   if (position <= 3) {
     return <Badge variant="default">{rounded}</Badge>;
   }
+
   if (position <= 10) {
     return <Badge variant="secondary">{rounded}</Badge>;
   }
+
   return <Badge variant="outline">{rounded}</Badge>;
 };

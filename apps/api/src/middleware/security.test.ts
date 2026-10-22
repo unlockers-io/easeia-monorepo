@@ -92,6 +92,7 @@ describe("apiRateLimitKey", () => {
     const c = createMockContext({
       actor: { id: "key_1", kind: "apikey", scopes: [], siteId: null },
     });
+
     expect(apiRateLimitKey(c)).toBe("actor:apikey:key_1");
   });
 
@@ -102,9 +103,11 @@ describe("apiRateLimitKey", () => {
 
   it("keeps user and apikey ids in separate buckets even when ids collide", () => {
     const userCtx = createMockContext({ actor: { id: "shared", kind: "user" } });
+
     const keyCtx = createMockContext({
       actor: { id: "shared", kind: "apikey", scopes: [], siteId: null },
     });
+
     expect(apiRateLimitKey(userCtx)).not.toBe(apiRateLimitKey(keyCtx));
   });
 

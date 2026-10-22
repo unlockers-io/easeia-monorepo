@@ -12,6 +12,7 @@ export const tryProvider = async <T>(
     if (expectedErrors.some((cls) => error instanceof cls)) {
       return { error: error instanceof Error ? error.message : String(error), ok: false };
     }
+
     throw error;
   }
 };

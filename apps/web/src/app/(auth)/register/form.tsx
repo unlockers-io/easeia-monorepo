@@ -50,10 +50,13 @@ const RegisterForm = ({ searchParams }: Props) => {
     onSubmit: async ({ value }) => {
       if (value.password !== value.confirmPassword) {
         toast.error("Passwords do not match");
+
         return;
       }
+
       const { from } = await searchParams;
       const safeTo = safeRedirectPath(from);
+
       const result = await authClient.signUp
         .email({
           callbackURL: safeTo,
@@ -62,18 +65,25 @@ const RegisterForm = ({ searchParams }: Props) => {
           password: value.password,
         })
         .catch(authFailureMessage);
+
       if (typeof result === "string") {
         toast.error(result);
+
         return;
       }
+
       if (result.error) {
         toast.error(result.error.message ?? "Failed to register");
+
         return;
       }
+
       if (result.data.token === null || result.data.token === "") {
         setSentToEmail(value.email);
+
         return;
       }
+
       push(safeTo);
       refresh();
     },
@@ -107,6 +117,7 @@ const RegisterForm = ({ searchParams }: Props) => {
         <form.Field name="name">
           {(field) => {
             const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="name">Full Name</FieldLabel>
@@ -133,6 +144,7 @@ const RegisterForm = ({ searchParams }: Props) => {
         <form.Field name="email">
           {(field) => {
             const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+
             return (
               <Field data-invalid={isInvalid || undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
