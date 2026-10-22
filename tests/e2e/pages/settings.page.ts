@@ -43,6 +43,10 @@ export class SettingsPage {
     await expect(this.passwordInputs.new).toHaveAttribute("aria-invalid", "true");
   };
 
+  expectNewPasswordFocused = async () => {
+    await expect(this.passwordInputs.new).toBeFocused();
+  };
+
   expectNewPasswordErrorHidden = async () => {
     await expect(this.newPasswordError).toBeHidden();
     await expect(this.passwordInputs.new).toHaveAttribute("aria-invalid", "false");
