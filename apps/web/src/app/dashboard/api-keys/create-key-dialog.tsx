@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  apiKeyCreateSchema,
-  isSiteScopedScope,
-  type ApiKeyCreate,
-  type ApiKeyScope,
-} from "@repo/api-types";
+import { apiKeyCreateSchema, isSiteScopedScope, type ApiKeyScope } from "@repo/api-types";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -44,6 +39,7 @@ import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Check, Copy, KeyRound, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { createApiKeyAction } from "./actions";
 
@@ -53,7 +49,55 @@ type Props = {
   siteScopedScopes: ReadonlyArray<ApiKeyScope>;
 };
 
-const defaultValues: ApiKeyCreate = {
+const TokenIssued = ({ token }: { token: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      toast.error("Copy failed. Select the token below and copy it manually.");
+    }
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <KeyRound className="size-4 text-primary" />
+          Token issued
+        </DialogTitle>
+        <DialogDescription>Copy it now. You won&apos;t be able to read it again.</DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col gap-2">
+        <code className="block rounded-md border border-border bg-muted p-3 font-mono text-xs break-all">
+          {token}
+        </code>
+        <Button
+          onClick={() => {
+            void handleCopy();
+          }}
+          type="button"
+          variant="outline"
+        >
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copied ? "Copied" : "Copy to clipboard"}
+        </Button>
+      </div>
+      <DialogFooter>
+        <DialogClose render={<Button type="button" />}>Done</DialogClose>
+      </DialogFooter>
+    </>
+  );
+};
+
+const formSchema = apiKeyCreateSchema.safeExtend({ siteId: z.string() });
+
+const defaultValues: z.input<typeof formSchema> = {
   name: "",
   scopes: [],
   siteId: "",
@@ -62,7 +106,6 @@ const defaultValues: ApiKeyCreate = {
 const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ready = useClientReady();
 
@@ -90,7 +133,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
       focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: apiKeyCreateSchema },
+    validators: { onDynamic: formSchema },
   });
   const needsSite = useSelector(form.store, (state) => state.values.scopes.some(isSiteScopedScope));
 
@@ -98,25 +141,9 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
     if (!next) {
       form.reset();
       setToken(null);
-      setCopied(false);
       setError(null);
     }
     setOpen(next);
-  };
-
-  const handleCopy = async () => {
-    if (token === null) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(token);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch {
-      toast.error("Copy failed. Select the token below and copy it manually.");
-    }
   };
 
   return (
@@ -239,7 +266,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                             onValueChange={(next: string | null) => {
                               field.handleChange(next ?? "");
                             }}
-                            value={field.state.value ?? ""}
+                            value={field.state.value}
                           >
                             <SelectTrigger
                               aria-describedby={
@@ -285,35 +312,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
             </DialogFooter>
           </ClientReadyForm>
         ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <KeyRound className="size-4 text-primary" />
-                Token issued
-              </DialogTitle>
-              <DialogDescription>
-                Copy it now. You won&apos;t be able to read it again.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-2">
-              <code className="block rounded-md border border-border bg-muted p-3 font-mono text-xs break-all">
-                {token}
-              </code>
-              <Button
-                onClick={() => {
-                  void handleCopy();
-                }}
-                type="button"
-                variant="outline"
-              >
-                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                {copied ? "Copied" : "Copy to clipboard"}
-              </Button>
-            </div>
-            <DialogFooter>
-              <DialogClose render={<Button type="button" />}>Done</DialogClose>
-            </DialogFooter>
-          </>
+          <TokenIssued token={token} />
         )}
       </DialogContent>
     </Dialog>

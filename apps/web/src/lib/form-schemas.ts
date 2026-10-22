@@ -1,4 +1,5 @@
-import { SiteLanguage } from "@repo/db/browser";
+import { POST_SLUG_PATTERN } from "@repo/api-types";
+import { Niche, SiteLanguage } from "@repo/db/browser";
 import { z } from "zod";
 
 export const loginSchema = z.object({
@@ -117,3 +118,20 @@ export const networkDefaultsSchema = z
     }
     checkBucket(value, context);
   });
+
+export const newPostSchema = z.object({
+  body: z.string().min(1, "Write the post body."),
+  categories: z.string(),
+  excerpt: z.string().max(300, "Keep the excerpt to 300 characters."),
+  focusKeyword: z.string().max(80, "Keep the focus keyword to 80 characters."),
+  niches: z.array(z.enum(Niche)),
+  publish: z.boolean(),
+  scheduledAt: z.string(),
+  siteId: z.string().min(1, "Pick a site."),
+  slug: z
+    .string()
+    .min(1, "Enter a slug.")
+    .regex(POST_SLUG_PATTERN, "Use lowercase letters and numbers, separated by single hyphens."),
+  tags: z.string(),
+  title: z.string().min(1, "Enter a title.").max(160, "Keep the title to 160 characters."),
+});

@@ -2,7 +2,7 @@ import { Input } from "@repo/ui/components/input";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 
 type Props = {
-  descriptionId?: string;
+  descriptionId: string;
   field: {
     handleBlur: () => void;
     handleChange: (value: string) => void;
@@ -16,9 +16,6 @@ type Props = {
 const CountField = ({ descriptionId, field, id, label, placeholder }: Props) => {
   const isInvalid = !field.state.meta.isValid;
   const errorId = `${id}-error`;
-  const describedBy = [descriptionId ?? null, isInvalid ? errorId : null]
-    .filter((describer) => describer !== null)
-    .join(" ");
 
   return (
     <div className="flex flex-col gap-1">
@@ -26,7 +23,7 @@ const CountField = ({ descriptionId, field, id, label, placeholder }: Props) => 
         {label}
       </label>
       <Input
-        aria-describedby={describedBy === "" ? undefined : describedBy}
+        aria-describedby={isInvalid ? `${descriptionId} ${errorId}` : descriptionId}
         aria-invalid={isInvalid}
         autoComplete="off"
         id={id}

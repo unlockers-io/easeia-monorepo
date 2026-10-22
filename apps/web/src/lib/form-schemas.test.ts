@@ -4,6 +4,7 @@ import {
   autoPublishSchema,
   loginSchema,
   networkDefaultsSchema,
+  newPostSchema,
   recoverSchema,
   registerSchema,
   resetPasswordSchema,
@@ -253,6 +254,44 @@ describe("networkDefaultsSchema", () => {
         message: "Set both bucket target and refill threshold, or leave both blank.",
         path: ["bucketTarget"],
       },
+    ]);
+  });
+});
+
+describe("newPostSchema", () => {
+  const valid = {
+    body: "## Intro",
+    categories: "",
+    excerpt: "",
+    focusKeyword: "",
+    niches: [],
+    publish: false,
+    scheduledAt: "",
+    siteId: "site_1",
+    slug: "my-first-post",
+    tags: "",
+    title: "My first post",
+  };
+
+  it("should accept a post with only the required fields", () => {
+    expect(newPostSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("should reject a slug that isn't lowercase and single-hyphenated", () => {
+    for (const slug of ["Not Kebab", "double--hyphen", "-leading"]) {
+      expect(issuesOf(newPostSchema.safeParse({ ...valid, slug }))).toEqual([
+        {
+          message: "Use lowercase letters and numbers, separated by single hyphens.",
+          path: ["slug"],
+        },
+      ]);
+    }
+  });
+
+  it("should require a title and body", () => {
+    expect(issuesOf(newPostSchema.safeParse({ ...valid, body: "", title: "" }))).toEqual([
+      { message: "Write the post body.", path: ["body"] },
+      { message: "Enter a title.", path: ["title"] },
     ]);
   });
 });

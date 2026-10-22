@@ -1,6 +1,5 @@
 "use client";
 
-import { POST_SLUG_PATTERN } from "@repo/api-types";
 import { Niche } from "@repo/db/browser";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -28,30 +27,15 @@ import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, useState } from "react";
-import { z } from "zod";
+import { useState } from "react";
+import type { z } from "zod";
+
+import { newPostSchema } from "@/lib/form-schemas";
 
 import { createPostAction } from "../../actions";
 import { NicheToggleGroup } from "../../sites/niche-toggle-group";
 
-const formSchema = z.object({
-  body: z.string().min(1, "Write the post body."),
-  categories: z.string(),
-  excerpt: z.string().max(300, "Keep the excerpt to 300 characters."),
-  focusKeyword: z.string().max(80, "Keep the focus keyword to 80 characters."),
-  niches: z.array(z.enum(Niche)),
-  publish: z.boolean(),
-  scheduledAt: z.string(),
-  siteId: z.string().min(1, "Pick a site."),
-  slug: z
-    .string()
-    .min(1, "Enter a slug.")
-    .regex(POST_SLUG_PATTERN, "Use lowercase letters and numbers, separated by single hyphens."),
-  tags: z.string(),
-  title: z.string().min(1, "Enter a title.").max(160, "Keep the title to 160 characters."),
-});
-
-const emptyPost: z.input<typeof formSchema> = {
+const emptyPost: z.input<typeof newPostSchema> = {
   body: "",
   categories: "",
   excerpt: "",
@@ -74,7 +58,7 @@ const splitCsv = (raw: string): Array<string> =>
 const optional = (value: string): string | undefined => (value === "" ? undefined : value);
 
 type TextFieldProps = {
-  description?: string;
+  description: string;
   field: {
     handleBlur: () => void;
     handleChange: (value: string) => void;
@@ -83,7 +67,6 @@ type TextFieldProps = {
   };
   isRequired?: boolean;
   label: string;
-  multiline?: boolean;
   placeholder?: string;
   type?: "datetime-local";
 };
@@ -93,42 +76,30 @@ const TextField = ({
   field,
   isRequired,
   label,
-  multiline,
   placeholder,
   type,
 }: TextFieldProps) => {
   const isInvalid = !field.state.meta.isValid;
   const errorId = `${field.name}-error`;
   const descriptionId = `${field.name}-description`;
-  const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
-    .filter((describer) => describer !== null)
-    .join(" ");
-  const control = {
-    "aria-describedby": describedBy === "" ? undefined : describedBy,
-    "aria-invalid": isInvalid,
-    "aria-required": isRequired,
-    id: field.name,
-    onBlur: field.handleBlur,
-    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      field.handleChange(event.target.value);
-    },
-    placeholder,
-    value: field.state.value,
-  };
 
   return (
     <Field data-invalid={isInvalid || undefined}>
       <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
-      {multiline === true ? (
-        <div className="font-mono">
-          <Textarea {...control} />
-        </div>
-      ) : (
-        <Input {...control} type={type} />
-      )}
-      {description !== undefined && (
-        <FieldDescription id={descriptionId}>{description}</FieldDescription>
-      )}
+      <Input
+        aria-describedby={isInvalid ? `${descriptionId} ${errorId}` : descriptionId}
+        aria-invalid={isInvalid}
+        aria-required={isRequired}
+        id={field.name}
+        onBlur={field.handleBlur}
+        onChange={(event) => {
+          field.handleChange(event.target.value);
+        }}
+        placeholder={placeholder}
+        type={type}
+        value={field.state.value}
+      />
+      <FieldDescription id={descriptionId}>{description}</FieldDescription>
       {isInvalid && <FormFieldError errors={field.state.meta.errors} id={errorId} />}
     </Field>
   );
@@ -180,7 +151,7 @@ export const NewPostForm = ({
       focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: formSchema },
+    validators: { onDynamic: newPostSchema },
   });
 
   return (
@@ -262,13 +233,26 @@ export const NewPostForm = ({
 
             <form.Field name="body">
               {(field) => (
-                <TextField
-                  field={field}
-                  isRequired
-                  label="Body (Markdown)"
-                  multiline
-                  placeholder={"## Introduction\n\nWrite your post here…"}
-                />
+                <Field data-invalid={!field.state.meta.isValid || undefined}>
+                  <FieldLabel htmlFor="body">Body (Markdown)</FieldLabel>
+                  <div className="font-mono">
+                    <Textarea
+                      aria-describedby={field.state.meta.isValid ? undefined : "body-error"}
+                      aria-invalid={!field.state.meta.isValid}
+                      aria-required
+                      id="body"
+                      onBlur={field.handleBlur}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value);
+                      }}
+                      placeholder={"## Introduction\n\nWrite your post here…"}
+                      value={field.state.value}
+                    />
+                  </div>
+                  {!field.state.meta.isValid && (
+                    <FormFieldError errors={field.state.meta.errors} id="body-error" />
+                  )}
+                </Field>
               )}
             </form.Field>
           </FieldGroup>
@@ -327,12 +311,22 @@ export const NewPostForm = ({
             <div className="grid gap-5 sm:grid-cols-2">
               <form.Field name="categories">
                 {(field) => (
-                  <TextField field={field} label="Categories" placeholder="Photography, Wedding" />
+                  <TextField
+                    description="Separate categories with commas."
+                    field={field}
+                    label="Categories"
+                    placeholder="Photography, Wedding"
+                  />
                 )}
               </form.Field>
               <form.Field name="tags">
                 {(field) => (
-                  <TextField field={field} label="Tags" placeholder="weddings, portraits" />
+                  <TextField
+                    description="Separate tags with commas."
+                    field={field}
+                    label="Tags"
+                    placeholder="weddings, portraits"
+                  />
                 )}
               </form.Field>
             </div>

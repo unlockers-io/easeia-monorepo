@@ -31,6 +31,15 @@ export const updateSiteAction = async (formData: FormData) => {
 const withError = (path: string, error: Sites.DomainError): string =>
   `${path}?error=${encodeURIComponent(error.message)}`;
 
+const createPostFailure = (error: Error): string | null => {
+  if (error instanceof Sites.DomainError) {
+    return error.message;
+  }
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+    ? "This site already has a post with that slug."
+    : null;
+};
+
 export const createPostAction = async (
   input: PostCreateInput,
 ): Promise<{ id: string; ok: true } | { error: string; ok: false }> => {
@@ -39,13 +48,11 @@ export const createPostAction = async (
   try {
     result = await Posts.create(input);
   } catch (error) {
-    if (error instanceof Sites.DomainError) {
-      return { error: error.message, ok: false };
+    const failure = error instanceof Error ? createPostFailure(error) : null;
+    if (failure === null) {
+      throw error;
     }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { error: "This site already has a post with that slug.", ok: false };
-    }
-    throw error;
+    return { error: failure, ok: false };
   }
   await audit({ action: "post.create", target: `post:${result.post.id}` });
   revalidatePath("/dashboard/posts");

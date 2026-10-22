@@ -71,8 +71,8 @@ const NetworkDefaultsDialog = () => {
           bucketSites: result.bucketSitesUpdated,
           cadenceSites: result.cadenceSitesUpdated,
         });
-      } catch (applyError) {
-        setError(applyError instanceof Error ? applyError.message : "Failed to apply defaults");
+      } catch {
+        setError("Failed to apply defaults");
       }
     },
     onSubmitInvalid: ({ formApi }) => {
