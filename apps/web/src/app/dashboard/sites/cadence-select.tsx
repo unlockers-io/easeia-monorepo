@@ -31,6 +31,7 @@ const toSelectValue = (autoPublishEnabled: boolean, cadenceDays: number | null):
   if (!autoPublishEnabled || cadenceDays === null) {
     return OFF;
   }
+
   return String(cadenceDays);
 };
 
@@ -38,8 +39,10 @@ const labelForValue = (value: string): string => {
   if (value === OFF) {
     return "Off";
   }
+
   const days = Number(value);
   const preset = PRESETS.find((p) => p.days === days);
+
   return preset ? preset.label : `Every ${days} days`;
 };
 
@@ -65,9 +68,11 @@ export const CadenceSelect = ({
     if (next === null || next === optimisticValue) {
       return;
     }
+
     startPending(async () => {
       setOptimisticValue(next);
       const cadence = next === OFF ? null : Number(next);
+
       try {
         await updateSiteCadenceAction(siteId, cadence);
       } catch {
@@ -97,9 +102,11 @@ export const CadenceSelect = ({
                 </span>
               );
             }
+
             if (value === OFF) {
               return <span className="text-muted-foreground">Off</span>;
             }
+
             return labelForValue(value);
           }}
         </SelectValue>

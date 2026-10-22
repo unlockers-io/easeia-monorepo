@@ -18,4 +18,5 @@ export const suggestionAnchorPatchSchema = z.strictObject({
 });
 
 export type SuggestionListQuery = z.infer<typeof suggestionListQuerySchema>;
+
 export type SuggestionAnchorPatch = z.infer<typeof suggestionAnchorPatchSchema>;

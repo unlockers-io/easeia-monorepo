@@ -40,6 +40,7 @@ export const uploadExternalBacklinksAction = async (
     select: { domain: true, id: true },
     where: { id: siteId },
   });
+
   if (!site) {
     throw new Error("Site not found");
   }
@@ -82,6 +83,7 @@ export const uploadExternalBacklinksAction = async (
 
 const clean = (value: string | null): string | null => {
   const trimmed = value?.trim() ?? "";
+
   return trimmed === "" ? null : trimmed;
 };
 
@@ -103,6 +105,7 @@ export const updateAutoPublishAction = async (
   input: UpdateAutoPublishInput,
 ): Promise<UpdateAutoPublishResult> => {
   await requireSession();
+
   try {
     await AutoPublish.configure(siteId, {
       autoPublishEnabled: input.autoPublishEnabled,
@@ -113,12 +116,15 @@ export const updateAutoPublishAction = async (
     if (error instanceof AutoPublishConfigError) {
       return { errors: error.messages };
     }
+
     throw error;
   }
+
   await Sites.update(siteId, { language: input.language, topicHints: clean(input.topicHints) });
   await audit({ action: "site.update", target: `site:${siteId}` });
   revalidatePath(`/dashboard/sites/${siteId}`);
   revalidatePath("/dashboard/buckets");
+
   return { errors: [] };
 };
 
@@ -170,6 +176,7 @@ export const startGscBacklinkBackfillAction = async (
     select: { id: true },
     where: { id: siteId },
   });
+
   if (!site) {
     return { error: "Site not found.", ok: false };
   }
@@ -182,6 +189,7 @@ export const startGscBacklinkBackfillAction = async (
   await audit({ action: "backlinks.backfill", target: `site:${siteId}` });
 
   revalidatePath(`/dashboard/sites/${siteId}`);
+
   return { ok: true };
 };
 
@@ -198,17 +206,20 @@ export const updateSitePublishingAction = async (
 ): Promise<{ ok: true } | { error: string; ok: false }> => {
   await requireSession();
   const parsed = publishingSettingsSchema.safeParse(input);
+
   if (!parsed.success) {
     return {
       error: parsed.error.issues[0]?.message ?? "Check the publishing settings.",
       ok: false,
     };
   }
+
   try {
     await Sites.update(siteId, parsed.data);
     await audit({ action: "site.update", target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
     revalidatePath("/dashboard/posts");
+
     return { ok: true };
   } catch (error) {
     return {

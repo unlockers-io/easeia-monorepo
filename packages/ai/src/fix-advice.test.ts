@@ -24,6 +24,7 @@ describe("fixAdviceSchema", () => {
         },
       ],
     });
+
     expect(result.success).toBe(true);
   });
 
@@ -39,6 +40,7 @@ describe("fixAdviceSchema", () => {
         snippet: null,
       })),
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -52,6 +54,7 @@ describe("fixAdviceSchema", () => {
         { description: "Enable compression in the hosting panel.", manual: true, snippet: null },
       ],
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -65,6 +68,7 @@ describe("fixAdviceSchema", () => {
         { description: "Enable compression in the hosting panel.", manual: true, snippet: null },
       ],
     });
+
     expect(result.success).toBe(false);
   });
 });
@@ -78,6 +82,7 @@ describe("buildFixAdvicePrompt", () => {
         niches: ["WEDDING", "PHOTOGRAPHY"],
       },
     });
+
     expect(prompt).toContain("is_redirect");
     expect(prompt).toContain("example.com");
     expect(prompt).toContain("https://example.com");
@@ -90,6 +95,7 @@ describe("buildFixAdvicePrompt", () => {
       checkName: "no_content_encoding",
       site: { domain: "example.com", niches: [] },
     });
+
     expect(prompt).toContain("Niches: unspecified");
   });
 });

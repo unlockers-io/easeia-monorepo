@@ -8,9 +8,11 @@ export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Pro
   const log = createJobLogger({ jobId, queue: "crawl-links" });
   log.set({ postId: payload.postId });
   const summary = await crawlPost(payload.postId);
+
   if (summary) {
     log.set(summary);
   }
+
   log.info(summary ? "crawl-links: done" : "crawl-links: nothing to crawl");
   log.emit();
 };

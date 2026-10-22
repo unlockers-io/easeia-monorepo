@@ -22,10 +22,13 @@ export const GscBackfillAllButton = () => {
     setState({ kind: "running" });
     startTransition(async () => {
       const result = await startGscBacklinkBackfillAllAction();
+
       if (!result.ok) {
         setState({ kind: "error", message: result.error });
+
         return;
       }
+
       setState({ kind: "done", queued: result.queued, skipped: result.skipped });
     });
   };

@@ -10,6 +10,7 @@ import {
 } from "./schemas";
 
 export { DataForSeoNotConfiguredError, isDataForSeoConfigured } from "./credentials";
+
 export { DataForSeoError } from "./error";
 
 type PageAudit = {
@@ -79,10 +80,13 @@ export const createDataForSeo = (transport: Transport) => {
       [{ enable_javascript: false, enable_xhr: false, load_resources: false, url }],
       onPageInstantResultSchema,
     );
+
     const item = result?.items?.[0];
+
     if (!item) {
       return null;
     }
+
     return {
       checks: summarizeChecks(item.checks ?? {}),
       externalLinks: item.meta?.external_links_count ?? null,
@@ -102,11 +106,15 @@ export const createDataForSeo = (transport: Transport) => {
       [{ ...marketParams(site.language), target: stripScheme(site.domain) }],
       domainRankResultSchema,
     );
+
     const item = result?.items?.[0];
+
     if (!item) {
       return null;
     }
+
     const organic = item.metrics?.organic;
+
     return {
       organicKeywords: organic?.count ?? 0,
       organicTraffic: organic?.etv ?? 0,
@@ -130,6 +138,7 @@ export const createDataForSeo = (transport: Transport) => {
       ],
       rankedKeywordsResultSchema,
     );
+
     return (result?.items ?? []).map((item) => ({
       cpc: item.keyword_data?.keyword_info?.cpc ?? null,
       keyword: item.keyword_data?.keyword ?? "",
@@ -145,9 +154,11 @@ export const createDataForSeo = (transport: Transport) => {
       [{ target: stripScheme(domain) }],
       backlinksSummaryResultSchema,
     );
+
     if (!result) {
       return null;
     }
+
     return {
       backlinks: result.backlinks ?? 0,
       referringDomains: result.referring_domains ?? 0,
@@ -160,6 +171,7 @@ export const createDataForSeo = (transport: Transport) => {
       [{ ...marketParams(site.language), depth: SERP_DEPTH, keyword }],
       serpOrganicResultSchema,
     );
+
     const top = (result?.items ?? []).flatMap((item) =>
       item.type === "organic" && isText(item.url) && isText(item.title)
         ? [
@@ -173,7 +185,9 @@ export const createDataForSeo = (transport: Transport) => {
           ]
         : [],
     );
+
     const target = bareHost(site.domain);
+
     return {
       market: marketName(site.language),
       matched: top.find((p) => bareHost(p.domain) === target) ?? null,

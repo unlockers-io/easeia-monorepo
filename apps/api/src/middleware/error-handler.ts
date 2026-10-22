@@ -49,12 +49,14 @@ const createErrorHandler =
         code: err.code,
         message: err.message,
       };
+
       if (err.issues) {
         error.details = err.issues.map((issue) => ({
           field: issue.path,
           message: issue.message,
         }));
       }
+
       return c.json(
         {
           error,
@@ -110,10 +112,12 @@ const createErrorHandler =
     }
 
     const message = nodeEnv === "production" ? "An unexpected error occurred" : err.message;
+
     const error: ErrorPayload = {
       code: "INTERNAL_SERVER_ERROR",
       message,
     };
+
     if (nodeEnv !== "production") {
       error.stack = err.stack;
     }

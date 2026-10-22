@@ -37,6 +37,7 @@ test.describe("Sign-up with redirect context", () => {
       subject: /verify/i,
       to: email,
     });
+
     expect(mail.last_event).not.toBe("bounced");
 
     const verifyUrl = extractLink(mail, /\/api\/auth\/verify-email\?token=/);

@@ -17,14 +17,17 @@ const stripLink = (body: string, href: string): { body: string; replaced: number
   let replaced = 0;
 
   const mdRe = new RegExp(`\\[([^\\]]+)\\]\\(${h}(?:\\s+"[^"]*")?\\)`, "gv");
+
   let next = body.replace(mdRe, (_full: string, anchor: string) => {
     replaced++;
+
     return anchor;
   });
 
   const htmlRe = new RegExp(`<a\\s[^>]*href=["']${h}["'][^>]*>([\\s\\S]*?)</a>`, "giv");
   next = next.replace(htmlRe, (_full: string, inner: string) => {
     replaced++;
+
     return inner;
   });
 
@@ -35,12 +38,15 @@ const main = async () => {
   const broken: Array<BrokenHit> = readBrokenLinks();
 
   const byPost = new Map<string, Array<BrokenHit>>();
+
   for (const h of broken) {
     let list = byPost.get(h.fromPostId);
+
     if (!list) {
       list = [];
       byPost.set(h.fromPostId, list);
     }
+
     list.push(h);
   }
 
@@ -57,6 +63,7 @@ const main = async () => {
       select: { body: true, id: true, siteId: true, slug: true },
       where: { id: postId },
     });
+
     if (!post) {
       stats.missing++;
       continue;
@@ -66,8 +73,10 @@ const main = async () => {
 
     let newBody = post.body;
     let totalReplaced = 0;
+
     for (const href of uniqueHrefs) {
       const { body: nb, replaced } = stripLink(newBody, href);
+
       if (replaced > 0 && samples.length < 8) {
         const idx = newBody.indexOf(href);
         const start = Math.max(0, idx - 60);
@@ -78,6 +87,7 @@ const main = async () => {
           slug: post.slug,
         });
       }
+
       newBody = nb;
       totalReplaced += replaced;
     }
@@ -97,6 +107,7 @@ const main = async () => {
   }
 
   console.log(`\n=== sample replacements ===`);
+
   for (const s of samples) {
     console.log(`\n  post: ${s.slug}`);
     console.log(`  href: ${s.href}`);

@@ -36,6 +36,7 @@ describe("buildBodyImagePlanPrompt", () => {
       post: { tags: ["audio"], title: "Guia de Microfones" },
       site: { language: "PT" },
     });
+
     expect(prompt).toContain("1| ## Microfones");
     expect(prompt).toContain("9| Fecho.");
     expect(prompt).toContain("Guia de Microfones");
@@ -48,11 +49,13 @@ describe("buildBodyImagePlanPrompt", () => {
       post: { tags: [], title: "T" },
       site: { language: "PT" },
     });
+
     const es = buildBodyImagePlanPrompt({
       body,
       post: { tags: [], title: "T" },
       site: { language: "ES" },
     });
+
     expect(pt).toContain("Portuguese (Brazil)");
     expect(es).toContain("Spanish (Spain)");
     expect(pt).not.toContain("Tags:");
@@ -85,10 +88,12 @@ describe("sanitizeBodyImagePlan", () => {
 
   it(`caps the plan at ${MAX_BODY_IMAGES} images`, () => {
     const long = Array.from({ length: 30 }, (_, i) => `Linha ${i + 1}.`).join("\n");
+
     const plan = sanitizeBodyImagePlan(
       long,
       Array.from({ length: 10 }, (_, i) => image(i + 1)),
     );
+
     expect(plan).toHaveLength(MAX_BODY_IMAGES);
   });
 

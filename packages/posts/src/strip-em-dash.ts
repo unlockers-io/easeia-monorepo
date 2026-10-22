@@ -135,6 +135,7 @@ const firstToken = (tail: string): string =>
 /** Text up to the end of the clause the dash opens. */
 const clauseTail = (tail: string): string => {
   const m = SENTENCE_BREAK_RE.exec(tail);
+
   return m === null ? tail : tail.slice(0, m.index);
 };
 
@@ -147,10 +148,12 @@ const clauseHead = (head: string): string => {
   let start = 0;
   CLAUSE_START_RE.lastIndex = 0;
   let m = CLAUSE_START_RE.exec(head);
+
   while (m !== null) {
     start = m.index + m[0].length;
     m = CLAUSE_START_RE.exec(head);
   }
+
   return head.slice(start);
 };
 
@@ -170,24 +173,29 @@ const sentenceHead = (head: string): string => {
   let start = 0;
   SENTENCE_START_RE.lastIndex = 0;
   let m = SENTENCE_START_RE.exec(head);
+
   while (m !== null) {
     start = m.index + m[0].length;
     m = SENTENCE_START_RE.exec(head);
   }
+
   return head.slice(start);
 };
 
 /** The current sentence from the dash onward. Mirror of sentenceHead. */
 const sentenceTail = (tail: string): string => {
   const m = new RegExp(`[.!?][${SPACE_CLASS}]+(?=\\p{Lu})`, "v").exec(tail);
+
   return m === null ? tail : tail.slice(0, m.index);
 };
 
 const isLabelHead = (head: string): boolean => {
   const bare = clauseHead(head).replace(LINE_MARKER_RE, "").trim();
+
   if (bare === "" || bare.includes(",")) {
     return false;
   }
+
   return bare.split(SPACE_SPLIT_RE).length <= HEAD_LABEL_MAX_WORDS;
 };
 
@@ -196,6 +204,7 @@ const PARENTHETICAL_MAX = 200;
 /** Unclosed "(" count, so a dash sitting inside someone else's parenthesis is visible. */
 const openParenDepth = (span: string): number => {
   let depth = 0;
+
   for (const ch of span) {
     if (ch === "(") {
       depth += 1;
@@ -203,6 +212,7 @@ const openParenDepth = (span: string): number => {
       depth -= 1;
     }
   }
+
   return depth;
 };
 
@@ -214,6 +224,7 @@ const parentheticalTail = (tail: string, head: string): string | null => {
   const trimmed = tail.trimStart();
   const m = new RegExp(`[.!?;](?=[${SPACE_CLASS}]|$)`, "v").exec(trimmed);
   const inner = (m === null ? trimmed : trimmed.slice(0, m.index)).trimEnd();
+
   if (
     !inner.includes(",") ||
     inner.includes(EM_DASH) ||
@@ -223,6 +234,7 @@ const parentheticalTail = (tail: string, head: string): string | null => {
   ) {
     return null;
   }
+
   return inner.length > 0 && inner.length <= PARENTHETICAL_MAX ? inner : null;
 };
 
@@ -238,32 +250,41 @@ const singleReplacement = (
   if (/[,:;?!]$/v.test(head.replace(TRAILING_SPACE_RE, ""))) {
     return { rule: "dangling", text: " " };
   }
+
   if (kind === "title" && !head.includes(":") && /^\p{Lu}/v.test(tail.trimStart())) {
     return { rule: "subtitle-colon", text: ": " };
   }
+
   if (language !== "PT" || CONNECTORS.has(firstToken(tail))) {
     return { rule: "appended-comma", text: ", " };
   }
+
   const colonTaken = hasProseColon(sentenceHead(head)) || hasProseColon(sentenceTail(tail));
 
   const labelHead = isLabelHead(head);
+
   if (!colonTaken && labelHead) {
     return { rule: "label-colon", text: ": " };
   }
+
   if (clauseTail(tail).includes(",")) {
     if (!colonTaken) {
       return { rule: "enumeration-colon", text: ": " };
     }
+
     const inner = labelHead ? null : parentheticalTail(tail, head);
+
     if (inner !== null) {
       return { rule: "enumeration-parenthetical", text: " (", wrap: inner };
     }
   }
+
   if (!labelHead && isClauseTail(tail)) {
     return colonTaken
       ? { rule: "clause-semicolon", text: "; " }
       : { rule: "clause-colon", text: ": " };
   }
+
   return { rule: "appended-comma", text: ", " };
 };
 
@@ -284,6 +305,7 @@ const stripLine = (line: string, counts: Record<StripRule, number>, context: Con
 
   while (cursor <= line.length) {
     const at = line.indexOf(EM_DASH, cursor);
+
     if (at === -1) {
       out += line.slice(cursor);
       break;
@@ -302,10 +324,12 @@ const stripLine = (line: string, counts: Record<StripRule, number>, context: Con
     const closing = line.indexOf(EM_DASH, at + 1);
     const interior = closing === -1 ? "" : line.slice(at + 1, closing);
     const trailing = closing === -1 ? "" : line.slice(closing + 1);
+
     if (closing !== -1 && isPairInterior(interior) && trailing.trim() !== "") {
       const headText = line.slice(cursor, at).replace(TRAILING_SPACE_RE, "");
       const openGap = headText === "" && out.replace(LINE_MARKER_RE, "").trim() === "" ? "" : " ";
       const closeGap = /^[,.;:!?\)\]]/v.test(trailing.trimStart()) ? "" : " ";
+
       if (interior.includes("(") || openParenDepth(line.slice(0, at)) > 0) {
         out += `${headText}, ${interior.trim()},${closeGap}`;
         counts["paired-commas"] += 1;
@@ -313,6 +337,7 @@ const stripLine = (line: string, counts: Record<StripRule, number>, context: Con
         out += `${headText}${openGap}(${interior.trim()})${closeGap}`;
         counts["paired-appositive"] += 1;
       }
+
       cursor = closing + 1 + leadingSpaceWidth(trailing);
       continue;
     }
@@ -331,6 +356,7 @@ const stripLine = (line: string, counts: Record<StripRule, number>, context: Con
     out += line.slice(cursor, at).replace(TRAILING_SPACE_RE, "") + text;
     counts[rule] += 1;
     cursor = at + 1 + leadingSpaceWidth(tail);
+
     if (wrap !== undefined) {
       out += `${wrap})`;
       cursor += wrap.length;
@@ -352,13 +378,17 @@ type MaskedProtectedText = { spans: Array<string>; text: string };
 
 const maskProtected = (input: string): MaskedProtectedText => {
   const spans: Array<string> = [];
+
   const text = input.replaceAll(new RegExp(PROTECTED_SOURCE, "gmv"), (span) => {
     const parts = span.split("\n").map((part) => {
       spans.push(part);
+
       return `${MASK}${spans.length - 1}${MASK}`;
     });
+
     return parts.join("\n");
   });
+
   return { spans, text };
 };
 
@@ -374,12 +404,14 @@ export const stripEmDash = (
   kind: StripKind = "text",
 ): StripResult => {
   const counts = emptyCounts();
+
   if (!input.includes(EM_DASH)) {
     return { changed: false, counts, text: input };
   }
 
   const { spans, text: masked } =
     kind === "markdown" ? maskProtected(input) : { spans: [], text: input };
+
   const text = unmask(stripFreeText(masked, counts, { kind, language }), spans);
 
   return { changed: text !== input, counts, text };

@@ -13,7 +13,9 @@ import { apiRateLimit } from "@/middleware/security";
 const jobRoutes = createRouter<{ Variables: AuthVariables }>();
 
 jobRoutes.use("*", apiAuthMiddleware);
+
 jobRoutes.use("*", apiRateLimit);
+
 jobRoutes.use("*", requireAction("jobs:read"));
 
 const jobSchema = z
@@ -66,6 +68,7 @@ const present = (value: string | undefined): string | undefined =>
 
 jobRoutes.openapi(listJobsRoute, async (c) => {
   const { cursor, kind, limit, postId, siteId, status } = c.req.valid("query");
+
   const { data, nextCursor } = await listJobs({
     cursor: present(cursor),
     kinds: kind === undefined ? undefined : [kind],
@@ -74,6 +77,7 @@ jobRoutes.openapi(listJobsRoute, async (c) => {
     siteId: present(siteId),
     status,
   });
+
   return c.json({ data, meta: { nextCursor } }, 200);
 });
 
@@ -98,9 +102,11 @@ const getJobRoute = createRoute({
 
 jobRoutes.openapi(getJobRoute, async (c) => {
   const job = await getJob(c.req.valid("param").id);
+
   if (!job) {
     throw new HTTPException(404, { message: "Job not found" });
   }
+
   return c.json({ data: job }, 200);
 });
 

@@ -93,13 +93,16 @@ const computeContentHash = (
 ): string => {
   const hash = createHash("sha256");
   hash.update(JSON.stringify(author));
+
   for (const post of posts) {
     hash.update(post.body);
+
     for (const image of post.images) {
       hash.update(image.filename);
       hash.update(image.url);
     }
   }
+
   return hash.digest("hex");
 };
 
@@ -114,10 +117,13 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
   buildRoutes.use("/sites/:siteId/*", async (c, next) => {
     const siteId = c.req.param("siteId");
     const site = siteId === "" ? null : await dependencies.findSite(siteId);
+
     if (site === null) {
       return c.json({ error: { code: "NOT_FOUND", message: "Site not found" } }, 404);
     }
+
     c.set("site", site);
+
     return next();
   });
 
@@ -182,14 +188,17 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
 
   const loadPostsForBuild = async (siteId: string, site: BuildSite) => {
     const author = siteAuthor(site);
+
     const posts = await dependencies.findPosts({
       imageOrderBy: { id: "asc" },
       postOrderBy: [{ publishedAt: "desc" }, { id: "asc" }],
       siteId,
       status: PostStatus.PUBLISHED,
     });
+
     return posts.map((p) => {
       const hero = p.images.find((i) => i.isHero);
+
       return {
         body: p.body,
         frontmatter: {
@@ -239,6 +248,7 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
       const { siteId } = c.req.valid("param");
       const site = c.get("site");
       const posts = await loadPostsForBuild(siteId, site);
+
       return c.json(
         {
           contentHash: computeContentHash(posts, siteAuthor(site)),
@@ -273,6 +283,7 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
     }),
     async (c) => {
       const { siteId } = c.req.valid("param");
+
       return c.json({ data: await loadPostsForBuild(siteId, c.get("site")) }, 200);
     },
   );
@@ -297,10 +308,12 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
     }),
     async (c) => {
       const { siteId } = c.req.valid("param");
+
       const rows = await dependencies.findImages({
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         siteId,
       });
+
       return c.json(
         {
           data: rows.map((i) => ({
@@ -346,4 +359,5 @@ const buildRoutes = createBuildRoutes({
 });
 
 export { buildRoutes, createBuildRoutes };
+
 export type { BuildImage, BuildPost, BuildRouteDependencies, BuildSite };

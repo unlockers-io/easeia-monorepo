@@ -21,6 +21,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
 
   if (state.kind === "published") {
     const ago = state.at ? formatRelativeTime(state.at, nowMs) : null;
+
     return (
       <Badge variant="default">
         <CheckCircle2 aria-hidden="true" className="size-3" />
@@ -28,6 +29,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
       </Badge>
     );
   }
+
   if (state.kind === "queued") {
     return (
       <Badge variant="secondary">
@@ -36,6 +38,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
       </Badge>
     );
   }
+
   if (state.kind === "overdue") {
     return (
       <Badge variant="destructive">
@@ -44,6 +47,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
       </Badge>
     );
   }
+
   if (state.kind === "scheduled") {
     return (
       <Badge variant="secondary">
@@ -52,6 +56,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
       </Badge>
     );
   }
+
   if (state.kind === "failed") {
     return (
       <Badge title={state.lastError ?? undefined} variant="destructive">
@@ -60,6 +65,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
       </Badge>
     );
   }
+
   if (state.kind === "archived") {
     return (
       <Badge variant="outline">
@@ -68,6 +74,7 @@ export const PostStatusBadge = (props: PostStatusBadgeProps) => {
       </Badge>
     );
   }
+
   return (
     <Badge variant="outline">
       <PenLine aria-hidden="true" className="size-3" />

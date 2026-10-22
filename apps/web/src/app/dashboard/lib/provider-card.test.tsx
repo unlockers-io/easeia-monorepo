@@ -11,6 +11,7 @@ it("names missing configuration and links to recovery", () => {
       name="DataForSEO"
     />,
   );
+
   expect(view.getByText(/Set DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD/).textContent).toContain(
     "enable it",
   );

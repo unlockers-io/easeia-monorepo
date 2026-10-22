@@ -59,4 +59,5 @@ type ColumnDef<TData extends RowData, TValue extends CellData = CellData> = Tans
 >;
 
 export type { ColumnDef, DataTableColumn, DataTableFeatures, DataTableInstance };
+
 export { dataTableFeatures };

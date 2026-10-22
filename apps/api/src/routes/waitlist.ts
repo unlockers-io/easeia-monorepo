@@ -12,6 +12,7 @@ const signupSchema = z.object({
   source: z.string().trim().max(100).optional(),
   website: z.string().max(500).optional(),
 });
+
 type Signup = Pick<z.infer<typeof signupSchema>, "email" | "source">;
 
 const acceptedSchema = z.object({ accepted: z.literal(true) });
@@ -55,11 +56,14 @@ export const createWaitlistRoutes = (deps: {
   );
   app.openapi(route, async (c) => {
     const { email, source, website } = c.req.valid("json");
+
     if (website === undefined || website === "") {
       await deps.save({ email, source });
     }
+
     return c.json({ data: { accepted: true as const } }, 201);
   });
+
   return app;
 };
 

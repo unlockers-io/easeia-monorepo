@@ -76,6 +76,7 @@ const DataTableFacetedFilter = ({
           {options.map((option) => {
             const isSelected = selected.has(option.value);
             const count = counts?.get(option.value);
+
             return (
               <DropdownMenuCheckboxItem
                 checked={isSelected}
@@ -83,11 +84,13 @@ const DataTableFacetedFilter = ({
                 key={option.value}
                 onCheckedChange={(checked) => {
                   const next = new Set(selected);
+
                   if (checked) {
                     next.add(option.value);
                   } else {
                     next.delete(option.value);
                   }
+
                   onChange([...next]);
                 }}
               >

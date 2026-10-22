@@ -29,11 +29,13 @@ export type RewriteGuardInput = {
 
 export const assertRewriteIsSane = ({ after, before, postId }: RewriteGuardInput): void => {
   const analysis = analyzeBody(after);
+
   if (analysis.isCorrupt) {
     throw new RewriteOutputError(
       `Rewrite for post ${postId} repeats ${analysis.duplicatedSubstantial} substantial blocks; the model echoed its input. Refusing to write.`,
     );
   }
+
   if (
     before.length >= RATIO_APPLIES_ABOVE_CHARS &&
     after.length > before.length * MAX_GROWTH_FACTOR

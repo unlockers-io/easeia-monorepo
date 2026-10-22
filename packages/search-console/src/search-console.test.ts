@@ -19,6 +19,7 @@ const fakeGoogle = (verified: ReadonlyArray<string> = ["sc-domain:easeia.dev"]) 
     }),
     query: vi.fn<SearchConsoleApi["query"]>().mockResolvedValue({}),
   };
+
   return {
     api,
     refreshAccessToken: vi.fn<Google["refreshAccessToken"]>(() =>
@@ -41,9 +42,11 @@ const connect = (expiresAt: number) =>
 
 const connectedSite = async (google: Google, domain = "easeia.dev") => {
   const site = await createSearchConsole(google).forSite(domain);
+
   if (site.status !== "ok") {
     throw new Error(`expected a connected site, got ${site.status}`);
   }
+
   return site;
 };
 
@@ -94,6 +97,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
         fakeGoogle(["https://easeia.dev/", "sc-domain:easeia.dev"]),
         "https://easeia.dev/",
       );
+
       const https = await connectedSite(fakeGoogle(["http://easeia.dev/", "https://easeia.dev/"]));
       const http = await connectedSite(fakeGoogle(["http://easeia.dev/"]));
 
@@ -126,10 +130,13 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
         searchConsole.forSite("easeia.dev"),
         searchConsole.forSite("easeia.dev"),
       ]);
+
       const [site] = sites;
+
       if (site?.status !== "ok") {
         throw new Error("expected a connected site");
       }
+
       await Promise.all([site.totals(28), site.topQueries({ days: 28, limit: 10 })]);
 
       expect(sites.map((s) => s.status)).toEqual(["ok", "ok", "ok"]);

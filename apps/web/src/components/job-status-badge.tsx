@@ -16,6 +16,7 @@ const statuses = {
 
 export const JobStatusBadge = ({ status }: { status: JobStatus }) => {
   const { icon: Icon, label, variant } = statuses[status];
+
   return (
     <Badge variant={variant}>
       <Icon

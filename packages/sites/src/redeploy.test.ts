@@ -49,6 +49,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         retry: { vercelDeployHookUrl: HOOK },
         running: { vercelDeployHookUrl: HOOK },
       };
+
       for (const [name, data] of Object.entries(fixtures)) {
         const site = await prisma.site.create({ data: { domain: `${name}.${run}.test`, ...data } });
         sites[name] = site.id;
@@ -105,9 +106,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const worker = consumeDeploys(postHook);
 
       const outcomes = [];
+
       for (const _ of [1, 2, 3]) {
         outcomes.push(await requestRedeploy(siteId));
       }
+
       await windowElapses();
       await settled(siteId, 1);
       await worker.close();
@@ -119,12 +122,15 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     it("follows a request made while a deploy is running with exactly one more deploy", async () => {
       const siteId = sites.running ?? "";
       const { promise: released, resolve: release } = Promise.withResolvers<undefined>();
+
       const postHook = vi.fn<PostHook>(async () => {
         if (postHook.mock.calls.length === 1) {
           await released;
         }
+
         return new Response("ok");
       });
+
       const worker = consumeDeploys(postHook);
 
       expect(await requestRedeploy(siteId)).toBe("queued");
@@ -147,9 +153,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
     it("retries a deploy whose hook answers non-2xx", { timeout: 30_000 }, async () => {
       const siteId = sites.retry ?? "";
+
       const postHook = vi
         .fn<PostHook>(ok)
         .mockResolvedValueOnce(new Response("busy", { status: 503 }));
+
       const worker = consumeDeploys(postHook);
 
       expect(await requestRedeploy(siteId)).toBe("queued");

@@ -8,5 +8,6 @@ const CONTROL_CHARACTERS = /[[\p{Cc}--[\t\n\r]]\p{Cs}\p{Noncharacter_Code_Point}
 
 export const normalizeBody = (raw: string, language: SiteLanguage): string => {
   const markdown = toMarkdown(raw.replaceAll(CONTROL_CHARACTERS, ""));
+
   return stripEmDash(dedupeBody(markdown), language, "markdown").text;
 };

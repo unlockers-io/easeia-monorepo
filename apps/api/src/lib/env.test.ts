@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.stubEnv("BETTER_AUTH_SECRET", "a".repeat(32));
+
 vi.stubEnv("DATABASE_URL", "postgresql://user:pass@localhost:5432/db");
+
 vi.stubEnv("FROM_EMAIL", "noreply@easeia.com");
+
 vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+
 vi.stubEnv("WP_ENCRYPTION_KEY", "a".repeat(44));
 
 const { envSchema } = await import("./env");
@@ -25,6 +29,7 @@ describe("envSchema", () => {
   it("should apply default values", () => {
     const result = envSchema.safeParse(validEnv);
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.PORT).toBe(4000);
       expect(result.data.HOST).toBe("0.0.0.0");
@@ -58,6 +63,7 @@ describe("envSchema", () => {
       ...validEnv,
       FROM_EMAIL: "Easeia <noreply@easeia.com>",
     });
+
     expect(result.success).toBe(true);
   });
 
@@ -66,7 +72,9 @@ describe("envSchema", () => {
       ...validEnv,
       AUTH_ALLOWED_HOSTS: "app.easeia.com,*.easeia.com,*.vercel.app",
     });
+
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.AUTH_ALLOWED_HOSTS).toBe("app.easeia.com,*.easeia.com,*.vercel.app");
     }
@@ -117,6 +125,7 @@ describe("envSchema", () => {
   it("should allow optional RESEND_API_KEY", () => {
     const result = envSchema.safeParse(validEnv);
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.RESEND_API_KEY).toBeUndefined();
     }
@@ -125,6 +134,7 @@ describe("envSchema", () => {
   it("should allow optional TRUSTED_ORIGINS", () => {
     const result = envSchema.safeParse({ ...validEnv, TRUSTED_ORIGINS: "https://example.com" });
     expect(result.success).toBe(true);
+
     if (result.success) {
       expect(result.data.TRUSTED_ORIGINS).toBe("https://example.com");
     }

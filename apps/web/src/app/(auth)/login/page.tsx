@@ -23,6 +23,7 @@ type Props = {
 
 const GatedLoginForm = async ({ searchParams }: Props) => {
   const signup = await getSignupState();
+
   return (
     <LoginForm
       mailConfigured={readIntegrations().mail.configured}

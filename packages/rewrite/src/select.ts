@@ -14,24 +14,32 @@ export const pickTopByRecencyAndType = (
   limit: number,
 ): Array<LinkRow> => {
   const seenTargets = new Set<string>();
+
   const sorted = [...rows]
     .filter((r) => r.toPost !== null)
     .toSorted((a, b) => {
       const at = a.suggestedAt?.getTime() ?? 0;
       const bt = b.suggestedAt?.getTime() ?? 0;
+
       return bt - at;
     });
+
   const out: Array<LinkRow> = [];
+
   for (const r of sorted) {
     const tid = r.toPost?.id;
+
     if (tid === undefined || tid === "" || seenTargets.has(tid)) {
       continue;
     }
+
     seenTargets.add(tid);
     out.push(r);
+
     if (out.length >= limit) {
       break;
     }
   }
+
   return out;
 };

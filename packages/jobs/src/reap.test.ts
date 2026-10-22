@@ -21,7 +21,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("reapStuckJobs", () => {
         payload: { postId: "post_unused" },
       },
     });
+
     createdIds.push(job.id);
+
     return job.id;
   };
 

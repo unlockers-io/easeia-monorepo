@@ -106,6 +106,7 @@ describe("unavailable AI", () => {
 
   it("raises the budget error when the allowance runs out between SDK retries", async () => {
     let reservations = 0;
+
     const ai = createAi({
       apiKey: () => "sk-fake",
       fetch: createBudgetedFetch({
@@ -125,6 +126,7 @@ describe("unavailable AI", () => {
         },
       }),
     });
+
     await expect(ai.embedText("A desk")).rejects.toBeInstanceOf(AiBudgetExceededError);
     expect(reservations).toBe(2);
   });

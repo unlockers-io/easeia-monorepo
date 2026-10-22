@@ -33,9 +33,11 @@ const defaultFetchText: FetchText = async (url) => {
     redirect: "follow",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
+
   if (!res.ok) {
     return null;
   }
+
   return res.text();
 };
 
@@ -49,24 +51,30 @@ const fetchLivePaths = async (
   fetchText: FetchText,
 ): Promise<Map<string, string> | null> => {
   const index = await fetchText(`https://${domain}/sitemap-index.xml`);
+
   if (index === null) {
     return null;
   }
+
   const children = locsOf(index).filter((loc) => loc.endsWith(".xml"));
   const pages = await Promise.allSettled(children.map((child) => fetchText(child)));
 
   const bySlug = new Map<string, string>();
+
   for (const page of pages) {
     if (page.status !== "fulfilled" || page.value === null) {
       return null;
     }
+
     for (const loc of locsOf(page.value)) {
       const segments = new URL(loc).pathname.split("/").filter(Boolean);
+
       if (segments.length === 2 && segments[0] !== "tag") {
         bySlug.set(segments[1] ?? "", `/${segments.join("/")}/`);
       }
     }
   }
+
   return bySlug;
 };
 
@@ -76,15 +84,18 @@ const auditSite = (
   liveBySlug: Map<string, string>,
 ): SiteFinding => {
   const finding: SiteFinding = { domain: site.domain, mismatched: [], missing: [] };
+
   for (const post of posts) {
     const derived = postPath(site, post);
     const live = liveBySlug.get(post.slug);
+
     if (live === undefined) {
       finding.missing.push({ derived, slug: post.slug });
     } else if (live !== derived) {
       finding.mismatched.push({ derived, live, slug: post.slug });
     }
   }
+
   return finding;
 };
 
@@ -116,8 +127,10 @@ export const makeAuditSlugDrift =
     const [sites, posts] = await Promise.all([findSites(), findPosts()]);
 
     const postsBySite = new Map<string, Array<AuditPost>>();
+
     for (const post of posts) {
       const group = postsBySite.get(post.siteId);
+
       if (group === undefined) {
         postsBySite.set(post.siteId, [post]);
       } else {
@@ -128,11 +141,14 @@ export const makeAuditSlugDrift =
     const findings = await Promise.allSettled(
       sites.flatMap((site) => {
         const sitePosts = postsBySite.get(site.id) ?? [];
+
         if (sitePosts.length === 0) {
           return [];
         }
+
         return (async () => {
           let liveBySlug: Map<string, string> | null = null;
+
           try {
             liveBySlug = await fetchLivePaths(site.domain, fetchText);
           } catch (error) {
@@ -142,23 +158,28 @@ export const makeAuditSlugDrift =
               message: "slug-drift: sitemap fetch failed",
             });
           }
+
           return liveBySlug === null ? null : auditSite(site, sitePosts, liveBySlug);
         })();
       }),
     );
 
     const result: AuditResult = { mismatched: 0, missing: 0, sitesChecked: 0, sitesSkipped: 0 };
+
     for (const settled of findings) {
       const finding = settled.status === "fulfilled" ? settled.value : null;
+
       if (finding === null) {
         result.sitesSkipped += 1;
         continue;
       }
+
       result.sitesChecked += 1;
       const mismatched = finding.mismatched.length;
       const missing = finding.missing.length;
       result.mismatched += mismatched;
       result.missing += missing;
+
       if (mismatched > 0 || missing > 0) {
         logger.error({
           domain: finding.domain,
@@ -172,6 +193,7 @@ export const makeAuditSlugDrift =
     }
 
     logger.info({ message: "slug-drift: audit done", ...result });
+
     return result;
   };
 

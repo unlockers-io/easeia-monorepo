@@ -16,6 +16,7 @@ describe("extractVisibleText", () => {
       <script>window.__hidden = true;</script>
       <style>body { color: red; }</style>
     </body></html>`;
+
     const text = extractVisibleText(html);
     expect(text).toContain("Main heading");
     expect(text).toContain("Paragraph one.");

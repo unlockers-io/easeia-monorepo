@@ -17,15 +17,19 @@ export const can = (actor: Actor, action: Action, siteId?: string): Decision => 
   if (actor.kind === "user") {
     return { allowed: true };
   }
+
   // Admin-only means "not a scope", so the two lists cannot drift apart.
   if (!isApiKeyScope(action)) {
     return { allowed: false, reason: `Action requires admin session: ${action}` };
   }
+
   if (!actor.scopes.includes(action)) {
     return { allowed: false, reason: `Missing scope: ${action}` };
   }
+
   if (!reachesSite(actor.siteId, action, siteId)) {
     return { allowed: false, reason: "API key is not scoped to this site" };
   }
+
   return { allowed: true };
 };

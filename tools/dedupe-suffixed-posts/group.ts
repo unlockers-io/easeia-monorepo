@@ -28,10 +28,13 @@ export const groupSuffixedPosts = <T extends SuffixedCandidate>(
     if (!SUFFIX.test(dupe.slug)) {
       continue;
     }
+
     const base = bySlug.get(`${dupe.siteId}::${dupe.slug.replace(SUFFIX, "")}`);
+
     if (!base) {
       continue;
     }
+
     const group = groups.get(base.id) ?? { base, dupes: [] };
     group.dupes.push(dupe);
     groups.set(base.id, group);

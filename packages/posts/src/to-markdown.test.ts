@@ -16,12 +16,14 @@ describe("toMarkdown", () => {
   it("converts WordPress Gutenberg blocks to Markdown", () => {
     const wp =
       "<!-- wp:paragraph -->\n<p>Hello <strong>world</strong>.</p>\n<!-- /wp:paragraph -->";
+
     expect(toMarkdown(wp)).toBe("Hello **world**.");
   });
 
   it("keeps a Markdown link written inside WordPress blocks as a link", () => {
     const wp =
       "<!-- wp:paragraph -->\n<p>Veja [o guia](https://example.com/guia?a=1&b=2).</p>\n<!-- /wp:paragraph -->";
+
     expect(toMarkdown(wp)).toBe("Veja [o guia](https://example.com/guia?a=1&b=2).");
   });
 
@@ -33,6 +35,7 @@ describe("toMarkdown", () => {
   it("converts an HTML table to a Markdown table", () => {
     const html =
       "<h2>Custos</h2><table><thead><tr><th>Item</th><th>Custo</th></tr></thead><tbody><tr><td>Aluguel</td><td>1.000</td></tr></tbody></table>";
+
     expect(toMarkdown(html)).toBe(
       "## Custos\n\n| Item | Custo |\n| --- | --- |\n| Aluguel | 1.000 |",
     );
@@ -41,6 +44,7 @@ describe("toMarkdown", () => {
   it("converts a WordPress table block to a Markdown table", () => {
     const wp =
       '<!-- wp:table -->\n<figure class="wp-block-table"><table><thead><tr><th>Tipo</th><th>Vantagem</th></tr></thead><tbody><tr><td>Casa</td><td>Janelas <a href="https://example.com/casa">grandes</a></td></tr></tbody></table></figure>\n<!-- /wp:table -->';
+
     expect(toMarkdown(wp)).toBe(
       "| Tipo | Vantagem |\n| --- | --- |\n| Casa | Janelas [grandes](https://example.com/casa) |",
     );
@@ -49,6 +53,7 @@ describe("toMarkdown", () => {
   it("preserves image references in figures", () => {
     const html =
       '<figure><img src="https://example.com/a.jpg" alt="Alt text"/><figcaption>Caption</figcaption></figure>';
+
     expect(toMarkdown(html)).toContain("![Alt text](https://example.com/a.jpg)");
     expect(toMarkdown(html)).toContain("*Caption*");
   });
@@ -64,6 +69,7 @@ describe("toMarkdown", () => {
   it("leaves structured Markdown containing an autolink unchanged", () => {
     const md =
       "**Bold intro.**\n\n## Heading\n\nA paragraph. Source: <https://example.com/guia>.\n\n- first\n- second";
+
     const out = toMarkdown(md);
     expect(out).toBe(md);
     expect(out).not.toContain(String.raw`\*`);
@@ -79,6 +85,7 @@ describe("toMarkdown", () => {
     const md =
       "## Filmagem\n\nUse locais com luz natural, como a " +
       '<a href="https://example.com/spaces/galeria">Galeria</a>.\n\n- primeiro\n- segundo';
+
     const out = toMarkdown(md);
     expect(out).toBe(md);
     expect(out).not.toContain(String.raw`\#`);

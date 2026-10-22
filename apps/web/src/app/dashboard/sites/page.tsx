@@ -26,6 +26,7 @@ const toArray = (input: string | Array<string> | undefined): Array<string> => {
   if (input === undefined) {
     return [];
   }
+
   return Array.isArray(input) ? input : [input];
 };
 
@@ -43,23 +44,29 @@ const SitesContent = async ({ searchParams }: { searchParams: Promise<SearchPara
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
   const niches = toArray(params.niche).filter((n): n is Niche => NICHE_VALUES.has(n));
+
   const enabled: "" | "true" | "false" = (() => {
     if (params.enabled === "true") {
       return "true";
     }
+
     if (params.enabled === "false") {
       return "false";
     }
+
     return "";
   })();
 
   const where: Prisma.SiteWhereInput = {};
+
   if (q) {
     where.domain = { contains: q, mode: "insensitive" };
   }
+
   if (niches.length > 0) {
     where.niches = { hasSome: niches };
   }
+
   if (enabled) {
     where.isEnabled = enabled === "true";
   }

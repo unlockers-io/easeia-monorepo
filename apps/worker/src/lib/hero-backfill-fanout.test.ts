@@ -13,6 +13,7 @@ import { makeBackfillHeroes } from "./hero-backfill-fanout";
 describe("backfillHeroes", () => {
   it("enqueues one GENERATE_IMAGE per heroless post", async () => {
     const enqueueJob = vi.fn().mockResolvedValue({ id: "j" });
+
     const backfill = makeBackfillHeroes({
       enqueueJob,
       findHeroless: () =>
@@ -21,6 +22,7 @@ describe("backfillHeroes", () => {
           { id: "p2", siteId: "s2" },
         ]),
     });
+
     const result = await backfill();
     expect(result.enqueued).toBe(2);
     expect(enqueueJob).toHaveBeenCalledTimes(2);
@@ -39,6 +41,7 @@ describe("backfillHeroes", () => {
       .fn()
       .mockRejectedValueOnce(new Error("redis"))
       .mockResolvedValueOnce({ id: "j" });
+
     const backfill = makeBackfillHeroes({
       enqueueJob,
       findHeroless: () =>
@@ -47,6 +50,7 @@ describe("backfillHeroes", () => {
           { id: "p2", siteId: "s2" },
         ]),
     });
+
     const result = await backfill();
     expect(result.enqueued).toBe(1);
   });

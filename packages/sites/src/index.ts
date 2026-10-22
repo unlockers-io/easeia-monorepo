@@ -12,6 +12,7 @@ export {
   type ParseExternalBacklinksCsvResult,
   parseExternalBacklinksCsv,
 } from "./external-backlinks-csv";
+
 export {
   type CategoryUrlConfig,
   DEFAULT_CATEGORY,
@@ -20,8 +21,11 @@ export {
   slugify,
   toCategorySlugMap,
 } from "./post-url";
+
 export { SiteDisabledError } from "./disabled-error";
+
 export { DomainError } from "./domain-error";
+
 export { SiteDeployHookMissingError, SiteDomainTakenError, SiteNotFoundError } from "./errors";
 
 export type SiteUpsertInput = {
@@ -39,12 +43,15 @@ const createRequireEnabled =
   (findSite: FindSite) =>
   async (siteId: string): Promise<Site> => {
     const site = await findSite(siteId);
+
     if (!site) {
       throw new SiteNotFoundError(siteId);
     }
+
     if (!site.isEnabled) {
       throw new SiteDisabledError(site.domain);
     }
+
     return site;
   };
 
@@ -54,14 +61,18 @@ const requireEnabled = createRequireEnabled((siteId) =>
 
 export const createRequirePublishable = (findSite: FindSite) => {
   const loadEnabled = createRequireEnabled(findSite);
+
   return async (siteId: string): Promise<Site> => {
     const site = await loadEnabled(siteId);
+
     if (!hasDeployHook(site)) {
       throw new SiteDeployHookMissingError();
     }
+
     return site;
   };
 };
+
 export const requirePublishable = createRequirePublishable((siteId) =>
   prisma.site.findUnique({ where: { id: siteId } }),
 );
@@ -78,6 +89,7 @@ export const upsert = (input: SiteUpsertInput): Promise<Site> => {
     isEnabled: input.isEnabled ?? true,
     niches: input.niches ?? [],
   };
+
   return prisma.site.upsert({
     create: data,
     update: {
@@ -119,9 +131,11 @@ export const update = (siteId: string, patch: SiteUpdatePatch): Promise<Site> =>
     await tx.$executeRaw`SELECT id FROM "Site" WHERE id = ${siteId} FOR UPDATE`;
     const before = await tx.site.findUniqueOrThrow({ where: { id: siteId } });
     const site = await tx.site.update({ data: patch, where: { id: siteId } });
+
     if (JSON.stringify(buildProjection(before)) !== JSON.stringify(buildProjection(site))) {
       await requestRedeploy(siteId, tx);
     }
+
     return site;
   });
 
@@ -134,6 +148,7 @@ type NetworkDefaults = {
 export const applyNetworkDefaults = (defaults: NetworkDefaults) =>
   prisma.$transaction(async (tx) => {
     const unconfigured = defaults.scope === "unconfigured";
+
     const cadence =
       defaults.cadenceDays === null
         ? { count: 0 }
@@ -141,6 +156,7 @@ export const applyNetworkDefaults = (defaults: NetworkDefaults) =>
             data: { autoPublishEnabled: true, cadenceDays: defaults.cadenceDays },
             where: unconfigured ? { cadenceDays: null, isEnabled: true } : { isEnabled: true },
           });
+
     const bucket =
       defaults.bucket === null
         ? { count: 0 }
@@ -153,6 +169,7 @@ export const applyNetworkDefaults = (defaults: NetworkDefaults) =>
               ? { bucketRefillAt: null, bucketTarget: null, isEnabled: true }
               : { isEnabled: true },
           });
+
     return { bucketSitesUpdated: bucket.count, cadenceSitesUpdated: cadence.count };
   });
 
@@ -167,6 +184,7 @@ export const aggregateSiteNiches = async (siteId: string): Promise<Site["niches"
   });
 
   const counts = new Map<Site["niches"][number], number>();
+
   for (const post of posts) {
     for (const niche of post.niches) {
       counts.set(niche, (counts.get(niche) ?? 0) + 1);
@@ -184,10 +202,15 @@ export const aggregateSiteNiches = async (siteId: string): Promise<Site["niches"
 };
 
 export { createRequireEnabled, requireEnabled };
+
 export { load } from "./load";
+
 export { create, createSite } from "./create";
+
 export { deploy, requestRedeploy } from "./redeploy";
+
 export { requestSnapshots } from "./snapshots";
+
 export type { FindSite };
 
 export const toPublic = (site: Site) =>

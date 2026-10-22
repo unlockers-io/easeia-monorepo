@@ -24,23 +24,28 @@ const googleApis: Google = {
     const client = oauthClient();
     client.setCredentials({ refresh_token: refreshToken });
     const { credentials } = await client.refreshAccessToken();
+
     return credentials;
   },
   searchConsole: (accessToken) => {
     const auth = new OAuth2Client();
     auth.setCredentials({ access_token: accessToken });
     const api = searchconsole({ auth, version: "v1" });
+
     return {
       inspect: async (requestBody) => {
         const { data } = await api.urlInspection.index.inspect({ requestBody });
+
         return data;
       },
       listSites: async () => {
         const { data } = await api.sites.list();
+
         return data;
       },
       query: async (siteUrl, requestBody) => {
         const { data } = await api.searchanalytics.query({ requestBody, siteUrl });
+
         return data;
       },
     };
@@ -48,4 +53,5 @@ const googleApis: Google = {
 };
 
 export { googleApis };
+
 export type { Google, SearchConsoleApi };

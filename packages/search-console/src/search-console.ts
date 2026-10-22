@@ -51,6 +51,7 @@ const isConnected = async (): Promise<boolean> => (await workspaceConnection()) 
 
 const candidateProperties = (domain: string): Array<string> => {
   const bare = domain.replace(/^https?:\/\//v, "").replace(/\/$/v, "");
+
   return [`sc-domain:${bare}`, `https://${bare}/`, `http://${bare}/`];
 };
 
@@ -60,6 +61,7 @@ const dateRange = (days: number) => {
   const end = new Date();
   const start = new Date();
   start.setDate(start.getDate() - days);
+
   return { endDate: isoDay(end), startDate: isoDay(start) };
 };
 
@@ -74,6 +76,7 @@ const firstRow = (
   response: searchconsole_v1.Schema$SearchAnalyticsQueryResponse,
 ): SearchMetrics | null => {
   const row = response.rows?.[0];
+
   return row ? toMetrics(row) : null;
 };
 
@@ -83,11 +86,13 @@ const keyedRows = <T>(
 ): Array<T> =>
   (response.rows ?? []).flatMap((row) => {
     const key = row.keys?.[0];
+
     return key === undefined || key === "" ? [] : [build(key, toMetrics(row))];
   });
 
 const verifiedSites = async (api: SearchConsoleApi): Promise<Array<VerifiedSite>> => {
   const response = await api.listSites();
+
   return (response.siteEntry ?? []).flatMap(({ permissionLevel, siteUrl }) =>
     typeof siteUrl === "string" &&
     siteUrl !== "" &&
@@ -109,7 +114,9 @@ const siteSearchConsole = (api: SearchConsoleApi, property: string): SiteSearchC
         languageCode: "en-US",
         siteUrl: property,
       });
+
       const index = response.inspectionResult?.indexStatusResult;
+
       return {
         coverageState: index?.coverageState ?? null,
         referringUrls: index?.referringUrls ?? [],
@@ -147,7 +154,9 @@ const createSearchConsole = (google: Google) => {
     if (connection.refreshToken === null || connection.refreshToken === "") {
       throw new GoogleAuthError("Access token expired and no refresh token stored; reconnect");
     }
+
     const credentials = await google.refreshAccessToken(decryptSecret(connection.refreshToken));
+
     if (
       typeof credentials.access_token !== "string" ||
       credentials.access_token === "" ||
@@ -155,6 +164,7 @@ const createSearchConsole = (google: Google) => {
     ) {
       throw new GoogleAuthError("Google did not return a refreshed access token; reconnect");
     }
+
     await prisma.googleConnection.update({
       data: {
         accessToken: encryptSecret(credentials.access_token),
@@ -162,6 +172,7 @@ const createSearchConsole = (google: Google) => {
       },
       where: { id: connection.id },
     });
+
     return credentials.access_token;
   };
 
@@ -172,44 +183,56 @@ const createSearchConsole = (google: Google) => {
       if (refreshes.get(connection.id)?.staleExpiry === staleExpiry) {
         refreshes.delete(connection.id);
       }
+
       throw error;
     }
   };
 
   const accessToken = (connection: GoogleConnection): Promise<string> => {
     const staleExpiry = connection.expiresAt.getTime();
+
     if (staleExpiry - Date.now() > REFRESH_LEEWAY_MS) {
       return Promise.resolve(decryptSecret(connection.accessToken));
     }
+
     const pending = refreshes.get(connection.id);
+
     if (pending?.staleExpiry === staleExpiry) {
       return pending.accessToken;
     }
+
     const refreshed = refreshOnce(connection, staleExpiry);
     refreshes.set(connection.id, { accessToken: refreshed, staleExpiry });
+
     return refreshed;
   };
 
   const forSite = async (domain: string): Promise<SiteLookup> => {
     const connection = await workspaceConnection();
+
     if (!connection) {
       return { status: "not_connected" };
     }
+
     const api = google.searchConsole(await accessToken(connection));
     const sites = await verifiedSites(api);
     const verified = new Set(sites.map((site) => site.siteUrl));
     const property = candidateProperties(domain).find((candidate) => verified.has(candidate));
+
     if (property === undefined) {
       return { status: "not_verified" };
     }
+
     return { status: "ok", ...siteSearchConsole(api, property) };
   };
 
   const listVerifiedSites = async (userId: string): Promise<Array<VerifiedSite>> => {
     const connection = await prisma.googleConnection.findUnique({ where: { userId } });
+
     if (!connection) {
       return [];
     }
+
     return verifiedSites(google.searchConsole(await accessToken(connection)));
   };
 
@@ -219,6 +242,7 @@ const createSearchConsole = (google: Google) => {
 const { forSite, listVerifiedSites } = createSearchConsole(googleApis);
 
 export { createSearchConsole, forSite, isConnected, listVerifiedSites };
+
 export type {
   SearchMetrics,
   SiteLookup,

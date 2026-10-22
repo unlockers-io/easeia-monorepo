@@ -29,6 +29,7 @@ describe("computeHealthScore", () => {
       daysSinceLastPublish: 1,
       postsLast30d: 12,
     });
+
     expect(score).toBe(100);
   });
 
@@ -38,6 +39,7 @@ describe("computeHealthScore", () => {
       daysSinceLastPublish: 45,
       postsLast30d: 12,
     });
+
     expect(score).toBe(50);
   });
 
@@ -47,6 +49,7 @@ describe("computeHealthScore", () => {
       domainRank: 50,
       referringDomains: 99,
     });
+
     expect(score).toBe(56);
   });
 
@@ -58,6 +61,7 @@ describe("computeHealthScore", () => {
       gscClicks: 1000,
       postsLast30d: 12,
     });
+
     expect(score).toBeGreaterThanOrEqual(90);
   });
 
@@ -67,6 +71,7 @@ describe("computeHealthScore", () => {
       gscAvgPosition: 3,
       gscClicks: 0,
     });
+
     expect(score).toBe(50);
   });
 
@@ -76,6 +81,7 @@ describe("computeHealthScore", () => {
       gscAvgPosition: 80,
       gscClicks: 0,
     });
+
     expect(score).toBe(0);
   });
 });

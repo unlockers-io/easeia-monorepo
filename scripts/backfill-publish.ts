@@ -2,6 +2,7 @@ import { JobKind, prisma } from "@repo/db";
 import { enqueue } from "@repo/jobs";
 
 const SITE_ID = process.argv[2];
+
 if (SITE_ID === undefined || SITE_ID === "") {
   console.error("usage: tsx scripts/backfill-publish.ts <siteId>");
   process.exit(1);
@@ -12,10 +13,12 @@ const run = async (): Promise<void> => {
     select: { domain: true, id: true, vercelDeployHookUrl: true },
     where: { id: SITE_ID },
   });
+
   if (!site) {
     console.error(`site ${SITE_ID} not found`);
     process.exit(1);
   }
+
   if (site.vercelDeployHookUrl === null || site.vercelDeployHookUrl === "") {
     console.error(
       `site ${site.domain} has no vercelDeployHookUrl — set it first, otherwise PUBLISH will fail-loud for every post`,
@@ -32,6 +35,7 @@ const run = async (): Promise<void> => {
 
   let queued = 0;
   let failed = 0;
+
   for (const p of posts) {
     try {
       await enqueue({

@@ -15,6 +15,7 @@ describe("buildGeneratePrompt", () => {
       },
       topicHints: null,
     });
+
     expect(prompt).toContain("Portuguese (Brazil)");
     expect(prompt).toContain("Do not translate to English");
     expect(prompt).toContain("film-blog.example");
@@ -32,6 +33,7 @@ describe("buildGeneratePrompt", () => {
       },
       topicHints: null,
     });
+
     expect(prompt).toContain("English");
     expect(prompt).toContain("Do not translate to English");
   });
@@ -59,6 +61,7 @@ describe("buildGeneratePrompt", () => {
       },
       topicHints: null,
     });
+
     expect(prompt).toContain("LINKS TO INSERT");
     expect(prompt).toContain("https://acmestudios.example/spaces/casa-a");
     expect(prompt).toContain("https://film-blog.example/why-we-love-film");
@@ -83,6 +86,7 @@ describe("buildGeneratePrompt", () => {
       },
       topicHints: null,
     });
+
     expect(prompt).toContain('TARGET FOCUS KEYWORD: "casamento na praia custo"');
     expect(prompt).toContain("ALREADY RANKING");
     expect(prompt).toContain("10 dicas de casamento na praia: A generic checklist.");
@@ -102,6 +106,7 @@ describe("buildGeneratePrompt", () => {
       },
       topicHints: null,
     });
+
     expect(prompt).not.toContain("TARGET FOCUS KEYWORD");
     expect(prompt).not.toContain("ALREADY RANKING");
   });
@@ -118,6 +123,7 @@ describe("buildGeneratePrompt", () => {
       },
       topicHints: null,
     });
+
     expect(prompt).not.toContain("LINKS TO INSERT");
   });
 });

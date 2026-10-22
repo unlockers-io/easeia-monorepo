@@ -49,18 +49,23 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
         checkNames: [...failing],
         siteId,
       });
+
       if (!result.ok) {
         setBulk({ kind: "error", message: result.error });
+
         return;
       }
+
       const ready = new Set(
         result.results.reduce<Array<string>>((acc, r) => {
           if (r.ok) {
             acc.push(r.checkName);
           }
+
           return acc;
         }, []),
       );
+
       const failed = result.results.length - ready.size;
       setBulk({
         failedCount: failed,
@@ -102,6 +107,7 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
       <ul className="mt-2 flex max-h-112 flex-col gap-1 overflow-y-auto text-xs">
         {visible.map((name) => {
           const ready = bulk.kind === "done" && bulk.readyChecks.has(name);
+
           return (
             <li key={name}>
               <button
@@ -165,13 +171,17 @@ const FixAdviceDialog = ({ checkName, onClose, siteId }: DialogProps) => {
     let cancelled = false;
     startTransition(async () => {
       const result = await getFixAdviceAction({ checkName, siteId });
+
       if (cancelled) {
         return;
       }
+
       if (!result.ok) {
         setPhase({ checkName, kind: "error", message: result.error });
+
         return;
       }
+
       setPhase({ advice: result.data, checkName, kind: "ready" });
     });
 
@@ -181,6 +191,7 @@ const FixAdviceDialog = ({ checkName, onClose, siteId }: DialogProps) => {
   }, [checkName, siteId, startTransition]);
 
   const open = checkName !== null;
+
   const visiblePhase: Phase =
     checkName !== null &&
     checkName !== "" &&
@@ -286,6 +297,7 @@ const StepRow = ({ index, step }: { index: number; step: FixStep }) => (
 
 const SnippetBlock = ({ snippet }: { snippet: string }) => {
   const [copied, setCopied] = useState(false);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(snippet);
@@ -297,6 +309,7 @@ const SnippetBlock = ({ snippet }: { snippet: string }) => {
       setCopied(false);
     }
   };
+
   return (
     <div className="relative">
       <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
@@ -328,9 +341,11 @@ const SeverityBadge = ({ severity }: { severity: FixAdviceSeverity }) => {
   if (severity === "high") {
     return <Badge variant="destructive">{SEVERITY_LABEL[severity]}</Badge>;
   }
+
   if (severity === "medium") {
     return <Badge variant="secondary">{SEVERITY_LABEL[severity]}</Badge>;
   }
+
   return <Badge variant="outline">{SEVERITY_LABEL[severity]}</Badge>;
 };
 

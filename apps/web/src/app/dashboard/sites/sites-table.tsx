@@ -62,9 +62,11 @@ const statusToValue = (enabled: SitesTableFilters["enabled"]): string => {
   if (enabled === "true") {
     return ENABLED;
   }
+
   if (enabled === "false") {
     return DISABLED;
   }
+
   return ALL_STATUSES;
 };
 
@@ -109,12 +111,15 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
 
   useEffect(() => {
     const trimmed = searchInput.trim();
+
     if (trimmed === lastPushedQ.current) {
       return undefined;
     }
+
     const handle = setTimeout(() => {
       pushSearch(trimmed);
     }, SEARCH_DEBOUNCE_MS);
+
     return () => {
       clearTimeout(handle);
     };
@@ -126,6 +131,7 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
   const handleNichesChange = (next: Array<string>) => {
     updateParams((params) => {
       params.delete("niche");
+
       for (const n of next) {
         params.append("niche", n);
       }
@@ -146,11 +152,13 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
 
   const nicheCounts = (() => {
     const map = new Map<string, number>();
+
     for (const row of rows) {
       for (const n of row.niches) {
         map.set(n, (map.get(n) ?? 0) + 1);
       }
     }
+
     return map;
   })();
 
@@ -183,9 +191,11 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
       cell: ({ row }) => {
         const visible = row.original.niches.slice(0, MAX_NICHE_BADGES);
         const overflow = row.original.niches.length - visible.length;
+
         if (row.original.niches.length === 0) {
           return <span className="text-xs text-muted-foreground">—</span>;
         }
+
         return (
           <div className="flex flex-wrap items-center gap-1">
             {visible.map((n) => (
@@ -303,9 +313,11 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
                   if (value === ENABLED) {
                     return "Enabled";
                   }
+
                   if (value === DISABLED) {
                     return "Disabled";
                   }
+
                   return "All";
                 }}
               </SelectValue>

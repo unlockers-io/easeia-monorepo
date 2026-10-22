@@ -23,10 +23,12 @@ export const OutboundLinksCard = ({ outbound }: { outbound: Array<OutboundLink> 
   const counts = outbound.reduce<Record<OutboundLink["type"], number>>(
     (acc, l) => {
       acc[l.type] += 1;
+
       return acc;
     },
     { EXTERNAL: 0, INTERNAL: 0, PBN: 0 },
   );
+
   return (
     <Card>
       <CardHeader>
@@ -96,8 +98,10 @@ const LinkTypeBadge = ({ type }: { type: OutboundLink["type"] }) => {
   if (type === "INTERNAL") {
     return <Badge variant="outline">Internal</Badge>;
   }
+
   if (type === "PBN") {
     return <Badge variant="default">PBN</Badge>;
   }
+
   return <Badge variant="secondary">External</Badge>;
 };

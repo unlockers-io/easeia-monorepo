@@ -24,9 +24,11 @@ const recordRedeploy = async (
 ): Promise<RedeployOutcome> => {
   const site = await tx.site.findUniqueOrThrow({ where: { id: siteId } });
   const target = deployTarget(site);
+
   if (!(target instanceof URL)) {
     return target;
   }
+
   const job = await enqueueUnlessQueued(
     {
       delayMs: REDEPLOY_WINDOW_MS,
@@ -36,6 +38,7 @@ const recordRedeploy = async (
     },
     tx,
   );
+
   return job === null ? "coalesced" : "queued";
 };
 
@@ -49,15 +52,19 @@ export const requestRedeploy = (
 
 export const deploy = async (siteId: string, postHook: PostDeployHook): Promise<DeployOutcome> => {
   const target = deployTarget(await load(siteId));
+
   if (!(target instanceof URL)) {
     return target;
   }
+
   const response = await postHook(target, {
     method: "POST",
     signal: AbortSignal.timeout(DEPLOY_HOOK_TIMEOUT_MS),
   });
+
   if (!response.ok) {
     throw new Error(`Deploy hook returned ${response.status}: ${await response.text()}`);
   }
+
   return "posted";
 };

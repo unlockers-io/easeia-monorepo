@@ -83,20 +83,25 @@ export const makeHandleGenerateBodyImages =
     if (!enabled) {
       log.info("generate-body-images: disabled by BODY_IMAGES_ENABLED, skip");
       log.emit();
+
       return;
     }
 
     const post = await findPost(postId);
+
     if (!post) {
       log.warn("generate-body-images: post not found; skipping");
       log.emit();
+
       return;
     }
+
     // Also covers externally-authored posts that shipped their own images, and
     // makes a retry after a partial run a no-op instead of a second set.
     if (MARKDOWN_IMAGE.test(post.body)) {
       log.info("generate-body-images: body already has images; skipping");
       log.emit();
+
       return;
     }
 
@@ -105,16 +110,21 @@ export const makeHandleGenerateBodyImages =
       post: { tags: post.tags, title: post.title },
       site: { language: post.site.language },
     });
+
     if (plan.length === 0) {
       log.info("generate-body-images: planner found no spots; skipping");
       log.emit();
+
       return;
     }
+
     log.set({ plannedImages: plan.length });
 
     const inserted: Array<BodyImage> = [];
+
     for (const [i, planned] of plan.entries()) {
       const filename = `${post.slug}-${i + 1}.jpg`;
+
       // Serial on purpose: parallel image calls trip OpenAI's rate limit long
       // before they save meaningful wall-clock on a 2-4 image post.
       const image = await generatePostImage({
@@ -127,6 +137,7 @@ export const makeHandleGenerateBodyImages =
           subject: planned.prompt,
         }),
       });
+
       await upsertImage({
         alt: planned.alt,
         blobKey: image.key,

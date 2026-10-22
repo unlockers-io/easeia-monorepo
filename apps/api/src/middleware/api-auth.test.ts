@@ -22,10 +22,12 @@ const appFor = (actor: Actor) => {
   const router = new Hono<{ Variables: AuthVariables }>();
   router.use("*", (c, next) => {
     c.set("actor", actor);
+
     return next();
   });
   router.use("/sites/:siteId/*", requireAction("content:read"));
   router.get("/sites/:siteId/posts", (c) => c.json({ ok: true }));
+
   return mountForTest(router);
 };
 

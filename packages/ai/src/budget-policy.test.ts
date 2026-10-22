@@ -100,6 +100,7 @@ describe("priced requests", () => {
           size: "1536x1024",
         }),
       );
+
       expect(plan.costOf({ usage: { input_tokens: 100, output_tokens: outputTokens } })).toBe(
         totalMicroUsd,
       );
@@ -109,10 +110,12 @@ describe("priced requests", () => {
 
   it("prices embeddings and rejects token arrays without a token bound", () => {
     const url = new URL("https://api.openai.com/v1/embeddings");
+
     const plan = planAiRequest(
       url,
       JSON.stringify({ input: ["a", "b"], model: "text-embedding-3-small" }),
     );
+
     expect(plan.costOf({ usage: { prompt_tokens: 1000 } })).toBe(20);
     expect(() =>
       planAiRequest(url, JSON.stringify({ input: [1, 2], model: "text-embedding-3-small" })),

@@ -8,9 +8,11 @@ import { holdScripts } from "../helpers/hold-scripts";
 test.describe("Site settings forms", () => {
   test("author edits record one rebuild through the web action", async ({ page }) => {
     const domain = recordCleanup("site", `e2e-author-${crypto.randomUUID()}.example`);
+
     const site = await prisma.site.create({
       data: { domain, vercelDeployHookUrl: "https://deploy.example/author" },
     });
+
     await page.goto(`/dashboard/sites/${site.id}`);
     const name = page.getByLabel("Name", { exact: true });
     await expect(name).toBeEnabled();
@@ -63,6 +65,7 @@ test.describe("Site settings forms", () => {
     const site = await prisma.site.create({ data: { domain } });
     const autoPublish = page.getByRole("switch", { includeHidden: true });
     const deployHook = page.getByLabel("Deploy hook URL", { exact: true });
+
     const savePublishing = page.getByRole("button", {
       includeHidden: true,
       name: "Save publishing settings",

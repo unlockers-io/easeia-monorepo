@@ -32,6 +32,7 @@ const MAX_BODY_CHARS = 6000;
 
 const buildPrompt = (input: SeoSuggestionInput): string => {
   const body = input.bodyText.slice(0, MAX_BODY_CHARS);
+
   const lines = [
     `You are an SEO copywriter. Rewrite the SEO metadata for a blog post on ${input.siteDomain}.`,
     `Locale: ${input.locale ?? "auto-detect from content"}.`,
@@ -45,19 +46,25 @@ const buildPrompt = (input: SeoSuggestionInput): string => {
     "",
     `Post title: ${input.postTitle}`,
   ];
+
   if (input.excerpt !== undefined && input.excerpt !== "") {
     lines.push(`Excerpt: ${input.excerpt}`);
   }
+
   if (input.currentTitle !== undefined && input.currentTitle !== "") {
     lines.push(`Current SEO title: ${input.currentTitle}`);
   }
+
   if (input.currentDescription !== undefined && input.currentDescription !== "") {
     lines.push(`Current meta description: ${input.currentDescription}`);
   }
+
   if (input.currentFocusKeyword !== undefined && input.currentFocusKeyword !== "") {
     lines.push(`Current focus keyword: ${input.currentFocusKeyword}`);
   }
+
   lines.push("", "Post body:", body);
+
   return lines.join("\n");
 };
 

@@ -62,6 +62,7 @@ describe("settleFanout", () => {
   it("keeps the id attached through a 1-item-to-2-tasks expansion", async () => {
     const log = makeLog();
     const items = [{ id: "p1" }, { id: "p2" }];
+
     const tasks = items.flatMap((p) => [
       ok(p.id),
       { id: p.id, run: () => Promise.reject(new Error(`second task for ${p.id}`)) },
@@ -78,6 +79,7 @@ describe("settleFanout", () => {
   it("runs the tasks concurrently rather than in sequence", async () => {
     const log = makeLog();
     let started = 0;
+
     const slow = (id: string): FanoutTask => ({
       id,
       run: async () => {

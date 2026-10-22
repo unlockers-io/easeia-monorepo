@@ -27,5 +27,6 @@ export const buildClassifyPrompt = (input: PromptInput): string => {
     `Post body:`,
     input.body,
   ];
+
   return lines.join("\n");
 };

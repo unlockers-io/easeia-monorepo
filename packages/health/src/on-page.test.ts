@@ -93,6 +93,7 @@ describe("summarizeOnPage", () => {
       { excerpt: "short", inboundInternal: 0, title: "x".repeat(70) },
       { excerpt: "x".repeat(200), inboundInternal: 0, title: "Too short" },
     ]);
+
     expect(counts).toEqual({
       descriptionTooLong: 1,
       descriptionTooShort: 1,

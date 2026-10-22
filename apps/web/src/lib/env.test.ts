@@ -13,6 +13,7 @@ const loadGetEnv = async (overrides: Record<string, string | undefined> = {}) =>
 
   vi.resetModules();
   const { getEnv } = await import("./env");
+
   return getEnv;
 };
 

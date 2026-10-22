@@ -29,13 +29,17 @@ export const generateWithAnchors = async <T extends { body: string }>({
 }: AnchoredGenerationInput<T>): Promise<AnchoredGeneration<T>> => {
   const first = await generateStructured({ prompt, schema });
   const missingFirst = findMissingAnchors(first.body, anchors);
+
   if (missingFirst.length === 0) {
     return { missing: missingFirst, output: first, retryUsed: false };
   }
+
   const urls = missingFirst.map((a) => a.url).join(", ");
+
   const retried = await generateStructured({
     prompt: `${prompt}\n\nIMPORTANT: your previous output was missing these links: ${urls}. ${insertInstruction}`,
     schema,
   });
+
   return { missing: findMissingAnchors(retried.body, anchors), output: retried, retryUsed: true };
 };

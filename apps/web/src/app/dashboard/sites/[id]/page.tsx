@@ -56,6 +56,7 @@ import { StatGridSkeleton, CardSkeleton, SectionSkeleton } from "./skeletons";
 
 const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
+
   const [site, moneySiteOptions] = await Promise.all([
     Sites.find(id),
     prisma.moneySite.findMany({
@@ -64,6 +65,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
       where: { isEnabled: true },
     }),
   ]);
+
   if (!site) {
     notFound();
   }
@@ -236,6 +238,7 @@ const SiteStatGrid = async ({ siteId }: { siteId: string }) => {
     fetchSiteStats(siteId),
     countJobs({ kinds: [JobKind.REWRITE_POST], siteId, status: JobStatus.DONE }),
   ]);
+
   const items: ReadonlyArray<StatItem> = [
     { label: "Published posts", value: stats.postsTotal.toLocaleString() },
     {
@@ -247,11 +250,13 @@ const SiteStatGrid = async ({ siteId }: { siteId: string }) => {
     },
     { label: "Rewrites", value: rewriteCount.toLocaleString() },
   ];
+
   return <StatGrid columns={3} items={items} />;
 };
 
 const HealthChecksCard = async ({ siteId }: { siteId: string }) => {
   const health = await fetchHealth(siteId);
+
   return (
     <Card>
       <CardHeader>
@@ -278,6 +283,7 @@ const HealthChecksCard = async ({ siteId }: { siteId: string }) => {
 
 const OnPageSeoCard = async ({ siteId }: { siteId: string }) => {
   const report = await fetchOnPageSeo(siteId);
+
   return (
     <Card>
       <CardHeader>
@@ -324,6 +330,7 @@ const HealthRow = ({ check }: { check: HealthCheck }) => (
 
 const RecentWpCard = async ({ siteId }: { siteId: string }) => {
   const posts = await fetchRecentPosts(siteId, 5);
+
   return (
     <Card>
       <CardHeader>

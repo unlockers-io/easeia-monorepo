@@ -30,6 +30,7 @@ const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {
     async (c) => {
       const { runId } = await dependencies.start();
       await dependencies.audit(c, { action: "backfill.trigger", target: "network" });
+
       return c.json({ runId }, 202);
     },
   );
@@ -47,4 +48,5 @@ const backfillRoutes = createBackfillRoutes({
 });
 
 export { backfillRoutes, createBackfillRoutes };
+
 export type { BackfillRouteDependencies };

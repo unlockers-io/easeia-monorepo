@@ -29,6 +29,7 @@ type Row = {
 
 const query = async (refId: string, sameSite: boolean, limit: number): Promise<Array<Target>> => {
   const op = sameSite ? "=" : "<>";
+
   const rows = await prisma.$queryRawUnsafe<Array<Row>>(
     `
     SELECT
@@ -55,6 +56,7 @@ const query = async (refId: string, sameSite: boolean, limit: number): Promise<A
     SIM_THRESHOLD,
     limit,
   );
+
   return rows.map((r) => ({
     id: r.id,
     link: postPublicUrl(
@@ -93,7 +95,9 @@ export const suggestForPost = async (postId: string): Promise<SuggestResult> => 
     select: { toPostId: true },
     where: { fromPostId: postId, toPostId: { not: null } },
   });
+
   const existingTargets = new Set(existing.map((l) => l.toPostId));
+
   const fresh = (targets: ReadonlyArray<Target>, limit: number): Array<Target> =>
     targets.filter((t) => !existingTargets.has(t.id)).slice(0, limit);
 
@@ -101,10 +105,12 @@ export const suggestForPost = async (postId: string): Promise<SuggestResult> => 
     query(postId, true, INTERNAL_LIMIT * 2),
     query(postId, false, PBN_LIMIT * 2),
   ]);
+
   const internalFinal = fresh(
     internal.status === "fulfilled" ? internal.value : [],
     INTERNAL_LIMIT,
   );
+
   const pbnFinal = fresh(pbn.status === "fulfilled" ? pbn.value : [], PBN_LIMIT);
 
   const now = new Date();
@@ -122,9 +128,11 @@ export const suggestLink = async (fromPostId: string, toPostId: string): Promise
   const pending = await prisma.link.findFirst({
     where: { approved: null, fromPostId, source: LinkSource.SUGGESTED, toPostId },
   });
+
   if (pending !== null) {
     return pending;
   }
+
   const [from, to] = await Promise.all([
     prisma.post.findUniqueOrThrow({ select: { siteId: true }, where: { id: fromPostId } }),
     prisma.post.findUniqueOrThrow({
@@ -139,6 +147,7 @@ export const suggestLink = async (fromPostId: string, toPostId: string): Promise
       where: { id: toPostId },
     }),
   ]);
+
   return prisma.link.create({
     data: suggestionRow(
       fromPostId,

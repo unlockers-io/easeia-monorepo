@@ -49,8 +49,10 @@ const getEnv = (): Env => {
   if (cachedEnv !== undefined) {
     return cachedEnv;
   }
+
   const env = parseEnv(process.env);
   cachedEnv = env;
+
   return env;
 };
 

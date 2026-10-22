@@ -21,6 +21,7 @@ export const MoneySiteDropdown = ({
     currentMoneySiteId ?? "",
     (_, next: string) => next,
   );
+
   const [isPending, startTransition] = useTransition();
   const ready = useClientReady();
 
@@ -28,6 +29,7 @@ export const MoneySiteDropdown = ({
     const nextValue = e.target.value;
     startTransition(async () => {
       setOptimisticValue(nextValue);
+
       try {
         await assignMoneySiteAction(siteId, nextValue || null);
       } catch {

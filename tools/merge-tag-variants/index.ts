@@ -33,9 +33,11 @@ const canonical = (variants: Map<string, number>): string => {
       b[1] - a[1] ||
       a[0].localeCompare(b[0]),
   );
+
   if (top === undefined) {
     throw new Error("canonical: variants must not be empty");
   }
+
   return top[0];
 };
 
@@ -43,6 +45,7 @@ const main = async (): Promise<void> => {
   const posts = await prisma.post.findMany({ select: { id: true, siteId: true, tags: true } });
 
   const variantsByGroup = new Map<string, Map<string, number>>();
+
   for (const post of posts) {
     for (const tag of post.tags) {
       const key = groupKey(post.siteId, tag);
@@ -53,22 +56,27 @@ const main = async (): Promise<void> => {
   }
 
   const winner = new Map<string, string>();
+
   for (const [key, variants] of variantsByGroup) {
     if (variants.size > 1) {
       const name = canonical(variants);
       const [siteId = ""] = key.split("::");
+
       if (key !== groupKey(siteId, name)) {
         throw new Error(`refusing "${name}": it would move ${key}`);
       }
+
       winner.set(key, name);
     }
   }
 
   let chipsRemoved = 0;
   const planned: Array<{ id: string; next: Array<string>; siteId: string }> = [];
+
   for (const post of posts) {
     const mapped = post.tags.map((tag) => winner.get(groupKey(post.siteId, tag)) ?? tag);
     const next = [...new Set(mapped)];
+
     if (next.length !== post.tags.length || next.some((tag, index) => tag !== post.tags[index])) {
       chipsRemoved += post.tags.length - next.length;
       planned.push({ id: post.id, next, siteId: post.siteId });
@@ -83,19 +91,24 @@ const main = async (): Promise<void> => {
     const widest = [...winner.entries()].toSorted(
       (a, b) => (variantsByGroup.get(b[0])?.size ?? 0) - (variantsByGroup.get(a[0])?.size ?? 0),
     );
+
     for (const [key, name] of widest.slice(0, 12)) {
       const variants = [...(variantsByGroup.get(key)?.keys() ?? [])];
       console.log(`  /tag/${key.split("::")[1]}/ keeps "${name}"  from ${variants.join(" | ")}`);
     }
+
     console.log("\ndry run; pass --apply to write");
+
     return;
   }
 
   for (const post of planned) {
     await update(post.id, { tags: post.next });
   }
+
   console.log(`\nupdated ${planned.length} posts`);
 };
 
 await main();
+
 await prisma.$disconnect();

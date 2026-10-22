@@ -38,6 +38,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     it("runs each tick once as its own DONE Job row, whatever the replica count", async () => {
       const handler = vi.fn(() => Promise.resolve());
       const replicas = 3;
+
       for (let replica = 0; replica < replicas; replica += 1) {
         await schedule({ everyMs: 400, kind: KIND, payload: {} });
         workers.push(consume({ handler, kind: KIND }));

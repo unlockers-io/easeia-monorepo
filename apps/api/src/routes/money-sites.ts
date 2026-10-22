@@ -30,6 +30,7 @@ import { apiRateLimit } from "@/middleware/security";
 const app = createRouter<{ Variables: AuthVariables }>();
 
 app.use("*", apiAuthMiddleware);
+
 app.use("*", apiRateLimit);
 
 app.openapi(
@@ -45,6 +46,7 @@ app.openapi(
   }),
   async (c) => {
     const sites = await listMoneySites();
+
     return c.json({ data: sites }, 200);
   },
 );
@@ -66,6 +68,7 @@ app.openapi(
     const parsed = { data: c.req.valid("json") };
     const site = await createMoneySite(parsed.data);
     await recordAudit(c, { action: "moneysite.create", target: `moneysite:${site.id}` });
+
     return c.json({ data: site }, 201);
   },
 );
@@ -89,6 +92,7 @@ app.openapi(
     const parsed = { data: c.req.valid("json") };
     const site = await updateMoneySite(id, parsed.data);
     await recordAudit(c, { action: "moneysite.update", target: `moneysite:${id}` });
+
     return c.json({ data: site }, 200);
   },
 );
@@ -108,6 +112,7 @@ app.openapi(
     const id = c.req.valid("param").id;
     await deleteMoneySite(id);
     await recordAudit(c, { action: "moneysite.delete", target: `moneysite:${id}` });
+
     return c.json({ ok: true }, 200);
   },
 );
@@ -125,11 +130,14 @@ app.openapi(
   }),
   async (c) => {
     const id = c.req.valid("param").id;
+
     const job = await enqueue({
       kind: JobKind.CRAWL_MONEY_SITE,
       payload: { moneySiteId: id },
     });
+
     await recordAudit(c, { action: "moneysite.recrawl", target: `moneysite:${id}` });
+
     return c.json({ jobId: job.id }, 202);
   },
 );

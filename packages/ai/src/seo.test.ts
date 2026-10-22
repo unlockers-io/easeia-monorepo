@@ -11,6 +11,7 @@ describe("seoSuggestionSchema", () => {
       rationale: "Tightens the title and pushes the focus keyword toward the front of the line.",
       title: "Wedding photography pricing guide",
     });
+
     expect(result.success).toBe(true);
   });
 
@@ -21,6 +22,7 @@ describe("seoSuggestionSchema", () => {
       rationale: "ok rationale here that is long enough.",
       title: "short",
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -31,6 +33,7 @@ describe("seoSuggestionSchema", () => {
       rationale: "ok rationale here that is long enough.",
       title: "x".repeat(61),
     });
+
     expect(result.success).toBe(false);
   });
 
@@ -41,6 +44,7 @@ describe("seoSuggestionSchema", () => {
       rationale: "ok rationale here that is long enough.",
       title: "Wedding photography pricing guide",
     });
+
     expect(result.success).toBe(false);
   });
 });

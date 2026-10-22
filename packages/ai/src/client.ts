@@ -32,6 +32,7 @@ type StructuredRequest<T> = {
 
 const envValue = (name: string): string | undefined => {
   const value = process.env[name]?.trim();
+
   return value === undefined || value === "" ? undefined : value;
 };
 
@@ -42,6 +43,7 @@ const surfacingBudgetError = async <T>(call: () => Promise<T>): Promise<T> => {
     if (RetryError.isInstance(error) && error.lastError instanceof AiBudgetExceededError) {
       throw error.lastError;
     }
+
     throw error;
   }
 };
@@ -49,9 +51,11 @@ const surfacingBudgetError = async <T>(call: () => Promise<T>): Promise<T> => {
 const createAi = (transport: AiTransport) => {
   const requireApiKey = (): string => {
     const apiKey = transport.apiKey();
+
     if (apiKey === undefined) {
       throw new AiNotConfiguredError();
     }
+
     return apiKey;
   };
 
@@ -59,25 +63,30 @@ const createAi = (transport: AiTransport) => {
 
   const generateStructured = async <T>({ prompt, schema }: StructuredRequest<T>): Promise<T> => {
     const model = provider()(MODELS.text.name);
+
     const attempt = async (made: number): Promise<T> => {
       try {
         const { output } = await surfacingBudgetError(() =>
           generateText({ model, output: Output.object({ schema }), prompt }),
         );
+
         return output;
       } catch (error) {
         if (NoObjectGeneratedError.isInstance(error) && made + 1 < STRUCTURED_ATTEMPTS) {
           return attempt(made + 1);
         }
+
         throw error;
       }
     };
+
     return attempt(0);
   };
 
   const generateImage = async (prompt: string): Promise<Uint8Array> => {
     const model = provider().image(MODELS.image.name);
     const quality = imageQualitySchema.parse(envValue(IMAGE_QUALITY_VAR));
+
     const { image } = await surfacingBudgetError(() =>
       generateImageFile({
         abortSignal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
@@ -88,12 +97,14 @@ const createAi = (transport: AiTransport) => {
         size: MODELS.image.size,
       }),
     );
+
     return image.uint8Array;
   };
 
   const embedText = async (value: string): Promise<Array<number>> => {
     const model = provider().embedding(MODELS.embedding.name);
     const { embedding } = await surfacingBudgetError(() => embed({ model, value }));
+
     return embedding;
   };
 

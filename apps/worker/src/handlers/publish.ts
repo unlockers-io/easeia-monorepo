@@ -15,13 +15,16 @@ export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<vo
 
   try {
     const target = await Posts.startPublish(postId);
+
     if (target === null) {
       log.info("publish: post no longer awaits publishing, skip");
       log.emit();
+
       return;
     }
 
     const { stripped } = await pruneFabricatedLinks(postId);
+
     if (stripped.length > 0) {
       log.set({ strippedFabricatedLinks: stripped.length });
       log.info("publish: stripped fabricated internal links");
@@ -42,6 +45,7 @@ export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<vo
         });
       }
     }
+
     log.error(error instanceof Error ? error : "publish: failed");
     log.emit();
     throw error;

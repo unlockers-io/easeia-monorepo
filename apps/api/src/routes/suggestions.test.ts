@@ -15,6 +15,7 @@ import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
 
 const decided = { anchorText: "new anchor", approved: null, id: "l1" };
 const editAnchorMock = vi.fn(() => Promise.resolve(decided));
+
 const suggestionRoutes = createSuggestionRoutes({
   apiAuth: bypassMiddleware,
   approveSuggestion: () => Promise.resolve(decided),
@@ -25,6 +26,7 @@ const suggestionRoutes = createSuggestionRoutes({
   rejectSuggestion: () => Promise.resolve(decided),
   requirePermission: allowAction,
 });
+
 const app = mountForTest(suggestionRoutes);
 
 type AnchorRequestBody = { anchorText: number | string };
@@ -62,5 +64,6 @@ it("requires an anchor instead of accepting an unimplemented regenerate request"
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
   });
+
   expect(res.status).toBe(400);
 });

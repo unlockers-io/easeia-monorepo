@@ -28,6 +28,7 @@ export const startedRunSchema = z.object({ runId: z.string() });
 export const queuedJobSchema = z.object({ jobId: z.string() });
 export const okSchema = z.object({ ok: z.boolean() });
 export const forceBodySchema = z.object({ force: z.boolean().optional() });
+
 export { backfillRunStatusSchema as orchestratorStatusSchema } from "@repo/api-types";
 
 const moneySiteSchema = z.object({
@@ -40,10 +41,12 @@ const moneySiteSchema = z.object({
   sitemapUrl: z.string(),
   updatedAt: z.coerce.date(),
 });
+
 export const moneySiteResponseSchema = z.object({ data: moneySiteSchema });
 const pageCountSchema = z.object({ pages: z.number() });
 const countedMoneySiteSchema = moneySiteSchema.extend({ _count: pageCountSchema });
 export const moneySiteListSchema = z.object({ data: z.array(countedMoneySiteSchema) });
+
 const postReferenceSchema = z.object({
   id: z.string(),
   site: z.object({ domain: z.string() }),
@@ -51,6 +54,7 @@ const postReferenceSchema = z.object({
   slug: z.string(),
   title: z.string(),
 });
+
 export const suggestionPublicSchema = z.object({
   anchorText: z.string(),
   fromPost: postReferenceSchema,
@@ -59,17 +63,21 @@ export const suggestionPublicSchema = z.object({
   toPost: postReferenceSchema.nullable(),
   type: z.enum(["INTERNAL", "PBN", "EXTERNAL"]),
 });
+
 export const suggestionPageSchema = z.object({
   data: z.array(suggestionPublicSchema),
   meta: z.object({ nextCursor: z.string().nullable() }),
 });
+
 export const suggestionDecisionSchema = z.object({
   link: z.object({ anchorText: z.string(), approved: z.boolean().nullable(), id: z.string() }),
 });
+
 export const jsonResponse = <T extends z.ZodType>(description: string, schema: T) => ({
   content: { "application/json": { schema } },
   description,
 });
+
 export const commonErrors = {
   400: errorResponse("Invalid request"),
   401: errorResponse("Authentication required"),

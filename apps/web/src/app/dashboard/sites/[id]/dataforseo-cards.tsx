@@ -53,9 +53,11 @@ type MarketProps = { domain: string; language: SiteLanguage };
 
 export const DomainRankCard = async ({ domain, language }: MarketProps) => {
   const outcome = await domainRankOverview(domain, language);
+
   if (!outcome.ok) {
     return <SectionError message={outcome.error} title="Domain rank" />;
   }
+
   const overview = outcome.data;
 
   if (!overview) {
@@ -88,9 +90,11 @@ export const DomainRankCard = async ({ domain, language }: MarketProps) => {
 
 export const OnPageAuditCard = async ({ siteId, url }: { siteId: string; url: string }) => {
   const outcome = await auditPage(url);
+
   if (!outcome.ok) {
     return <SectionError message={outcome.error} title="Homepage audit" />;
   }
+
   const audit = outcome.data;
 
   if (!audit) {
@@ -168,9 +172,11 @@ export const OnPageAuditCard = async ({ siteId, url }: { siteId: string; url: st
 
 export const TopKeywordsCard = async ({ domain, language }: MarketProps) => {
   const outcome = await rankedKeywords(domain, language, 10);
+
   if (!outcome.ok) {
     return <SectionError message={outcome.error} title="Top organic keywords" />;
   }
+
   const kws = outcome.data;
 
   return (
@@ -247,6 +253,7 @@ export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
 
   const externalReferringDomains = externalRows.length;
   const externalLinkingPages = externalRows.reduce((sum, row) => sum + row.linkingPages, 0);
+
   const externalLastImportedAt = externalRows.reduce<Date | null>((latest, row) => {
     return !latest || row.importedAt > latest ? row.importedAt : latest;
   }, null);
@@ -353,11 +360,14 @@ const RankBadge = ({ rank }: { rank: number }) => {
   if (rank === 0) {
     return <NoData className="text-muted-foreground" />;
   }
+
   if (rank <= 3) {
     return <Badge variant="default">#{rank}</Badge>;
   }
+
   if (rank <= 10) {
     return <Badge variant="secondary">#{rank}</Badge>;
   }
+
   return <Badge variant="outline">#{rank}</Badge>;
 };

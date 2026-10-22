@@ -3,13 +3,16 @@ export const startMaintenance = (
   reportError: (activity: string, error: Error) => void,
 ) => {
   const pending = new Map<string, Promise<void>>();
+
   const tick = () => {
     for (const [name, run] of Object.entries(activities)) {
       if (pending.has(name)) {
         continue;
       }
+
       const work = (async () => {
         await Promise.resolve();
+
         try {
           await run();
         } catch (error) {
@@ -18,11 +21,14 @@ export const startMaintenance = (
           pending.delete(name);
         }
       })();
+
       pending.set(name, work);
     }
   };
+
   tick();
   const timer = setInterval(tick, 1000);
+
   return async () => {
     clearInterval(timer);
     await Promise.all(pending.values());

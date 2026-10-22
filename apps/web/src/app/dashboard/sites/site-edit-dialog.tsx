@@ -43,12 +43,15 @@ const toRows = (map: Record<string, string>): Array<MapRow> =>
 
 const rowsToMap = (rows: ReadonlyArray<MapRow>) => {
   const out = new Map<string, string>();
+
   for (const { key, value } of rows) {
     const trimmedKey = key.trim();
+
     if (trimmedKey.length > 0) {
       out.set(trimmedKey, value.trim());
     }
   }
+
   return out;
 };
 
@@ -69,6 +72,7 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
       setDefaultCategory(site.defaultCategory);
       setMapRows(toRows(site.categorySlugMap));
     }
+
     setOpen(next);
   };
 
@@ -90,12 +94,15 @@ const SiteEditDialog = ({ allNiches, site }: Props) => {
   const handleSave = () => {
     const fd = new FormData();
     fd.set("id", site.id);
+
     if (isEnabled) {
       fd.set("isEnabled", "on");
     }
+
     for (const n of niches) {
       fd.append("niches", n);
     }
+
     fd.set("defaultCategory", defaultCategory.trim() || "sem-categoria");
     const categorySlugMap = Object.fromEntries(rowsToMap(mapRows));
     fd.set("categorySlugMap", JSON.stringify(categorySlugMap));

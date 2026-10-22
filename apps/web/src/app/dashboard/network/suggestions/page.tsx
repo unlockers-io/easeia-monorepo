@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@repo/ui/components/button";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -33,16 +34,19 @@ type SuggestionPage = z.infer<typeof suggestionPageSchema>;
 
 const QUERY_KEY = ["suggestions"] as const;
 const INITIAL_PAGE_PARAM: string | null = null;
+
 const fetchList = async (cursor: string | null): Promise<SuggestionPage> =>
   suggestionPageSchema.parse(
     unwrapAction(await listSuggestionsAction({ cursor: cursor ?? undefined, limit: 20 })),
   );
+
 const decide = async (id: string, action: "approve" | "reject"): Promise<void> => {
   unwrapAction(await decideSuggestionAction(id, action));
 };
 
 const SuggestionsPage = () => {
   const queryClient = useQueryClient();
+
   const { data, fetchNextPage, hasNextPage, isError, isFetchingNextPage, isPending, refetch } =
     useInfiniteQuery({
       getNextPageParam: (last: SuggestionPage) => last.meta.nextCursor,
@@ -50,6 +54,7 @@ const SuggestionsPage = () => {
       queryFn: ({ pageParam }) => fetchList(pageParam),
       queryKey: QUERY_KEY,
     });
+
   const rows = data?.pages.flatMap((page) => page.data) ?? [];
 
   const handleDecide = async (id: string, action: "approve" | "reject") => {

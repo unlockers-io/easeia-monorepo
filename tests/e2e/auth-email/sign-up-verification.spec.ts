@@ -26,12 +26,14 @@ test.describe("Sign-up email verification", () => {
         username,
       },
     });
+
     expect([200, 201]).toContain(signUp.status());
 
     const preSignIn = await request.post(`${webUrl}/api/auth/sign-in/email`, {
       data: { email, password },
       failOnStatusCode: false,
     });
+
     expect(preSignIn.status()).not.toBe(200);
 
     const mail = await waitForEmail({
@@ -39,6 +41,7 @@ test.describe("Sign-up email verification", () => {
       subject: /verify/i,
       to: email,
     });
+
     expect(mail.last_event).not.toBe("bounced");
 
     const verifyUrl = extractLink(mail, /\/api\/auth\/verify-email\?token=/);
@@ -53,6 +56,7 @@ test.describe("Sign-up email verification", () => {
     const postSignIn = await request.post(`${webUrl}/api/auth/sign-in/email`, {
       data: { email, password },
     });
+
     expect(postSignIn.status()).toBe(200);
   });
 });

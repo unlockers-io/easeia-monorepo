@@ -1,4 +1,5 @@
 "use client";
+
 import { backfillRunStatusSchema } from "@repo/api-types";
 import { z } from "zod";
 
@@ -23,9 +24,11 @@ export type Status = z.infer<typeof statusSchema>;
 
 const fetchStatus = async (): Promise<Status> =>
   statusSchema.parse(unwrapAction(await readRewriteStatusAction()));
+
 const trigger = async (force: boolean): Promise<void> => {
   unwrapAction(await startRewriteAction(force));
 };
 
 const Controller = () => <NetworkRewritePage loadStatus={fetchStatus} start={trigger} />;
+
 export default Controller;

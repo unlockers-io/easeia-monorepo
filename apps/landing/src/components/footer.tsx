@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/terms", label: "Terms" },
   { href: "mailto:hello@easeia.com", label: "hello@easeia.com" },
 ];
+
 const Footer = () => (
   <footer className="border-t-4 border-foreground">
     <div className="mx-auto grid max-w-(--breakpoint-xl) gap-10 px-6 py-12 md:grid-cols-content-action md:px-8">
@@ -44,4 +45,5 @@ const Footer = () => (
     </div>
   </footer>
 );
+
 export { Footer };

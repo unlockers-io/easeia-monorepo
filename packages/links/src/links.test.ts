@@ -25,6 +25,7 @@ import {
 
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const domain = (name: string): string => `${name}-${run}.tld`;
+
 const urlOf = (site: string, slug: string): string =>
   `https://${domain(site)}/sem-categoria/${slug}/`;
 
@@ -37,6 +38,7 @@ const createSite = async (
   isEnabled = true,
 ): Promise<string> => {
   const site = await prisma.site.create({ data: { domain: domain(name), isEnabled, language } });
+
   return site.id;
 };
 
@@ -51,6 +53,7 @@ const createPost = async (siteId: string, slug: string, body = "<p>Body.</p>"): 
       title: `Title ${slug}`,
     },
   });
+
   return post.id;
 };
 
@@ -66,16 +69,19 @@ const setBody = async (id: string, body: string): Promise<void> => {
 
 const bodyOf = async (id: string): Promise<string> => {
   const post = await prisma.post.findUniqueOrThrow({ select: { body: true }, where: { id } });
+
   return post.body;
 };
 
 const inboundOf = async (id: string): Promise<number> => {
   const counts = await countInternalInboundLinks([id]);
+
   return counts.get(id) ?? 0;
 };
 
 const pendingIds = async (fromPostId: string): Promise<Array<string>> => {
   const rows = await listSuggestions({ fromPostId, limit: 50 });
+
   return rows.map((r) => r.id);
 };
 
@@ -118,13 +124,17 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
   const suggestFromSource = async () => {
     await suggestForPost(source);
     const rows = await listSuggestions({ fromPostId: source, limit: 50 });
+
     const to = (toPostId: string) => {
       const row = rows.find((r) => r.toPostId === toPostId);
+
       if (row === undefined) {
         throw new Error(`no suggestion to ${toPostId}`);
       }
+
       return row;
     };
+
     return { internal: to(sibling), pbn: to(peer) };
   };
 
@@ -200,6 +210,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
       "english",
       `Intro.\n\n## See also\n\n- [Old](https://x.tld/old/)\n\n## Notes\n\nKeep [${urlOf("beta", "present")}](${urlOf("beta", "present")}).`,
     );
+
     const present = await createPost(beta, "present");
     const toPeer = await suggestLink(english, peer);
     const toPresent = await suggestLink(english, present);
@@ -286,11 +297,13 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     );
 
     expect(await crawlPost(source)).toEqual({ external: 1, internal: 1, pbn: 1, total: 3 });
+
     const rows = await prisma.link.findMany({
       orderBy: { position: "asc" },
       select: { source: true, toPostId: true, type: true },
       where: { fromPostId: source },
     });
+
     expect(rows).toEqual([
       { source: LinkSource.IMPORTED, toPostId: sibling, type: LinkType.INTERNAL },
       { source: LinkSource.IMPORTED, toPostId: target, type: LinkType.PBN },
@@ -324,6 +337,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
       select: { source: true },
       where: { fromPostId: source, toPostId: sibling },
     });
+
     expect(rows).toEqual([{ source: LinkSource.IMPORTED }]);
     expect(await inboundOf(sibling)).toBe(1);
   });
@@ -355,6 +369,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     const money = await prisma.moneySite.create({
       data: { domain: domain("money"), name: "Money", sitemapUrl: "https://x.tld/sitemap.xml" },
     });
+
     await setBody(
       source,
       [

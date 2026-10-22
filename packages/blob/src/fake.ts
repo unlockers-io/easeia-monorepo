@@ -10,10 +10,12 @@ export type FakeBlobStore = {
 
 export const createFakeBlobStore = (urlBase = "https://fake.blob"): FakeBlobStore => {
   const store = new Map<string, { bytes: Uint8Array; mime: string; url: string }>();
+
   return {
     contents: () => store,
     listForSite: (siteId) => {
       const prefix = `sites/${siteId}/`;
+
       return Promise.resolve(
         [...store.entries()].flatMap(([key, { bytes, url }]) =>
           key.startsWith(prefix) ? [{ key, size: bytes.byteLength, url }] : [],
@@ -22,6 +24,7 @@ export const createFakeBlobStore = (urlBase = "https://fake.blob"): FakeBlobStor
     },
     remove: (key) => {
       store.delete(key);
+
       return Promise.resolve();
     },
     reset: () => {
@@ -31,6 +34,7 @@ export const createFakeBlobStore = (urlBase = "https://fake.blob"): FakeBlobStor
       const key = buildBlobKey(input);
       const url = blobPublicUrl(urlBase, key);
       store.set(key, { bytes: input.bytes, mime: input.mime, url });
+
       return Promise.resolve({ key, url });
     },
   };

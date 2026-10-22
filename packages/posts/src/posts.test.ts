@@ -18,16 +18,19 @@ const load = (id: string) => prisma.post.findUniqueOrThrow({ where: { id } });
 
 const latestDeploy = async (siteId: string) => {
   const { data } = await listJobs({ kinds: [JobKind.TRIGGER_DEPLOY], limit: 1, siteId });
+
   return data[0];
 };
 
 const bodyOf = async (id: string) => {
   const post = await load(id);
+
   return post.body;
 };
 
 const statusOf = async (id: string) => {
   const post = await load(id);
+
   return post.status;
 };
 
@@ -43,15 +46,19 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       language: SiteLanguage = "PT",
     ): Promise<string> => {
       sequence += 1;
+
       const site = await prisma.site.create({
         data: { domain: `s${sequence}.${run}.test`, language, vercelDeployHookUrl },
       });
+
       siteIds.push(site.id);
+
       return site.id;
     };
 
     const createDraft = async (siteId: string, patch: Partial<PostCreateInput> = {}) => {
       sequence += 1;
+
       const { post } = await Posts.create({
         body: "<p>Body.</p>",
         categories: ["Casamentos"],
@@ -62,11 +69,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         title: `Post ${sequence}`,
         ...patch,
       });
+
       return post;
     };
 
     const createLive = async (siteId: string): Promise<Post> => {
       const draft = await createDraft(siteId);
+
       return prisma.post.update({
         data: { publishedAt: new Date(), status: PostStatus.PUBLISHED },
         where: { id: draft.id },
@@ -375,15 +384,18 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
     describe("body", () => {
       const EM = "\u2014";
+
       const paragraph =
         "Um parágrafo longo o bastante para contar como bloco substancial na análise do corpo.";
 
       it("stores a normalized body from create, update and revise", async () => {
         const siteId = await createSite();
         const created = await createDraft(siteId, { body: "<h2>Título</h2><p>Corpo\u0011.</p>" });
+
         const updated = await Posts.update(created.id, {
           body: "<!-- wp:paragraph -->\n<p>Veja [o guia](https://x.test/guia).</p>\n<!-- /wp:paragraph -->",
         });
+
         const revised = await Posts.reviseBody(created.id, {
           body: [paragraph, paragraph, paragraph].join("\n\n"),
           from: updated.body,
@@ -398,6 +410,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("applies the Portuguese clause rules to PT bodies only", async () => {
         const body = `A luz estava dura ${EM} mudamos a sessao para dentro.`;
         const pt = await createDraft(await createSite(HOOK, "PT"), { body });
+
         const en = await createDraft(await createSite(HOOK, "EN"), {
           body: `The light was harsh ${EM} we moved the shoot indoors.`,
         });

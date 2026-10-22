@@ -17,15 +17,18 @@ export const createApiKeyAction = async (input: ApiKeyCreate) =>
       target: `apikey:${issued.id}`,
     });
     revalidatePath("/dashboard/api-keys");
+
     return issued.token;
   });
 
 export const revokeApiKeyAction = async (formData: FormData) => {
   await requireSession();
   const id = formData.get("id");
+
   if (typeof id !== "string" || id === "") {
     throw new Error("id is required");
   }
+
   await revokeApiKey(id);
   await audit({ action: "apikey.revoke", target: `apikey:${id}` });
   revalidatePath("/dashboard/api-keys");

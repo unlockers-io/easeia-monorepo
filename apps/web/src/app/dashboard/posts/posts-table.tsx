@@ -99,12 +99,15 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
 
   useEffect(() => {
     const trimmed = searchInput.trim();
+
     if (trimmed === lastPushedQ.current) {
       return undefined;
     }
+
     const handle = setTimeout(() => {
       pushSearch(trimmed);
     }, SEARCH_DEBOUNCE_MS);
+
     return () => {
       clearTimeout(handle);
     };
@@ -116,6 +119,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
   const handleNichesChange = (next: Array<string>) => {
     updateParams((params) => {
       params.delete("niche");
+
       for (const n of next) {
         params.append("niche", n);
       }
@@ -134,11 +138,13 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
 
   const nicheCounts = (() => {
     const map = new Map<string, number>();
+
     for (const row of rows) {
       for (const n of row.niches) {
         map.set(n, (map.get(n) ?? 0) + 1);
       }
     }
+
     return map;
   })();
 
@@ -275,6 +281,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
                   if (value === ALL_SITES) {
                     return "All";
                   }
+
                   return sites.find((s) => s.id === value)?.domain ?? value;
                 }}
               </SelectValue>

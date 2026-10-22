@@ -10,6 +10,7 @@ export const createSignupGuard =
     if (mode === "open") {
       return;
     }
+
     if (mode === "closed" || !isSignupOpen(mode, await countUsers())) {
       throw new APIError("FORBIDDEN", {
         message:

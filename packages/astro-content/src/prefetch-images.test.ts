@@ -25,6 +25,7 @@ const setupFetch = (
 ) => {
   const fetchMock = vi.fn((input: string | URL) => {
     const url = String(input);
+
     if (url.endsWith("/manifest")) {
       return Response.json(
         {
@@ -38,16 +39,22 @@ const setupFetch = (
         { status: 200 },
       );
     }
+
     if (url.endsWith("/images")) {
       return Response.json({ data: images.map(({ bytes: _b, ...rest }) => rest) }, { status: 200 });
     }
+
     const match = images.find((i) => i.url === url);
+
     if (match) {
       return new Response(match.bytes);
     }
+
     return new Response("not found", { status: 404 });
   });
+
   vi.stubGlobal("fetch", fetchMock);
+
   return fetchMock;
 };
 
@@ -71,12 +78,14 @@ describe("prefetchImages", () => {
         width: null,
       },
     ]);
+
     const result = await prefetchImages({
       apiKey: "k",
       apiUrl: "https://api.easeia.dev",
       outDir: workDir,
       siteId: "s",
     });
+
     expect(result).toEqual({ contentHash: "hash-1", downloaded: 2, status: "downloaded" });
     const files = await readdir(workDir);
     expect(files.toSorted()).toEqual([".content-hash", "a.jpg", "b.png"]);
@@ -85,12 +94,14 @@ describe("prefetchImages", () => {
   it("short-circuits when the cached contentHash matches the manifest", async () => {
     setupFetch("hash-1", []);
     await writeFile(join(workDir, ".content-hash"), "hash-1");
+
     const result = await prefetchImages({
       apiKey: "k",
       apiUrl: "https://api.easeia.dev",
       outDir: workDir,
       siteId: "s",
     });
+
     expect(result).toEqual({ contentHash: "hash-1", status: "up-to-date" });
   });
 
@@ -135,6 +146,7 @@ describe("prefetchImages", () => {
       "fetch",
       vi.fn((input: string | URL) => {
         const url = String(input);
+
         if (url.endsWith("/manifest")) {
           return Response.json({
             contentHash: "hash-1",
@@ -145,6 +157,7 @@ describe("prefetchImages", () => {
             siteId: "s",
           });
         }
+
         return Response.json({
           data: [{ filename: "a.jpg", url: 42 }],
         });

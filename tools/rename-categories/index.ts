@@ -39,6 +39,7 @@ const slugFor = (map: Record<string, string>, name: string): string => map[name]
 const tally = (label: string, rows: Map<string, number>): void => {
   const total = [...rows.values()].reduce((sum, n) => sum + n, 0);
   console.log(`\n${label}: ${total} category assignments across ${rows.size} pairs`);
+
   for (const [key, count] of [...rows.entries()].toSorted((a, b) => b[1] - a[1])) {
     console.log(`  ${String(count).padStart(4)}  ${key}`);
   }
@@ -48,9 +49,11 @@ const main = async (): Promise<void> => {
   const sites: Array<SiteRow> = await prisma.site.findMany({
     select: { categorySlugMap: true, domain: true, id: true },
   });
+
   const posts = await prisma.post.findMany({
     select: { categories: true, id: true, siteId: true },
   });
+
   const siteById = new Map(sites.map((site) => [site.id, site]));
 
   const planned: Array<{ id: string; next: Array<string>; siteId: string }> = [];
@@ -59,25 +62,31 @@ const main = async (): Promise<void> => {
 
   for (const post of posts) {
     const site = siteById.get(post.siteId);
+
     if (!site) {
       continue;
     }
+
     const map = (site.categorySlugMap ?? {}) as Record<string, string>;
     const next: Array<string> = [];
     let changed = false;
 
     for (const category of post.categories) {
       const target = RENAMES[category];
+
       if (target === undefined) {
         next.push(category);
         continue;
       }
+
       const key = `${site.domain} ${category} -> ${target}`;
+
       if (slugFor(map, category) !== slugFor(map, target)) {
         skipped.set(key, (skipped.get(key) ?? 0) + 1);
         next.push(category);
         continue;
       }
+
       applied.set(key, (applied.get(key) ?? 0) + 1);
       next.push(target);
       changed = true;
@@ -94,14 +103,17 @@ const main = async (): Promise<void> => {
 
   if (!APPLY) {
     console.log("\ndry run; pass --apply to write");
+
     return;
   }
 
   for (const post of planned) {
     await update(post.id, { categories: post.next });
   }
+
   console.log(`\nupdated ${planned.length} posts`);
 };
 
 await main();
+
 await prisma.$disconnect();

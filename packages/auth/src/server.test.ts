@@ -58,9 +58,11 @@ describe("Auth Server Configuration", () => {
 
   it("should configure dynamic baseURL with protocol auto", () => {
     const baseURL = auth.options.baseURL;
+
     if (typeof baseURL !== "object" || baseURL === null) {
       throw new Error("expected dynamic baseURL object");
     }
+
     expect(baseURL.protocol).toBe("auto");
     expect(baseURL.fallback).toBe(loopbackUrl("api", "localhost"));
   });
@@ -70,10 +72,13 @@ describe("Auth Server Configuration", () => {
       ...baseConfig,
       allowedHosts: ["**.localhost", "app.easeia.com", "*.vercel.app"],
     });
+
     const baseURL = hostAuth.options.baseURL;
+
     if (typeof baseURL !== "object" || baseURL === null) {
       throw new Error("expected dynamic baseURL object");
     }
+
     expect(baseURL.allowedHosts).toEqual(
       expect.arrayContaining(["**.localhost", "app.easeia.com", "*.vercel.app"]),
     );
@@ -132,6 +137,7 @@ describe("Auth Server Configuration", () => {
       ...baseConfig,
       trustedOrigins: ["https://app.easeia.com", "http://localhost:3000"],
     });
+
     const trusted = originAuth.options.trustedOrigins;
     expect(trusted).toContain("https://app.easeia.com");
     expect(trusted).toContain("http://localhost:3000");

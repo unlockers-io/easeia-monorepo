@@ -22,6 +22,7 @@ const clientFor = (fetch: Fetch, timeoutMs = 1000) => createDataForSeo({ fetch, 
 
 const sentBody = (fetch: ReturnType<typeof replyWith>) => {
   const init = fetch.mock.calls[0]?.[1];
+
   return typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
 };
 
@@ -56,6 +57,7 @@ describe("market", () => {
       await clientFor(keywordsFetch).rankedKeywords(site(language), 10);
 
       expect(serp.market).toBe(name);
+
       for (const fetch of [serpFetch, rankFetch, keywordsFetch]) {
         expect(sentBody(fetch)).toEqual([
           expect.objectContaining({ language_code: languageCode, location_code: locationCode }),
@@ -152,6 +154,7 @@ describe("response mapping", () => {
     expect(sentBody(fetch)).toEqual([
       expect.objectContaining({ depth: 20, keyword: "casamento na praia" }),
     ]);
+
     const own = {
       description: null,
       domain: "casamento.example.com.br",
@@ -159,6 +162,7 @@ describe("response mapping", () => {
       title: "Casamento na praia: guia completo",
       url: "https://casamento.example.com.br/praia/",
     };
+
     expect(serp).toEqual({
       market: "Brazil, Portuguese",
       matched: own,
@@ -180,6 +184,7 @@ describe("response mapping", () => {
       ...taskErrorResponse,
       tasks: [{ ...taskErrorResponse.tasks[0], status_code: 20_000, status_message: "Ok." }],
     };
+
     const client = clientFor(replyWith(Response.json(noResult)));
 
     await expect(client.backlinkSummary("casamento.example.com.br")).resolves.toBeNull();
@@ -212,6 +217,7 @@ describe("failures", () => {
   it("times out a request that never answers", async () => {
     const fetch = vi.fn<Fetch>(async (_url, init) => {
       await sleep(60_000, undefined, { signal: init.signal ?? undefined });
+
       return new Response();
     });
 

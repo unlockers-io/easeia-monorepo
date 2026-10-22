@@ -20,6 +20,7 @@ const emptyStringAsUndefined = (source: NodeJS.ProcessEnv) =>
   Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ""));
 
 const parsed = envSchema.safeParse(emptyStringAsUndefined(process.env));
+
 if (!parsed.success) {
   throw new Error(
     `Invalid environment variables:\n${JSON.stringify(z.treeifyError(parsed.error), null, 2)}`,

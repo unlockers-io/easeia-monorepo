@@ -53,7 +53,9 @@ export const listJobs = async (input: JobListInput): Promise<JobList> => {
     take: input.limit + 1,
     where: whereFor(input),
   });
+
   const data = rows.slice(0, input.limit);
+
   return { data, nextCursor: rows.length > input.limit ? data.at(-1)?.id : undefined };
 };
 
@@ -72,6 +74,7 @@ export const countInFlightBySite = async (
     by: ["siteId"],
     where: { ...inFlight, kind, siteId: { in: [...siteIds] } },
   });
+
   return new Map(
     rows.flatMap((row) => (row.siteId === null ? [] : [[row.siteId, row._count.id] as const])),
   );
@@ -85,11 +88,13 @@ export const findLatestJobByPost = async (
     orderBy: [{ postId: "asc" }, { createdAt: "desc" }],
     where: { postId: { in: [...postIds] } },
   });
+
   return new Map(rows.flatMap((row) => (row.postId === null ? [] : [[row.postId, row] as const])));
 };
 
 export const findLatestJob = async <K extends JobKind>(kind: K): Promise<LatestJob<K> | null> => {
   const job = await prisma.job.findFirst({ orderBy: { createdAt: "desc" }, where: { kind } });
+
   return job === null ? null : { ...job, payload: getJobPayload(kind, job.payload) };
 };
 

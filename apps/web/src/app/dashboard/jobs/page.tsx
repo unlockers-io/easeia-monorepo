@@ -127,6 +127,7 @@ const TargetCell = ({ job }: { job: JobRow }) => {
       </Link>
     );
   }
+
   if (job.site) {
     return (
       <Link className="hover:underline" href={`/dashboard/sites/${job.site.id}`}>
@@ -134,6 +135,7 @@ const TargetCell = ({ job }: { job: JobRow }) => {
       </Link>
     );
   }
+
   return <span className="text-sm text-muted-foreground">—</span>;
 };
 

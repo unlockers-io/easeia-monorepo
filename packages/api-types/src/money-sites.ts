@@ -9,6 +9,9 @@ export const moneySiteCreateSchema = z.strictObject({
   name: z.string().trim().min(1).max(200),
   sitemapUrl: z.url({ protocol: /^https?$/v }),
 });
+
 export const moneySiteUpdateSchema = moneySiteCreateSchema.partial();
+
 export type MoneySiteCreate = z.infer<typeof moneySiteCreateSchema>;
+
 export type MoneySiteUpdate = z.infer<typeof moneySiteUpdateSchema>;

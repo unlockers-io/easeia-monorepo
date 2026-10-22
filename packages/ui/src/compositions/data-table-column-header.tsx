@@ -25,9 +25,11 @@ const SortIcon = ({ sorted }: { sorted: false | SortDirection }) => {
   if (sorted === "desc") {
     return <ArrowDownIcon className="size-3.5" />;
   }
+
   if (sorted === "asc") {
     return <ArrowUpIcon className="size-3.5" />;
   }
+
   return <ChevronsUpDownIcon className="size-3.5 text-muted-foreground" />;
 };
 

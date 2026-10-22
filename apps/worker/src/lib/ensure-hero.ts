@@ -18,15 +18,19 @@ type PostImageUpsert = {
 
 const inferMime = (filename: string): string => {
   const ext = filename.slice(filename.lastIndexOf(".") + 1).toLowerCase();
+
   if (ext === "png") {
     return "image/png";
   }
+
   if (ext === "webp") {
     return "image/webp";
   }
+
   if (ext === "gif") {
     return "image/gif";
   }
+
   return "image/jpeg";
 };
 
@@ -60,9 +64,11 @@ type EnsureHeroInput = {
 
 const defaultFetchImage = async (url: string): Promise<Uint8Array> => {
   const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+
   if (!res.ok) {
     throw new Error(`fetch ${url}: ${res.status}`);
   }
+
   return new Uint8Array(await res.arrayBuffer());
 };
 
@@ -93,6 +99,7 @@ export const makeEnsureHero =
     if (plan.kind === "import") {
       const mime = inferMime(plan.filename);
       const bytes = await deps.fetchImage(plan.sourceUrl);
+
       const result = await deps.blob.upload({
         bytes,
         filename: plan.filename,
@@ -100,6 +107,7 @@ export const makeEnsureHero =
         postId: input.post.id,
         siteId: input.post.siteId,
       });
+
       await deps.upsertPostImage({
         blobKey: result.key,
         blobUrl: result.url,

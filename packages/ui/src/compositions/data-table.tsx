@@ -137,8 +137,13 @@ const DataTableResetButton = ({ onReset }: DataTableResetButtonProps) => {
 };
 
 export type { ColumnDef, DataTableColumn, DataTableInstance } from "../lib/data-table-features";
+
 export { DataTableColumnHeader } from "./data-table-column-header";
+
 export { DataTableFacetedFilter } from "./data-table-faceted-filter";
+
 export { DataTablePagination } from "./data-table-pagination";
+
 export { DataTableViewOptions } from "./data-table-view-options";
+
 export { DataTable, DataTableResetButton };

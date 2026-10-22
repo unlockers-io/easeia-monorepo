@@ -19,15 +19,18 @@ export const hashBytes = (bytes: Uint8Array): string =>
 
 const extensionOf = (filename: string): string => {
   const idx = filename.lastIndexOf(".");
+
   if (idx <= 0 || idx === filename.length - 1) {
     return "bin";
   }
+
   return filename.slice(idx + 1).toLowerCase();
 };
 
 export const buildBlobKey = (input: BuildBlobKeyInput): string => {
   const hash = hashBytes(input.bytes);
   const ext = extensionOf(input.filename);
+
   return `sites/${input.siteId}/posts/${input.postId}/${hash}.${ext}`;
 };
 
@@ -56,6 +59,7 @@ const readConfig = (environment: NodeJS.ProcessEnv = process.env): R2Config => {
   const secretAccessKey = environment.R2_SECRET_ACCESS_KEY;
   const bucket = environment.R2_BUCKET;
   const publicBaseUrl = environment.R2_PUBLIC_BASE_URL;
+
   if (
     isMissing(endpoint) ||
     isMissing(accessKeyId) ||
@@ -72,8 +76,10 @@ const readConfig = (environment: NodeJS.ProcessEnv = process.env): R2Config => {
         ["R2_PUBLIC_BASE_URL", publicBaseUrl],
       ] as const
     ).flatMap(([key, value]) => (isMissing(value) ? [key] : []));
+
     throw new Error(`@repo/blob: missing R2 env: ${missing.join(", ")}`);
   }
+
   if (
     endpoint === undefined ||
     accessKeyId === undefined ||
@@ -83,11 +89,13 @@ const readConfig = (environment: NodeJS.ProcessEnv = process.env): R2Config => {
   ) {
     throw new Error("@repo/blob: unreachable: missing env already reported");
   }
+
   if (!URL.canParse(publicBaseUrl)) {
     throw new Error(
       `@repo/blob: R2_PUBLIC_BASE_URL is not a parseable absolute URL: ${publicBaseUrl}`,
     );
   }
+
   return {
     accessKeyId,
     bucket,
@@ -119,14 +127,18 @@ type BlobBackend = {
 };
 
 type BlobClient = { client: BlobBackend; config: R2Config };
+
 type GetBlobClient = () => BlobClient;
 
 let cachedClient: BlobClient | null = null;
+
 const getClient = (): BlobClient => {
   if (cachedClient) {
     return cachedClient;
   }
+
   const config = readConfig();
+
   const client = new S3Client({
     credentials: {
       accessKeyId: config.accessKeyId,
@@ -135,6 +147,7 @@ const getClient = (): BlobClient => {
     endpoint: config.endpoint,
     region: "auto",
   });
+
   const backend: BlobBackend = {
     deleteObject: async (input) => {
       await client.send(new DeleteObjectCommand(input));
@@ -144,7 +157,9 @@ const getClient = (): BlobClient => {
       await client.send(new PutObjectCommand(input));
     },
   };
+
   cachedClient = { client: backend, config };
+
   return cachedClient;
 };
 
@@ -164,6 +179,7 @@ const createBlobStore = (getBlobClient: GetBlobClient) => {
       ContentType: input.mime,
       Key: key,
     });
+
     return { key, url: publicUrlFor(config, key) };
   };
 
@@ -178,26 +194,31 @@ const createBlobStore = (getBlobClient: GetBlobClient) => {
     const { client, config } = getBlobClient();
     const all: Array<{ key: string; size: number; url: string }> = [];
     let continuationToken: string | undefined;
+
     do {
       const res = await client.listObjects({
         Bucket: config.bucket,
         ContinuationToken: continuationToken,
         Prefix: `sites/${siteId}/`,
       });
+
       for (const obj of res.Contents ?? []) {
         if (obj.Key === undefined || obj.Key === "") {
           throw new Error(
             `@repo/blob: ListObjectsV2 returned an entry without Key (bucket=${config.bucket}, siteId=${siteId})`,
           );
         }
+
         all.push({
           key: obj.Key,
           size: obj.Size ?? 0,
           url: publicUrlFor(config, obj.Key),
         });
       }
+
       continuationToken = res.IsTruncated === true ? res.NextContinuationToken : undefined;
     } while (continuationToken !== undefined && continuationToken !== "");
+
     return all;
   };
 
@@ -207,4 +228,5 @@ const createBlobStore = (getBlobClient: GetBlobClient) => {
 const { listForSite, remove, upload } = createBlobStore(getClient);
 
 export { createBlobStore, listForSite, readConfig, remove, upload };
+
 export type { BlobBackend, GetBlobClient, R2Config };

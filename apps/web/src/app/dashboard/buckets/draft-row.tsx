@@ -20,18 +20,25 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const relativeTime = (iso: string, nowMs: number): string => {
   const diff = nowMs - new Date(iso).getTime();
+
   if (diff < 0) {
     return new Date(iso).toLocaleString("en-US", { timeZone: "UTC" });
   }
+
   const days = Math.floor(diff / MS_PER_DAY);
+
   if (days >= 1) {
     return `${days}d ago`;
   }
+
   const hours = Math.floor(diff / (60 * 60 * 1000));
+
   if (hours >= 1) {
     return `${hours}h ago`;
   }
+
   const minutes = Math.floor(diff / (60 * 1000));
+
   return `${Math.max(1, minutes)}m ago`;
 };
 
@@ -46,9 +53,11 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
     if (!armed) {
       return undefined;
     }
+
     const timer = setTimeout(() => {
       setArmed(false);
     }, ARM_WINDOW_MS);
+
     return () => {
       clearTimeout(timer);
     };
@@ -74,8 +83,10 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
   const handleDelete = () => {
     if (!armed) {
       setArmed(true);
+
       return;
     }
+
     setArmed(false);
     runAction("Delete", async () => {
       unwrapAction(await deleteDraftAction(draft.id));

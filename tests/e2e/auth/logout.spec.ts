@@ -12,15 +12,19 @@ const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
 const createIsolatedUser = async (request: APIRequestContext): Promise<string> => {
   const email = recordCleanup("user", `delivered+logout-${crypto.randomUUID()}@resend.dev`);
   const since = Date.now();
+
   const response = await request.post(`${webUrl}/api/auth/sign-up/email`, {
     data: { email, name: "Logout Test User", password: PASSWORD },
   });
+
   expect([200, 201]).toContain(response.status());
+
   if (emailVerificationRequired) {
     const mail = await waitForEmail({ sinceMs: since, subject: /verify/i, to: email });
     const verified = await request.get(extractLink(mail, /\/api\/auth\/verify-email\?token=/));
     expect(verified.ok()).toBe(true);
   }
+
   return email;
 };
 

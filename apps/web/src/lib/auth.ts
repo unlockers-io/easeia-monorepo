@@ -6,6 +6,7 @@ import { nextCookies } from "better-auth/next-js";
 import { getEnv } from "./env";
 
 type Auth = ReturnType<typeof createAuth>;
+
 type AuthOptions = Parameters<typeof createAuth>[0];
 
 const createGetAuth = <AuthResult>(
@@ -13,10 +14,12 @@ const createGetAuth = <AuthResult>(
   readEnv: typeof getEnv = getEnv,
 ) => {
   let cachedAuth: AuthResult | undefined;
+
   return (): AuthResult => {
     if (cachedAuth !== undefined) {
       return cachedAuth;
     }
+
     const env = readEnv();
     cachedAuth = create({
       ...envAuthConfig(),
@@ -27,6 +30,7 @@ const createGetAuth = <AuthResult>(
       secret: env.BETTER_AUTH_SECRET,
       signupMode: env.SIGNUP_MODE,
     });
+
     return cachedAuth;
   };
 };

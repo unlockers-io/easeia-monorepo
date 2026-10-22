@@ -63,11 +63,14 @@ export const createFakeOpenAi = ({ allowanceMicroUsd = 18_000_000 }: FakeOpenAiO
       if (spentMicroUsd + amount > limit) {
         return Promise.resolve(false);
       }
+
       spentMicroUsd += amount;
+
       return Promise.resolve(true);
     },
     settle: (_month, reserved, cost) => {
       spentMicroUsd += cost - reserved;
+
       return Promise.resolve();
     },
   };
@@ -77,16 +80,21 @@ export const createFakeOpenAi = ({ allowanceMicroUsd = 18_000_000 }: FakeOpenAiO
       case "/v1/embeddings": {
         return Response.json(EMBEDDING_PAYLOAD);
       }
+
       case "/v1/images/generations": {
         return Response.json(IMAGE_PAYLOAD);
       }
+
       case "/v1/responses": {
         const text = outputs.shift();
+
         if (text === undefined) {
           throw new Error("The fake OpenAI has no queued structured output");
         }
+
         return Response.json(responsesPayload(text));
       }
+
       default: {
         throw new Error(`The fake OpenAI does not serve ${path}`);
       }
@@ -97,6 +105,7 @@ export const createFakeOpenAi = ({ allowanceMicroUsd = 18_000_000 }: FakeOpenAiO
     const request = new Request(input, init);
     const path = new URL(request.url).pathname;
     requests.push({ body: openAiRequestSchema.parse(await request.json()), path });
+
     return respond(path);
   };
 

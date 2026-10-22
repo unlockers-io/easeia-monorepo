@@ -24,22 +24,28 @@ export const listSuggestions = ({
   type,
 }: SuggestionListQuery) => {
   const hasCursor = cursor !== undefined && cursor !== "";
+
   const where: Prisma.LinkWhereInput = {
     approved: null,
     source: LinkSource.SUGGESTED,
   };
+
   if (fromPostId !== undefined && fromPostId !== "") {
     where.fromPostId = fromPostId;
   }
+
   if (type !== undefined) {
     where.type = type;
   }
+
   if (siteId !== undefined && siteId !== "") {
     where.fromPost = { siteId };
   }
+
   if (targetSiteId !== undefined && targetSiteId !== "") {
     where.toPost = { siteId: targetSiteId };
   }
+
   return prisma.link.findMany({
     cursor: hasCursor ? { id: cursor } : undefined,
     include: { fromPost: postRef, toPost: postRef },
@@ -54,6 +60,7 @@ const approve = async (fromPostId: string, links: ReadonlyArray<Link>): Promise<
   if (links.length === 0) {
     return;
   }
+
   await editPostBody(fromPostId, (post) =>
     Promise.resolve({ body: withSeeAlsoLinks(post.body, links, post.language), result: null }),
   );
@@ -65,15 +72,18 @@ const approve = async (fromPostId: string, links: ReadonlyArray<Link>): Promise<
 
 const requireSuggestion = async (id: string): Promise<Link> => {
   const link = await prisma.link.findFirst({ where: { id, source: LinkSource.SUGGESTED } });
+
   if (link === null) {
     throw new SuggestionNotFoundError(id);
   }
+
   return link;
 };
 
 export const approveSuggestion = async (id: string): Promise<Link> => {
   const link = await requireSuggestion(id);
   await approve(link.fromPostId, [link]);
+
   return { ...link, approved: true };
 };
 
@@ -84,6 +94,7 @@ export const approveSuggestions = async (
   const links = await prisma.link.findMany({
     where: { fromPostId, id: { in: [...ids] }, source: LinkSource.SUGGESTED },
   });
+
   await approve(fromPostId, links);
 };
 
@@ -92,9 +103,11 @@ const reviseUnappliedSuggestion = async (
   data: Prisma.LinkUpdateInput,
 ): Promise<Link> => {
   const link = await requireSuggestion(id);
+
   if (link.approved === true) {
     throw new SuggestionAppliedError(id);
   }
+
   return prisma.link.update({ data, where: { id } });
 };
 

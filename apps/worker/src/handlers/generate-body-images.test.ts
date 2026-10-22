@@ -46,10 +46,12 @@ type Mocks = {
 
 const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boolean } = {}) => {
   let generated = 0;
+
   const deps: Mocks = {
     findPost: vi.fn().mockResolvedValue(post),
     generatePostImage: vi.fn().mockImplementation(() => {
       generated += 1;
+
       return Promise.resolve(image(generated));
     }),
     planBodyImages: vi.fn().mockResolvedValue(plan),
@@ -57,6 +59,7 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
     upsertImage: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
+
   return {
     deps,
     handle: makeHandleGenerateBodyImages({ ...deps, enabled }),
@@ -111,6 +114,7 @@ describe("handleGenerateBodyImages", () => {
     const { deps, handle } = wire({
       findPost: vi.fn().mockResolvedValue({ ...post, body: "Texto.\n\n![x](https://a/b.jpg)" }),
     });
+
     await handle(ctx);
 
     expect(deps.planBodyImages).not.toHaveBeenCalled();
@@ -136,6 +140,7 @@ describe("handleGenerateBodyImages", () => {
     const { deps, handle } = wire({
       generatePostImage: vi.fn().mockRejectedValue(new Error("openai 429")),
     });
+
     await expect(handle(ctx)).rejects.toThrow("openai 429");
     expect(deps.reviseBody).not.toHaveBeenCalled();
   });

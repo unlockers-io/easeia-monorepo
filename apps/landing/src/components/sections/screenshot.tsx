@@ -25,4 +25,5 @@ const Screenshot = () => (
     </figure>
   </section>
 );
+
 export { Screenshot };

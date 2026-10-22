@@ -40,10 +40,12 @@ const PALETTES: ReadonlyArray<string> = [
 
 const hashSlug = (slug: string): number => {
   let hash = 2_166_136_261;
+
   for (let i = 0; i < slug.length; i++) {
     hash ^= slug.codePointAt(i) ?? 0;
     hash = Math.imul(hash, 16_777_619);
   }
+
   return hash;
 };
 
@@ -57,9 +59,11 @@ const AXIS_SALTS = {
 const pick = (options: ReadonlyArray<string>, hash: number, salt: number): string => {
   const index = Math.imul(hash, salt) % options.length;
   const option = options[(index + options.length) % options.length];
+
   if (option === undefined) {
     throw new Error("pick: options must not be empty");
   }
+
   return option;
 };
 
@@ -69,6 +73,7 @@ const pick = (options: ReadonlyArray<string>, hash: number, salt: number): strin
  */
 export const buildLook = (seed: string): string => {
   const hash = hashSlug(seed);
+
   return [
     pick(SHOTS, hash, AXIS_SALTS.shot),
     pick(LENSES, hash, AXIS_SALTS.lens),
@@ -82,6 +87,7 @@ const FRAMING =
 
 const resolveImageStyle = (style: string | null, fallback: string): string => {
   const trimmed = style?.trim() ?? "";
+
   return trimmed === "" ? fallback : trimmed;
 };
 
@@ -93,7 +99,9 @@ export const buildHeroPrompt = (
     style,
     "Editorial blog hero photograph of the post's subject.",
   );
+
   const tagHint = post.tags.length > 0 ? ` Themes: ${post.tags.slice(0, 4).join(", ")}.` : "";
+
   return [
     `${imageStyle} Hero image for a blog post titled: "${post.title}".${tagHint}`,
     `Shot as: ${buildLook(post.slug)}.`,
@@ -115,6 +123,7 @@ export const buildBodyImagePrompt = (input: {
     input.style,
     "Editorial blog photograph illustrating the passage's subject.",
   );
+
   return [
     `${style} Illustration for a passage in a blog post, depicting: "${input.subject}".`,
     `Shot as: ${buildLook(`${input.slug}-${input.index}`)}.`,
@@ -177,6 +186,7 @@ const defaultWriteHero = async (input: WriteHeroInput): Promise<void> => {
       where: { id: input.postId },
     });
     const post = await tx.post.findUniqueOrThrow({ where: { id: input.postId } });
+
     if (post.status === "PUBLISHED") {
       await requestRedeploy(post.siteId, tx);
     }
@@ -189,6 +199,7 @@ export const generateHero = async (
 ): Promise<GenerateHeroResult> => {
   const { writeHero = defaultWriteHero, ...imageDeps } = deps;
   const filename = `${input.post.slug}.jpg`;
+
   const image = await generatePostImage(
     {
       filename,
@@ -197,6 +208,7 @@ export const generateHero = async (
     },
     imageDeps,
   );
+
   await writeHero({
     blobKey: image.key,
     blobUrl: image.url,
@@ -207,10 +219,12 @@ export const generateHero = async (
     postId: input.post.id,
     width: image.width,
   });
+
   return { key: image.key, url: image.url };
 };
 
 export { generatePostImage } from "./generate-image";
+
 export type {
   GeneratePostImageDeps,
   GeneratePostImageInput,

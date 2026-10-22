@@ -15,6 +15,7 @@ export const NicheToggleGroup = ({
   value: ReadonlyArray<Niche>;
 }) => {
   const selected = new Set(value);
+
   return (
     <fieldset aria-label="Niches" className="flex flex-wrap gap-2">
       {options.map((niche) => (

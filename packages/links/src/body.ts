@@ -21,13 +21,17 @@ export const editPostBody = async <T>(postId: string, edit: BodyEdit<T>): Promis
     },
     where: { id: postId },
   });
+
   if (post === null) {
     return null;
   }
+
   const { site, ...rest } = post;
   const { body, result } = await edit({ ...rest, domain: site.domain, language: site.language });
+
   if (body !== post.body) {
     await reviseBody(postId, { body, from: post.body });
   }
+
   return result;
 };

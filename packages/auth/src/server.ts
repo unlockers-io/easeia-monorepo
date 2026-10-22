@@ -51,6 +51,7 @@ export const createAuth = (config: AuthConfig) => {
       : null;
 
   const guardSignup = createSignupGuard(signupMode, () => prisma.user.count());
+
   // Keep the count and insert under one database lock across web replicas.
   const guardedPrisma =
     signupMode === "first-user"
@@ -61,6 +62,7 @@ export const createAuth = (config: AuthConfig) => {
                 prisma.$transaction(async (tx) => {
                   await tx.$executeRaw`SELECT pg_advisory_xact_lock(1701199301)`;
                   await createSignupGuard(signupMode, () => tx.user.count())();
+
                   return tx.user.create(args);
                 }),
             },
@@ -111,6 +113,7 @@ export const createAuth = (config: AuthConfig) => {
       onExistingUserSignUp: mailer
         ? async ({ user }, request) => {
             const origin = request?.headers.get("origin") ?? "";
+
             // Swallowed on purpose: surfacing this failure to the client would
             // reveal whether the address already has an account. Now that
             // sendEmail rejects, the catch is what keeps that property.
@@ -136,6 +139,7 @@ export const createAuth = (config: AuthConfig) => {
         if (!mailer) {
           return;
         }
+
         await sendTransactionalEmail(
           {
             resetUrl: url,
@@ -157,6 +161,7 @@ export const createAuth = (config: AuthConfig) => {
         if (!mailer) {
           return;
         }
+
         await sendTransactionalEmail(
           {
             type: "welcome",
@@ -205,6 +210,7 @@ export const createAuth = (config: AuthConfig) => {
           if (!mailer) {
             return;
           }
+
           await sendTransactionalEmail(
             {
               changeUrl: url,
@@ -223,4 +229,5 @@ export const createAuth = (config: AuthConfig) => {
 };
 
 export type Auth = ReturnType<typeof createAuth>;
+
 export type { AuthConfig };

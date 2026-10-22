@@ -18,14 +18,18 @@ export const extractLinks = (body: string): Array<ExtractedLink> => {
   const anchors = document.querySelectorAll("a[href]");
   const out: Array<ExtractedLink> = [];
   let position = 0;
+
   for (const a of anchors) {
     const href = a.getAttribute("href")?.trim();
+
     if (href === undefined || href === "") {
       continue;
     }
+
     if (SKIP_PREFIXES.some((p) => href.startsWith(p))) {
       continue;
     }
+
     out.push({
       anchorText: a.textContent.trim(),
       href,
@@ -33,5 +37,6 @@ export const extractLinks = (body: string): Array<ExtractedLink> => {
       rel: a.getAttribute("rel"),
     });
   }
+
   return out;
 };
