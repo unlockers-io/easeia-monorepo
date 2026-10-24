@@ -1,6 +1,7 @@
 ---
 title: 'Standy changed check reads unstaged deleted files'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#29'
 ---
 
 ## Expected Behavior
