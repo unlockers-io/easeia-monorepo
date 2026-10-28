@@ -4,20 +4,27 @@ import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
 import { recoverSchema } from "@/lib/form-schemas";
 
 const RecoverForm = () => {
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: { email: "" },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
     onSubmit: async ({ value }) => {
       const result = await authClient
         .requestPasswordReset({
@@ -27,20 +34,24 @@ const RecoverForm = () => {
         .catch(authFailureMessage);
 
       if (typeof result === "string") {
-        toast.error(result);
+        setError(result);
 
         return;
       }
 
       if (result.error) {
-        toast.error(result.error.message ?? "Failed to send password reset email");
+        setError(result.error.message ?? "Failed to send password reset email");
 
         return;
       }
 
       setSubmittedEmail(value.email);
     },
-    validators: { onSubmit: recoverSchema },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: recoverSchema },
   });
 
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
@@ -66,6 +77,7 @@ const RecoverForm = () => {
 
   return (
     <ClientReadyForm
+      id={form.formId}
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -74,9 +86,10 @@ const RecoverForm = () => {
       }}
     >
       <FieldGroup>
+        <FormAlert message={error} />
         <form.Field name="email">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
 
             return (
               <Field data-invalid={isInvalid || undefined}>

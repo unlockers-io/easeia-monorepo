@@ -4,13 +4,14 @@ import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { useForm, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Suspense, use, useState } from "react";
-import { toast } from "sonner";
 
 import { authClient, authFailureMessage } from "@/lib/auth-client";
 import { loginSchema } from "@/lib/form-schemas";
@@ -47,9 +48,15 @@ const LoginForm = ({
 }: Props & { mailConfigured: boolean; signupOpen: boolean }) => {
   const { push, refresh } = useRouter();
   const [showUnverifiedNotice, setShowUnverifiedNotice] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
     onSubmit: async ({ value }) => {
       setShowUnverifiedNotice(false);
 
@@ -58,7 +65,7 @@ const LoginForm = ({
         .catch(authFailureMessage);
 
       if (typeof result === "string") {
-        toast.error(result);
+        setError(result);
 
         return;
       }
@@ -70,7 +77,7 @@ const LoginForm = ({
           return;
         }
 
-        toast.error(result.error.message ?? "Invalid credentials");
+        setError(result.error.message ?? "Invalid credentials");
 
         return;
       }
@@ -79,13 +86,18 @@ const LoginForm = ({
       push(safeRedirectPath(from));
       refresh();
     },
-    validators: { onSubmit: loginSchema },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: loginSchema },
   });
 
   const isLoading = useSelector(form.store, (s) => s.isSubmitting);
 
   return (
     <ClientReadyForm
+      id={form.formId}
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -94,9 +106,10 @@ const LoginForm = ({
       }}
     >
       <FieldGroup>
+        <FormAlert message={error} />
         <form.Field name="email">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
 
             return (
               <Field data-invalid={isInvalid || undefined}>
@@ -124,7 +137,7 @@ const LoginForm = ({
 
         <form.Field name="password">
           {(field) => {
-            const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+            const isInvalid = !field.state.meta.isValid;
 
             return (
               <Field data-invalid={isInvalid || undefined}>

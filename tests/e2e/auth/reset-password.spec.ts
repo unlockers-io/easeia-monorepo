@@ -34,7 +34,7 @@ test.describe("Reset Password", () => {
     await resetPasswordPage.goto("any-token-value");
     await resetPasswordPage.submit("short", "short");
 
-    await expect(page.getByText(/at least 12 characters/i).first()).toBeVisible();
+    await expect(page.getByText("Password must be at least 12 characters").first()).toBeVisible();
     expect(page.url()).toContain("/reset-password");
   });
 
@@ -44,7 +44,7 @@ test.describe("Reset Password", () => {
     await resetPasswordPage.goto("definitely-not-a-real-token");
     await resetPasswordPage.submit("ValidPassword123!", "ValidPassword123!");
 
-    await expect(page.locator('[data-sonner-toast][data-type="error"]')).toBeVisible();
+    await expect(page.locator('[data-slot="form-alert"]')).toBeVisible();
     expect(page.url()).toContain("/reset-password");
   });
 });

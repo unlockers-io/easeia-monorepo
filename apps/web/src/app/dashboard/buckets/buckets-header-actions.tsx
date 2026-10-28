@@ -11,11 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@repo/ui/components/dialog";
-import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { Loader2, Settings2, Sparkles } from "lucide-react";
-import { useId, useReducer, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
+
+import { CountField } from "@/components/count-field";
+import { networkDefaultsSchema } from "@/lib/form-schemas";
 
 import { applyNetworkDefaultsAction, refillAllNeedyBucketsAction } from "./actions";
 
@@ -25,70 +30,9 @@ type RefillState =
   | { kind: "done"; sitesTouched: number; total: number }
   | { kind: "error"; message: string };
 
-type DefaultsState =
-  | { kind: "idle" }
-  | { kind: "error"; messages: Array<string> }
-  | { bucketSites: number; cadenceSites: number; kind: "done" };
+type AppliedCounts = { bucketSites: number; cadenceSites: number };
 
 const toNumberOrNull = (value: string): number | null => (value === "" ? null : Number(value));
-
-type DialogFormState = {
-  bucketRefillAt: string;
-  bucketTarget: string;
-  cadenceDays: string;
-  open: boolean;
-  overwrite: boolean;
-  result: DefaultsState;
-};
-
-type DialogFormAction =
-  | { type: "open.set"; value: boolean }
-  | { type: "cadenceDays.set"; value: string }
-  | { type: "bucketTarget.set"; value: string }
-  | { type: "bucketRefillAt.set"; value: string }
-  | { type: "overwrite.set"; value: boolean }
-  | { result: DefaultsState; type: "result.set" };
-
-const DIALOG_INITIAL_STATE: DialogFormState = {
-  bucketRefillAt: "3",
-  bucketTarget: "10",
-  cadenceDays: "7",
-  open: false,
-  overwrite: false,
-  result: { kind: "idle" },
-};
-
-const dialogFormReducer = (state: DialogFormState, action: DialogFormAction): DialogFormState => {
-  switch (action.type) {
-    case "open.set": {
-      return { ...state, open: action.value };
-    }
-
-    case "cadenceDays.set": {
-      return { ...state, cadenceDays: action.value };
-    }
-
-    case "bucketTarget.set": {
-      return { ...state, bucketTarget: action.value };
-    }
-
-    case "bucketRefillAt.set": {
-      return { ...state, bucketRefillAt: action.value };
-    }
-
-    case "overwrite.set": {
-      return { ...state, overwrite: action.value };
-    }
-
-    case "result.set": {
-      return { ...state, result: action.result };
-    }
-
-    default: {
-      return state;
-    }
-  }
-};
 
 const NetworkDefaultsDialog = () => {
   const cadenceId = useId();
@@ -96,55 +40,54 @@ const NetworkDefaultsDialog = () => {
   const refillId = useId();
   const overwriteId = useId();
 
-  const [form, dispatch] = useReducer(dialogFormReducer, DIALOG_INITIAL_STATE);
-  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [applied, setApplied] = useState<AppliedCounts | null>(null);
   const ready = useClientReady();
 
-  const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    dispatch({ result: { kind: "idle" }, type: "result.set" });
-    startTransition(async () => {
+  const form = useForm({
+    defaultValues: { bucketRefillAt: "3", bucketTarget: "10", cadenceDays: "7", overwrite: false },
+    listeners: {
+      onChange: () => {
+        setError(null);
+        setApplied(null);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setError(null);
+      setApplied(null);
+
       try {
         const result = await applyNetworkDefaultsAction({
-          bucketRefillAt: toNumberOrNull(form.bucketRefillAt),
-          bucketTarget: toNumberOrNull(form.bucketTarget),
-          cadenceDays: toNumberOrNull(form.cadenceDays),
-          scope: form.overwrite ? "overwrite" : "unconfigured",
+          bucketRefillAt: toNumberOrNull(value.bucketRefillAt),
+          bucketTarget: toNumberOrNull(value.bucketTarget),
+          cadenceDays: toNumberOrNull(value.cadenceDays),
+          scope: value.overwrite ? "overwrite" : "unconfigured",
         });
 
         if (result.errors.length > 0) {
-          dispatch({ result: { kind: "error", messages: result.errors }, type: "result.set" });
+          setError(result.errors.join(" "));
 
           return;
         }
 
-        dispatch({
-          result: {
-            bucketSites: result.bucketSitesUpdated,
-            cadenceSites: result.cadenceSitesUpdated,
-            kind: "done",
-          },
-          type: "result.set",
+        setApplied({
+          bucketSites: result.bucketSitesUpdated,
+          cadenceSites: result.cadenceSitesUpdated,
         });
-      } catch (error) {
-        dispatch({
-          result: {
-            kind: "error",
-            messages: [error instanceof Error ? error.message : "Failed to apply defaults"],
-          },
-          type: "result.set",
-        });
+      } catch {
+        setError("Failed to apply defaults");
       }
-    });
-  };
+    },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: networkDefaultsSchema },
+  });
 
   return (
-    <Dialog
-      onOpenChange={(value) => {
-        dispatch({ type: "open.set", value });
-      }}
-      open={form.open}
-    >
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger
         disabled={!ready}
         render={
@@ -163,33 +106,34 @@ const NetworkDefaultsDialog = () => {
           </DialogDescription>
         </DialogHeader>
 
-        <ClientReadyForm className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <ClientReadyForm
+          className="flex flex-col gap-4"
+          id={form.formId}
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <FormAlert message={error} />
           <fieldset className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
             <legend className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
               Cadence
             </legend>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium" htmlFor={cadenceId}>
-                Publish every (days)
-              </label>
-              <Input
-                autoComplete="off"
-                id={cadenceId}
-                inputMode="numeric"
-                max={365}
-                min={1}
-                name="cadenceDays"
-                onChange={(e) => {
-                  dispatch({ type: "cadenceDays.set", value: e.target.value });
-                }}
-                placeholder="7"
-                type="number"
-                value={form.cadenceDays}
-              />
-              <p className="text-xs text-muted-foreground">
-                Setting cadence enables auto-publish on each matched site.
-              </p>
-            </div>
+            <form.Field name="cadenceDays">
+              {(field) => (
+                <CountField
+                  descriptionId={`${cadenceId}-help`}
+                  field={field}
+                  id={cadenceId}
+                  label="Publish every (days)"
+                  placeholder="7"
+                />
+              )}
+            </form.Field>
+            <p className="text-xs text-muted-foreground" id={`${cadenceId}-help`}>
+              1 to 365 days. Setting cadence enables auto-publish on each matched site.
+            </p>
           </fieldset>
 
           <fieldset className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
@@ -197,87 +141,69 @@ const NetworkDefaultsDialog = () => {
               Bucket
             </legend>
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium" htmlFor={targetId}>
-                  Target
-                </label>
-                <Input
-                  autoComplete="off"
-                  id={targetId}
-                  inputMode="numeric"
-                  max={100}
-                  min={1}
-                  name="bucketTarget"
-                  onChange={(e) => {
-                    dispatch({ type: "bucketTarget.set", value: e.target.value });
-                  }}
-                  placeholder="10"
-                  type="number"
-                  value={form.bucketTarget}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium" htmlFor={refillId}>
-                  Refill when below
-                </label>
-                <Input
-                  autoComplete="off"
-                  id={refillId}
-                  inputMode="numeric"
-                  max={100}
-                  min={1}
-                  name="bucketRefillAt"
-                  onChange={(e) => {
-                    dispatch({ type: "bucketRefillAt.set", value: e.target.value });
-                  }}
-                  placeholder="3"
-                  type="number"
-                  value={form.bucketRefillAt}
-                />
-              </div>
+              <form.Field name="bucketTarget">
+                {(field) => (
+                  <CountField
+                    descriptionId={`${targetId}-help`}
+                    field={field}
+                    id={targetId}
+                    label="Target"
+                    placeholder="10"
+                  />
+                )}
+              </form.Field>
+              <form.Field name="bucketRefillAt">
+                {(field) => (
+                  <CountField
+                    descriptionId={`${targetId}-help`}
+                    field={field}
+                    id={refillId}
+                    label="Refill when below"
+                    placeholder="3"
+                  />
+                )}
+              </form.Field>
             </div>
+            <p className="text-xs text-muted-foreground" id={`${targetId}-help`}>
+              Both take 1 to 100, with refill at most the target.
+            </p>
           </fieldset>
 
-          <label
-            className="flex cursor-pointer items-start gap-2 rounded-md border border-border/60 p-3 hover:bg-muted/40"
-            htmlFor={overwriteId}
-          >
-            <Checkbox
-              checked={form.overwrite}
-              id={overwriteId}
-              onCheckedChange={(value) => {
-                dispatch({ type: "overwrite.set", value });
-              }}
-            />
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">Overwrite existing config</span>
-              <span className="text-xs text-muted-foreground">
-                {form.overwrite
-                  ? "Replaces filled-in fields on every enabled site, including sites already configured."
-                  : "Only applies to sites that don't have that field configured yet."}
-              </span>
-            </div>
-          </label>
+          <form.Field name="overwrite">
+            {(field) => (
+              <label
+                className="flex cursor-pointer items-start gap-2 rounded-md border border-border/60 p-3 hover:bg-muted/40"
+                htmlFor={overwriteId}
+              >
+                <Checkbox
+                  checked={field.state.value}
+                  id={overwriteId}
+                  onCheckedChange={field.handleChange}
+                />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">Overwrite existing config</span>
+                  <span className="text-xs text-muted-foreground">
+                    {field.state.value
+                      ? "Replaces filled-in fields on every enabled site, including sites already configured."
+                      : "Only applies to sites that don't have that field configured yet."}
+                  </span>
+                </div>
+              </label>
+            )}
+          </form.Field>
 
-          {form.result.kind === "error" ? (
-            <ul aria-live="polite" className="flex flex-col gap-0.5 text-xs text-destructive">
-              {form.result.messages.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          ) : null}
-          {form.result.kind === "done" ? (
+          {applied === null ? null : (
             <p aria-live="polite" className="text-xs text-muted-foreground">
-              Cadence set on {form.result.cadenceSites} site
-              {form.result.cadenceSites === 1 ? "" : "s"} · Bucket set on {form.result.bucketSites}{" "}
-              site{form.result.bucketSites === 1 ? "" : "s"}.
+              Cadence set on {applied.cadenceSites} site
+              {applied.cadenceSites === 1 ? "" : "s"} · Bucket set on {applied.bucketSites} site
+              {applied.bucketSites === 1 ? "" : "s"}.
             </p>
-          ) : null}
+          )}
 
           <DialogFooter>
             <Button
               onClick={() => {
-                dispatch({ type: "open.set", value: false });
+                setOpen(false);
               }}
               size="sm"
               type="button"
@@ -285,12 +211,16 @@ const NetworkDefaultsDialog = () => {
             >
               Close
             </Button>
-            <Button disabled={pending} size="sm" type="submit">
-              {pending ? (
-                <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-              ) : null}
-              Apply
-            </Button>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(pending) => (
+                <Button disabled={pending} size="sm" type="submit">
+                  {pending ? (
+                    <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+                  ) : null}
+                  Apply
+                </Button>
+              )}
+            </form.Subscribe>
           </DialogFooter>
         </ClientReadyForm>
       </DialogContent>

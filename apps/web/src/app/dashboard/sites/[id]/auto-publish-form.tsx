@@ -2,7 +2,6 @@
 
 import type { SiteLanguage } from "@repo/db/browser";
 import { Button } from "@repo/ui/components/button";
-import { Input } from "@repo/ui/components/input";
 import {
   Select,
   SelectContent,
@@ -13,8 +12,14 @@ import {
 import { Switch } from "@repo/ui/components/switch";
 import { Textarea } from "@repo/ui/components/textarea";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
-import { useReducer, useTransition } from "react";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
+import { useState } from "react";
+
+import { CountField } from "@/components/count-field";
+import { autoPublishSchema } from "@/lib/form-schemas";
 
 import { updateAutoPublishAction } from "./actions";
 
@@ -77,116 +82,68 @@ const toStringField = (value: number | null): string => (value === null ? "" : S
 
 const toNumberOrNull = (value: string): number | null => (value === "" ? null : Number(value));
 
-type AutoPublishState = {
-  bucketRefillAt: string;
-  bucketTarget: string;
-  cadenceDays: string;
-  enabled: boolean;
-  errors: Array<string>;
-  language: SiteLanguage;
-  savedAt: Date | null;
-  topicHints: string;
-};
-
-type AutoPublishAction =
-  | { type: "enabled.toggle"; value: boolean }
-  | { type: "language.set"; value: SiteLanguage }
-  | { type: "cadenceDays.set"; value: string }
-  | { type: "topicHints.set"; value: string }
-  | { type: "bucketTarget.set"; value: string }
-  | { type: "bucketRefillAt.set"; value: string }
-  | { errors: Array<string>; type: "save.done" };
-
-const autoPublishReducer = (
-  state: AutoPublishState,
-  action: AutoPublishAction,
-): AutoPublishState => {
-  switch (action.type) {
-    case "enabled.toggle": {
-      return { ...state, enabled: action.value };
-    }
-
-    case "language.set": {
-      return { ...state, language: action.value };
-    }
-
-    case "cadenceDays.set": {
-      return { ...state, cadenceDays: action.value };
-    }
-
-    case "topicHints.set": {
-      return { ...state, topicHints: action.value };
-    }
-
-    case "bucketTarget.set": {
-      return { ...state, bucketTarget: action.value };
-    }
-
-    case "bucketRefillAt.set": {
-      return { ...state, bucketRefillAt: action.value };
-    }
-
-    case "save.done": {
-      return {
-        ...state,
-        errors: action.errors,
-        savedAt: action.errors.length === 0 ? new Date() : state.savedAt,
-      };
-    }
-
-    default: {
-      return state;
-    }
-  }
-};
-
-const buildInitialState = (props: AutoPublishFormProps): AutoPublishState => ({
-  bucketRefillAt: toStringField(props.defaultBucketRefillAt),
-  bucketTarget: toStringField(props.defaultBucketTarget),
-  cadenceDays: toStringField(props.defaultCadenceDays),
-  enabled: props.defaultEnabled,
-  errors: [],
-  language: props.defaultLanguage,
-  savedAt: null,
-  topicHints: props.defaultTopicHints ?? "",
-});
-
 export const AutoPublishForm = (props: AutoPublishFormProps) => {
   const { lastAutoPublishedAt, siteId } = props;
-
-  const [state, dispatch] = useReducer(autoPublishReducer, props, buildInitialState);
-  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const ready = useClientReady();
 
-  const {
-    bucketRefillAt,
-    bucketTarget,
-    cadenceDays,
-    enabled,
-    errors,
-    language,
-    savedAt,
-    topicHints,
-  } = state;
+  const form = useForm({
+    defaultValues: {
+      bucketRefillAt: toStringField(props.defaultBucketRefillAt),
+      bucketTarget: toStringField(props.defaultBucketTarget),
+      cadenceDays: toStringField(props.defaultCadenceDays),
+      enabled: props.defaultEnabled,
+      language: props.defaultLanguage,
+      topicHints: props.defaultTopicHints ?? "",
+    },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setError(null);
 
-  const handleSave = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    startTransition(async () => {
       const result = await updateAutoPublishAction(siteId, {
-        autoPublishEnabled: enabled,
-        bucketRefillAt: toNumberOrNull(bucketRefillAt),
-        bucketTarget: toNumberOrNull(bucketTarget),
-        cadenceDays: toNumberOrNull(cadenceDays),
-        language,
-        topicHints,
+        autoPublishEnabled: value.enabled,
+        bucketRefillAt: toNumberOrNull(value.bucketRefillAt),
+        bucketTarget: toNumberOrNull(value.bucketTarget),
+        cadenceDays: toNumberOrNull(value.cadenceDays),
+        language: value.language,
+        topicHints: value.topicHints,
       });
 
-      dispatch({ errors: result.errors, type: "save.done" });
-    });
-  };
+      if (result.errors.length > 0) {
+        setError(result.errors.join(" "));
+
+        return;
+      }
+
+      setSavedAt(new Date());
+    },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: autoPublishSchema },
+  });
+
+  const cadenceDays = useSelector(form.store, (state) => state.values.cadenceDays);
+  const enabled = useSelector(form.store, (state) => state.values.enabled);
+  const bucketHelpId = `bucket-help-${siteId}`;
 
   return (
-    <ClientReadyForm className="flex flex-col gap-4" noValidate onSubmit={handleSave}>
+    <ClientReadyForm
+      className="flex flex-col gap-4"
+      id={form.formId}
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void form.handleSubmit();
+      }}
+    >
+      <FormAlert message={error} />
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col">
           <label className="text-sm font-medium" htmlFor={`auto-publish-${siteId}`}>
@@ -197,39 +154,45 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
             from the bucket every {cadenceDays || "N"} day{cadenceDays === "1" ? "" : "s"}.
           </p>
         </div>
-        <Switch
-          checked={enabled}
-          disabled={!ready}
-          id={`auto-publish-${siteId}`}
-          onCheckedChange={(value) => {
-            dispatch({ type: "enabled.toggle", value });
-          }}
-        />
+        <form.Field name="enabled">
+          {(field) => (
+            <Switch
+              checked={field.state.value}
+              disabled={!ready}
+              id={`auto-publish-${siteId}`}
+              onCheckedChange={field.handleChange}
+            />
+          )}
+        </form.Field>
       </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium" htmlFor={`language-${siteId}`}>
           Content language
         </label>
-        <Select
-          onValueChange={(value) => {
-            if (isSiteLanguage(value)) {
-              dispatch({ type: "language.set", value });
-            }
-          }}
-          value={language}
-        >
-          <SelectTrigger id={`language-${siteId}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {LANGUAGE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <form.Field name="language">
+          {(field) => (
+            <Select
+              onValueChange={(value) => {
+                if (isSiteLanguage(value)) {
+                  field.handleChange(value);
+                }
+              }}
+              value={field.state.value}
+            >
+              <SelectTrigger id={`language-${siteId}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </form.Field>
         <p className="text-xs text-muted-foreground">
           Generation prompt forces this language and the worker rejects drafts that come out in any
           other language.
@@ -238,87 +201,71 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-label-form">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor={`cadence-${siteId}`}>
-            Cadence (days)
-          </label>
-          <Input
-            id={`cadence-${siteId}`}
-            inputMode="numeric"
-            max={365}
-            min={1}
-            onChange={(e) => {
-              dispatch({ type: "cadenceDays.set", value: e.target.value });
-            }}
-            placeholder="7"
-            type="number"
-            value={cadenceDays}
-          />
+          <form.Field name="cadenceDays">
+            {(field) => (
+              <CountField
+                descriptionId={`cadence-help-${siteId}`}
+                field={field}
+                id={`cadence-${siteId}`}
+                label="Cadence (days)"
+                placeholder="7"
+              />
+            )}
+          </form.Field>
+          <p className="text-xs text-muted-foreground" id={`cadence-help-${siteId}`}>
+            1 to 365 days.
+          </p>
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium" htmlFor={`hints-${siteId}`}>
             Topic hints
           </label>
-          <Textarea
-            id={`hints-${siteId}`}
-            onChange={(e) => {
-              dispatch({ type: "topicHints.set", value: e.target.value });
-            }}
-            placeholder="Optional. e.g. 'Focus on destination weddings in coastal Portugal'."
-            rows={2}
-            value={topicHints}
-          />
+          <form.Field name="topicHints">
+            {(field) => (
+              <Textarea
+                id={`hints-${siteId}`}
+                onBlur={field.handleBlur}
+                onChange={(e) => {
+                  field.handleChange(e.target.value);
+                }}
+                placeholder="Optional. e.g. 'Focus on destination weddings in coastal Portugal'."
+                rows={2}
+                value={field.state.value}
+              />
+            )}
+          </form.Field>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-schedule-form">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor={`bucket-target-${siteId}`}>
-            Bucket target
-          </label>
-          <Input
-            id={`bucket-target-${siteId}`}
-            inputMode="numeric"
-            max={100}
-            min={1}
-            onChange={(e) => {
-              dispatch({ type: "bucketTarget.set", value: e.target.value });
-            }}
-            placeholder="10"
-            type="number"
-            value={bucketTarget}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor={`bucket-refill-${siteId}`}>
-            Refill when below
-          </label>
-          <Input
-            id={`bucket-refill-${siteId}`}
-            inputMode="numeric"
-            max={100}
-            min={1}
-            onChange={(e) => {
-              dispatch({ type: "bucketRefillAt.set", value: e.target.value });
-            }}
-            placeholder="3"
-            type="number"
-            value={bucketRefillAt}
-          />
-        </div>
-        <p className="self-end text-xs text-muted-foreground">
+        <form.Field name="bucketTarget">
+          {(field) => (
+            <CountField
+              descriptionId={bucketHelpId}
+              field={field}
+              id={`bucket-target-${siteId}`}
+              label="Bucket target"
+              placeholder="10"
+            />
+          )}
+        </form.Field>
+        <form.Field name="bucketRefillAt">
+          {(field) => (
+            <CountField
+              descriptionId={bucketHelpId}
+              field={field}
+              id={`bucket-refill-${siteId}`}
+              label="Refill when below"
+              placeholder="3"
+            />
+          )}
+        </form.Field>
+        <p className="self-end text-xs text-muted-foreground" id={bucketHelpId}>
           Pre-generated drafts queue up to <strong>target</strong>. When live drafts + in-flight
-          generations drop below <strong>refill</strong>, the worker tops back up to target. Leave
-          both blank for manual-only refill.
+          generations drop below <strong>refill</strong>, the worker tops back up to target. Both
+          take 1 to 100, with refill at most the target. Leave both blank for manual-only refill.
         </p>
       </div>
-
-      {errors.length > 0 ? (
-        <ul aria-live="polite" className="flex flex-col gap-0.5 text-xs text-destructive">
-          {errors.map((message) => (
-            <li key={message}>{message}</li>
-          ))}
-        </ul>
-      ) : null}
 
       <div className="flex items-center justify-between gap-3">
         <p aria-live="polite" className="text-xs text-muted-foreground">
@@ -329,9 +276,13 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
           })}
           {savedAt ? ` · saved ${formatTime(savedAt)}` : ""}
         </p>
-        <Button disabled={pending} size="sm" type="submit">
-          {pending ? "Saving…" : "Save"}
-        </Button>
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(pending) => (
+            <Button disabled={pending} size="sm" type="submit">
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          )}
+        </form.Subscribe>
       </div>
     </ClientReadyForm>
   );

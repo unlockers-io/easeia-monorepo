@@ -35,6 +35,31 @@ test.describe("Site settings forms", () => {
     });
   });
 
+  test("auto-publish puts cross-field errors on their field after submit", async ({ page }) => {
+    const domain = recordCleanup("site", `e2e-auto-publish-${crypto.randomUUID()}.example`);
+    const site = await prisma.site.create({ data: { domain } });
+    await page.goto(`/dashboard/sites/${site.id}`);
+    const refill = page.getByLabel("Refill when below", { exact: true });
+    const refillError = page.getByText("Refill threshold (12) must be ≤ bucket target (10).");
+    const form = page.locator("form").filter({ has: refill });
+    await expect(refill).toBeEnabled();
+    await page.getByLabel("Cadence (days)", { exact: true }).fill("7");
+    await page.getByLabel("Bucket target", { exact: true }).fill("10");
+    await refill.fill("12");
+    await expect(refillError).toBeHidden();
+
+    await form.getByRole("button", { exact: true, name: "Save" }).click();
+    await expect(refillError).toBeVisible();
+    await expect(refill).toBeFocused();
+
+    await refill.fill("3");
+    await expect(refillError).toBeHidden();
+    await form.getByRole("button", { exact: true, name: "Save" }).click();
+    await expect(form.getByText(/saved/)).toBeVisible();
+    const updated = await prisma.site.findUniqueOrThrow({ where: { id: site.id } });
+    expect(updated).toMatchObject({ bucketRefillAt: 3, bucketTarget: 10, cadenceDays: 7 });
+  });
+
   test("keep their controls disabled until they hydrate", async ({ page }) => {
     const domain = recordCleanup("site", `e2e-${crypto.randomUUID()}.example`);
     const site = await prisma.site.create({ data: { domain } });

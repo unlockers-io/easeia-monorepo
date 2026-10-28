@@ -8,11 +8,13 @@ import {
   CardDescription,
   CardContent,
 } from "@repo/ui/components/card";
-import { Field, FieldGroup, FieldLabel } from "@repo/ui/components/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
-import { createFormHook, createFormHookContexts, useSelector } from "@tanstack/react-form";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { createFormHook, createFormHookContexts, revalidateLogic } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -21,23 +23,28 @@ import { changePasswordSchema } from "@/lib/form-schemas";
 
 type PasswordFieldProps = {
   autoComplete: "current-password" | "new-password";
+  description?: string;
   label: string;
 };
 
 const { fieldContext, formContext, useFieldContext } = createFormHookContexts();
 
-const PasswordField = ({ autoComplete, label }: PasswordFieldProps) => {
+const PasswordField = ({ autoComplete, description, label }: PasswordFieldProps) => {
   const field = useFieldContext<string>();
-  const isSubmitted = useSelector(field.form.store, (state) => state.submissionAttempts > 0);
-  const isInvalid = !field.state.meta.isValid && (field.state.meta.isBlurred || isSubmitted);
+  const isInvalid = !field.state.meta.isValid;
   const inputId = `account-${field.name}`;
   const errorId = `${inputId}-error`;
+  const descriptionId = `${inputId}-description`;
+
+  const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
+    .filter((describer) => describer !== null)
+    .join(" ");
 
   return (
     <Field data-invalid={isInvalid || undefined}>
       <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
       <Input
-        aria-describedby={isInvalid ? errorId : undefined}
+        aria-describedby={describedBy === "" ? undefined : describedBy}
         aria-invalid={isInvalid}
         autoComplete={autoComplete}
         id={inputId}
@@ -48,6 +55,9 @@ const PasswordField = ({ autoComplete, label }: PasswordFieldProps) => {
         type="password"
         value={field.state.value}
       />
+      {description !== undefined && (
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
+      )}
       {isInvalid && <FormFieldError errors={field.state.meta.errors} id={errorId} />}
     </Field>
   );
@@ -61,12 +71,20 @@ const { useAppForm } = createFormHook({
 });
 
 export const PasswordForm = () => {
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
 
   const form = useAppForm({
     defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
+    listeners: {
+      onChange: () => {
+        setError(null);
+        setMessage(null);
+      },
+    },
     onSubmit: async ({ value }) => {
+      setError(null);
       setMessage(null);
 
       const result = await authClient
@@ -78,13 +96,13 @@ export const PasswordForm = () => {
         .catch(authFailureMessage);
 
       if (typeof result === "string") {
-        setMessage(result);
+        setError(result);
 
         return;
       }
 
       if (result.error) {
-        setMessage(result.error.message ?? "Could not change password.");
+        setError(result.error.message ?? "Could not change password.");
 
         return;
       }
@@ -93,13 +111,12 @@ export const PasswordForm = () => {
       setMessage("Password changed. Your other sessions have been signed out.");
       router.refresh();
     },
-    validators: { onChangeAsync: changePasswordSchema },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: changePasswordSchema },
   });
-
-  const submit = async () => {
-    await form.validate("submit");
-    await form.handleSubmit();
-  };
 
   return (
     <Card>
@@ -107,26 +124,32 @@ export const PasswordForm = () => {
         <CardTitle>
           <h2>Security</h2>
         </CardTitle>
-        <CardDescription>
-          Use at least 12 characters. Changing your password signs out your other sessions.
-        </CardDescription>
+        <CardDescription>Changing your password signs out your other sessions.</CardDescription>
       </CardHeader>
       <CardContent>
         <ClientReadyForm
+          id={form.formId}
           onSubmit={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            void submit();
+            void form.handleSubmit();
           }}
         >
           <FieldGroup>
+            <FormAlert message={error} />
             <form.AppField name="currentPassword">
               {(field) => (
                 <field.PasswordField autoComplete="current-password" label="Current password" />
               )}
             </form.AppField>
             <form.AppField name="newPassword">
-              {(field) => <field.PasswordField autoComplete="new-password" label="New password" />}
+              {(field) => (
+                <field.PasswordField
+                  autoComplete="new-password"
+                  description="At least 12 characters."
+                  label="New password"
+                />
+              )}
             </form.AppField>
             <form.AppField name="confirmPassword">
               {(field) => (
