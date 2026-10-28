@@ -1,6 +1,7 @@
 ---
 title: 'Type-aware oxlint rejects jest-dom matchers in apps/web tests'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#36'
 ---
 
 ## Expected Behavior
