@@ -1,10 +1,9 @@
 import { prisma } from "@repo/db";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import type { Metadata } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { SkeletonSuspense } from "skullet/react";
 
 import { RecrawlMoneySiteButton } from "@/components/recrawl-money-site-button";
 import { moneySitePagesTag } from "@/lib/cache-tags";
@@ -92,18 +91,45 @@ export const generateMetadata = async ({
   return { title: loaded?.site.domain ?? "Money site" };
 };
 
-const MoneySiteDetail = async ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
-  const loaded = await loadMoneySite(id);
+type MoneySiteDetailViewProps = {
+  embeddedCount: number;
+  nowMs: number;
+  site: {
+    domain: string;
+    id: string;
+    name: string;
+    pages: Array<{
+      id: string;
+      lastCrawledAt: Date | null;
+      niches: Array<string>;
+      title: string;
+      url: string;
+    }>;
+    sitemapUrl: string;
+  };
+};
 
-  if (!loaded) {
-    notFound();
-  }
+const SAMPLE_NOW_MS = Date.UTC(2026, 0, 1);
 
-  const { embeddedCount, site } = loaded;
+const SAMPLE_MONEY_SITE: MoneySiteDetailViewProps = {
+  embeddedCount: 120,
+  nowMs: SAMPLE_NOW_MS,
+  site: {
+    domain: "acmestudios.example",
+    id: "sample",
+    name: "Acme Studios",
+    pages: ["a", "b", "c", "d"].map((id) => ({
+      id,
+      lastCrawledAt: new Date(SAMPLE_NOW_MS - 3_600_000),
+      niches: ["AUDIO", "FILM"],
+      title: "Recording studio rental in Lisbon",
+      url: "https://acmestudios.example/spaces/recording-studio-lisbon",
+    })),
+    sitemapUrl: "https://acmestudios.example/sitemap.xml",
+  },
+};
 
-  // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
-  const nowMs = Date.now();
+const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailViewProps) => {
   const total = site.pages.length;
   const classified = site.pages.filter((p) => p.niches.length > 0).length;
 
@@ -187,23 +213,19 @@ const MoneySiteDetail = async ({ params }: { params: Promise<{ id: string }> }) 
   );
 };
 
-const MoneySiteDetailSkeleton = () => (
-  <div aria-hidden className="flex flex-col gap-6">
-    <div className="mt-4 flex items-start justify-between">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <Skeleton className="h-9 w-24" />
-    </div>
-    <div className="grid grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map((slot) => (
-        <Skeleton className="h-16" key={slot} />
-      ))}
-    </div>
-    <Skeleton className="h-64 w-full" />
-  </div>
-);
+const MoneySiteDetail = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
+  const loaded = await loadMoneySite(id);
+
+  if (!loaded) {
+    notFound();
+  }
+
+  // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
+  const nowMs = Date.now();
+
+  return <MoneySiteDetailView {...loaded} nowMs={nowMs} />;
+};
 
 const MoneySiteDetailPage = ({ params }: { params: Promise<{ id: string }> }) => (
   <section className="max-w-3xl p-6">
@@ -211,9 +233,13 @@ const MoneySiteDetailPage = ({ params }: { params: Promise<{ id: string }> }) =>
       ← Back to money sites
     </Link>
 
-    <Suspense fallback={<MoneySiteDetailSkeleton />}>
+    <SkeletonSuspense
+      id="money-site-detail"
+      label="Loading money site"
+      skeleton={<MoneySiteDetailView {...SAMPLE_MONEY_SITE} />}
+    >
       <MoneySiteDetail params={params} />
-    </Suspense>
+    </SkeletonSuspense>
   </section>
 );
 

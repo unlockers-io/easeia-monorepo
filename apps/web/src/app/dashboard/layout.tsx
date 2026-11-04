@@ -3,6 +3,7 @@ import { Logo } from "@repo/ui/compositions/logo";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { SkulletProvider } from "skullet/react";
 
 import { SignOutButton } from "@/components/sign-out-button";
 import { getSession } from "@/lib/auth-helpers";
@@ -90,9 +91,17 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </div>
       </aside>
       <main className="isolate min-w-0 px-4 py-6 md:px-10 md:py-6" id="main-content" tabIndex={-1}>
-        <Suspense fallback={<DashboardContentSkeleton />}>
-          <AuthGate>{children}</AuthGate>
-        </Suspense>
+        <SkulletProvider
+          mode="light"
+          theme={{
+            animation: "pulse",
+            light: { base: "var(--muted)", highlight: "var(--background)" },
+          }}
+        >
+          <Suspense fallback={<DashboardContentSkeleton />}>
+            <AuthGate>{children}</AuthGate>
+          </Suspense>
+        </SkulletProvider>
       </main>
     </div>
   );
