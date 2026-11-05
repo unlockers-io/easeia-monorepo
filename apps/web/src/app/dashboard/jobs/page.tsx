@@ -1,4 +1,4 @@
-import type { JobKind } from "@repo/db";
+import { JobKind, JobStatus } from "@repo/db";
 import { listJobs } from "@repo/jobs";
 import { Badge } from "@repo/ui/components/badge";
 import {
@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -20,14 +19,35 @@ import {
 import { ArrowUpRight, Hash } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { SkeletonSuspense } from "skullet/react";
 
 import { JobStatusBadge } from "@/components/job-status-badge";
+
+type JobsTableRow = JobRow & {
+  attempts: number;
+  createdAt: Date;
+  kind: JobKind;
+  status: JobStatus;
+};
+
+const SAMPLE_JOBS: ReadonlyArray<JobsTableRow> = ["a", "b", "c", "d", "e", "f"].map((id) => ({
+  attempts: 1,
+  createdAt: new Date(Date.UTC(2026, 0, 1)),
+  id,
+  kind: JobKind.PUBLISH,
+  post: { id, slug: "sample", title: "How to plan a small studio recording session" },
+  site: null,
+  status: JobStatus.DONE,
+}));
 
 const JobsTable = async () => {
   await connection();
   const { data: jobs } = await listJobs({ limit: 100 });
 
+  return <JobsTableView jobs={jobs} />;
+};
+
+const JobsTableView = ({ jobs }: { jobs: ReadonlyArray<JobsTableRow> }) => {
   if (jobs.length === 0) {
     return <p className="px-6 pb-6 text-sm text-muted-foreground">No jobs yet.</p>;
   }
@@ -78,14 +98,6 @@ const JobsTable = async () => {
   );
 };
 
-const JobsTableSkeleton = () => (
-  <div aria-hidden className="flex flex-col gap-2 px-6 pb-6">
-    {[0, 1, 2, 3, 4, 5].map((slot) => (
-      <Skeleton className="h-10 w-full" key={slot} />
-    ))}
-  </div>
-);
-
 const JobsPage = () => (
   <div className="flex flex-col gap-6">
     <header className="flex flex-col gap-1">
@@ -105,9 +117,13 @@ const JobsPage = () => (
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0 pb-0">
-        <Suspense fallback={<JobsTableSkeleton />}>
+        <SkeletonSuspense
+          id="jobs"
+          label="Loading jobs"
+          skeleton={<JobsTableView jobs={SAMPLE_JOBS} />}
+        >
           <JobsTable />
-        </Suspense>
+        </SkeletonSuspense>
       </CardContent>
     </Card>
   </div>

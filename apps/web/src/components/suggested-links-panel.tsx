@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -26,6 +27,18 @@ const itemsPayloadSchema = z.object({ data: z.array(itemSchema) });
 
 type Item = z.infer<typeof itemSchema>;
 
+const SAMPLE_ITEMS: Array<Item> = ["a", "b", "c"].map((id) => ({
+  anchorText: "recording session checklist",
+  id,
+  toPost: {
+    id: "sample",
+    site: { domain: "acmestudios.example" },
+    slug: "sample",
+    title: "How to plan a small studio recording session",
+  },
+  type: "INTERNAL",
+}));
+
 const fetchSuggestions = async (postId: string): Promise<Array<Item>> =>
   itemsPayloadSchema.parse(
     unwrapAction(await listSuggestionsAction({ fromPostId: postId, limit: 20 })),
@@ -40,9 +53,8 @@ export const SuggestedLinksPanel = ({ postId }: { postId: string }) => {
   const queryKey = ["suggestions", postId] as const;
 
   const {
-    data: items = [],
+    data: items,
     isError,
-    isPending,
     refetch,
   } = useQuery({
     queryFn: () => fetchSuggestions(postId),
@@ -62,64 +74,66 @@ export const SuggestedLinksPanel = ({ postId }: { postId: string }) => {
     },
   });
 
-  if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading suggestions…</p>;
-  }
-
-  if (isError) {
-    return (
-      <div role="alert">
-        <p>Could not load suggested links.</p>
-        <Button
-          onClick={() => {
-            void refetch();
-          }}
-          size="sm"
-          variant="outline"
-        >
-          Try again
-        </Button>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">No pending suggestions.</p>;
-  }
-
   return (
-    <ul className="space-y-2">
-      {items.map((s) => (
-        <li className="flex items-center justify-between rounded border p-2" key={s.id}>
-          <div>
-            <div className="text-xs text-muted-foreground">{s.type}</div>
-            <div className="text-sm">
-              {s.toPost?.title ?? "(missing target)"} ·{" "}
-              <span className="text-muted-foreground">{s.toPost?.site.domain ?? ""}</span>
-            </div>
-            <div className="font-mono text-xs">{s.anchorText}</div>
-          </div>
-          <div className="flex gap-2">
+    <Skeleton
+      data={items}
+      empty={items?.length === 0}
+      emptyMessage={<p className="text-sm text-muted-foreground">No pending suggestions.</p>}
+      error={
+        isError ? (
+          <div role="alert">
+            <p>Could not load suggested links.</p>
             <Button
               onClick={() => {
-                decide({ action: "approve", id: s.id });
-              }}
-              size="sm"
-            >
-              Approve
-            </Button>
-            <Button
-              onClick={() => {
-                decide({ action: "reject", id: s.id });
+                void refetch();
               }}
               size="sm"
               variant="outline"
             >
-              Reject
+              Try again
             </Button>
           </div>
-        </li>
-      ))}
-    </ul>
+        ) : undefined
+      }
+      id="post-suggested-links"
+      label="Loading suggestions"
+      sample={SAMPLE_ITEMS}
+    >
+      {(suggestions) => (
+        <ul className="space-y-2">
+          {suggestions.map((s) => (
+            <li className="flex items-center justify-between rounded border p-2" key={s.id}>
+              <div>
+                <div className="text-xs text-muted-foreground">{s.type}</div>
+                <div className="text-sm">
+                  {s.toPost?.title ?? "(missing target)"} ·{" "}
+                  <span className="text-muted-foreground">{s.toPost?.site.domain ?? ""}</span>
+                </div>
+                <div className="font-mono text-xs">{s.anchorText}</div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    decide({ action: "approve", id: s.id });
+                  }}
+                  size="sm"
+                >
+                  Approve
+                </Button>
+                <Button
+                  onClick={() => {
+                    decide({ action: "reject", id: s.id });
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Reject
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Skeleton>
   );
 };

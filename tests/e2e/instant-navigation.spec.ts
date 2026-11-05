@@ -63,7 +63,7 @@ test.describe("Instant navigation", () => {
       await expect(heading).toBeVisible();
     });
 
-    await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0);
+    await expect(page.locator('[skullet-reveal][aria-busy="true"]')).toHaveCount(0);
   });
 
   test("buckets route renders its shell during a locked navigation", async ({ page }) => {
@@ -82,7 +82,7 @@ test.describe("Instant navigation", () => {
       await expect(heading).toBeVisible();
     });
 
-    await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0);
+    await expect(page.locator('[skullet-reveal][aria-busy="true"]')).toHaveCount(0);
   });
 
   test("navigating to jobs keeps the client alive and streams the table in", async ({ page }) => {
