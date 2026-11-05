@@ -5,6 +5,7 @@ import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import * as skullet from "skullet";
 
 import { authClient } from "@/lib/auth-client";
 
@@ -20,6 +21,7 @@ const SignOutButton = () => {
 
     try {
       await authClient.signOut();
+      skullet.forgetShapes();
       push("/login");
     } catch {
       setIsLoading(false);

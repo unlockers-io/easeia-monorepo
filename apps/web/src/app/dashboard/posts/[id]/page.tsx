@@ -15,9 +15,9 @@ import { TableColumns } from "@repo/ui/compositions/table-columns";
 import { ExternalLink, Send } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 
 import { Banner } from "@/components/banner";
+import { CardSuspense } from "@/components/card-suspense";
 import { RewriteTriggerButton } from "@/components/rewrite-trigger-button";
 import { SuggestedLinksPanel } from "@/components/suggested-links-panel";
 import { readIntegrations } from "@/lib/integrations";
@@ -223,20 +223,20 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
 
           <section className="grid gap-4 md:grid-cols-2">
             {post.focusKeyword !== null && post.focusKeyword !== "" ? (
-              <Suspense fallback={<SeoLoadingCard title="SERP rank" />}>
+              <CardSuspense title="SERP rank">
                 <SerpRankCard
                   focusKeyword={post.focusKeyword}
                   siteDomain={post.site.domain}
                   siteLanguage={post.site.language}
                   url={publicPageUrl}
                 />
-              </Suspense>
+              </CardSuspense>
             ) : (
               <SeoNotApplicable reason="Set a focus keyword to track Google ranking." />
             )}
-            <Suspense fallback={<SeoLoadingCard title="Page audit" />}>
+            <CardSuspense title="Page audit">
               <PostAuditCard url={publicPageUrl} />
-            </Suspense>
+            </CardSuspense>
           </section>
         </>
       ) : (
@@ -247,15 +247,15 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
         />
       )}
 
-      <Suspense fallback={<SeoLoadingCard title="Search Console: page performance" />}>
+      <CardSuspense title="Search Console: page performance">
         <PostSearchConsoleCard domain={post.site.domain} pageUrl={publicPageUrl} />
-      </Suspense>
+      </CardSuspense>
 
       <OutboundLinksCard outbound={liveOutbound} />
 
-      <Suspense fallback={<SeoLoadingCard title="Similar posts" />}>
+      <CardSuspense title="Similar posts">
         <SimilarPostsCard postId={post.id} />
-      </Suspense>
+      </CardSuspense>
 
       <section className="mt-8">
         <h2 className="mb-2 text-lg font-semibold">Suggested links</h2>
@@ -283,17 +283,6 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
     </div>
   );
 };
-
-const SeoLoadingCard = ({ title }: { title: string }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>
-        <h2>{title}</h2>
-      </CardTitle>
-      <CardDescription>Fetching from DataForSEO…</CardDescription>
-    </CardHeader>
-  </Card>
-);
 
 const Term = ({ children, label }: { children: React.ReactNode; label: string }) => (
   <>

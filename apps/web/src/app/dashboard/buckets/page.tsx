@@ -1,4 +1,5 @@
 import * as AutoPublish from "@repo/auto-publish";
+import { Niche } from "@repo/db";
 import {
   Card,
   CardContent,
@@ -6,9 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { SkeletonSuspense } from "skullet/react";
 
 import { readIntegrations } from "@/lib/integrations";
 
@@ -17,6 +17,24 @@ import { IntegrationNotConfiguredCard } from "../lib/provider-card";
 import { AutoRefresh } from "./auto-refresh";
 import { BucketsHeaderActions } from "./buckets-header-actions";
 import { BucketsTable, type BucketRow } from "./buckets-table";
+
+const SAMPLE_NOW_MS = Date.UTC(2026, 0, 1);
+
+const SAMPLE_BUCKETS: ReadonlyArray<BucketRow> = ["a", "b", "c"].map((siteId) => ({
+  autoPublishEnabled: true,
+  bucketTarget: 10,
+  cadenceDays: 3,
+  drafts: [],
+  draftsCount: 6,
+  inflight: 0,
+  lastAutoPublishedAt: new Date(SAMPLE_NOW_MS - 86_400_000).toISOString(),
+  missedCadence: false,
+  needsRefill: false,
+  niches: [Niche.AUDIO, Niche.FILM],
+  siteDomain: "acmestudios.example",
+  siteId,
+  supply: 6,
+}));
 
 const BucketsContent = async () => {
   await connection();
@@ -112,17 +130,19 @@ const BucketsContent = async () => {
 };
 
 const BucketsSkeleton = () => (
-  <Card aria-hidden>
+  <Card>
     <CardHeader className="flex flex-row items-start justify-between gap-4">
       <div className="flex flex-col gap-1">
         <CardTitle>
           <h2>Network buckets</h2>
         </CardTitle>
-        <Skeleton className="h-4 w-80" />
+        <CardDescription>
+          18 drafts queued across 3 sites. All buckets above their refill threshold.
+        </CardDescription>
       </div>
     </CardHeader>
     <CardContent>
-      <Skeleton className="h-64 w-full" />
+      <BucketsTable aiConfigured nowMs={SAMPLE_NOW_MS} rows={SAMPLE_BUCKETS} />
     </CardContent>
   </Card>
 );
@@ -136,9 +156,9 @@ const BucketsPage = () => (
       </p>
     </header>
 
-    <Suspense fallback={<BucketsSkeleton />}>
+    <SkeletonSuspense id="buckets" label="Loading buckets" skeleton={<BucketsSkeleton />}>
       <BucketsContent />
-    </Suspense>
+    </SkeletonSuspense>
   </div>
 );
 
