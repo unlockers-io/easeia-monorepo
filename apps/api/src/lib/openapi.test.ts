@@ -1,13 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.hoisted(() => {
-  Object.assign(process.env, {
-    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
-    DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
-    REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
-  });
-});
+import { describe, expect, it } from "vitest";
 
 import { backfillRoutes } from "../routes/backfill";
 import { moneySiteRoutes } from "../routes/money-sites";

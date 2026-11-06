@@ -1,6 +1,8 @@
+import { AiNotConfiguredError } from "@repo/ai";
 import { JobKind, JobStatus, PostStatus, prisma } from "@repo/db";
-import { closeJobs, consume, dispatchPendingJobs, enqueue, listRunJobs } from "@repo/jobs";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { enqueue, listRunJobs } from "@repo/jobs";
+import { closeJobs, consume, dispatchPendingJobs } from "@repo/jobs/worker";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forPublishedMember } from "./members";
 
@@ -26,12 +28,24 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
     return runId;
   };
 
+  beforeEach(() => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+  });
+
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await prisma.job.deleteMany({ where: { runId: { in: runIds } } });
     await prisma.backfillRun.deleteMany({ where: { id: { in: runIds } } });
     await prisma.job.deleteMany({ where: { post: { siteId } } });
     await prisma.site.deleteMany({ where: { id: siteId } });
     await closeJobs();
+  });
+
+  it("refuses to start without AI, since every child would be skipped", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    await fixture();
+
+    await expect(networkBackfill.start()).rejects.toBeInstanceOf(AiNotConfiguredError);
   });
 
   it("allows one run and finishes honestly after an exhausted child, releasing the guard", async () => {

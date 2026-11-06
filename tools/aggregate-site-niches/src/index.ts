@@ -1,7 +1,25 @@
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
-import { aggregateSiteNiches } from "@repo/sites";
+import { type Niche, PostStatus, prisma } from "@repo/db";
+import * as Sites from "@repo/sites";
+
+const topNiches = async (siteId: string): Promise<Array<Niche>> => {
+  const posts = await prisma.post.findMany({
+    select: { niches: true },
+    where: { niches: { isEmpty: false }, siteId, status: PostStatus.PUBLISHED },
+  });
+
+  const counts = new Map<Niche, number>();
+
+  for (const niche of posts.flatMap((post) => post.niches)) {
+    counts.set(niche, (counts.get(niche) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .toSorted((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([niche]) => niche);
+};
 
 const main = async (): Promise<void> => {
   const sites = await prisma.site.findMany({
@@ -13,11 +31,11 @@ const main = async (): Promise<void> => {
   console.log(`Aggregating niches for ${sites.length} enabled sites…`);
 
   for (const site of sites) {
-    const before = site.niches;
-    const after = await aggregateSiteNiches(site.id);
+    const niches = await topNiches(site.id);
+    await Sites.update(site.id, { niches });
     console.log(`  ${site.domain}`);
-    console.log(`    before: [${before.join(", ") || "—"}]`);
-    console.log(`    after:  [${after.join(", ") || "—"}]`);
+    console.log(`    before: [${site.niches.join(", ") || "—"}]`);
+    console.log(`    after:  [${niches.join(", ") || "—"}]`);
   }
 
   console.log("Done.");

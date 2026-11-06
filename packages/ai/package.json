@@ -9,7 +9,6 @@
     "./testing": "./src/testing.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -17,7 +16,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^4.0.36",
     "@repo/db": "workspace:*",
-    "@repo/health": "workspace:*",
+    "@repo/errors": "workspace:*",
     "ai": "^7.0.58",
     "zod": "^4.6.5"
   },

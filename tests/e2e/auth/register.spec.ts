@@ -1,5 +1,6 @@
 import { test, expect } from "../fixtures/auth.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { TEST_USER } from "../helpers/test-user";
 
 const skipUnderResend = Boolean(process.env.RESEND_API_KEY);
 
@@ -26,7 +27,7 @@ test.describe("Register", () => {
     await registerPage.goto();
     await registerPage.register(
       "Duplicate User",
-      "e2e-test@easeia.localhost",
+      TEST_USER.email,
       "SecurePassword1!",
       "SecurePassword1!",
     );

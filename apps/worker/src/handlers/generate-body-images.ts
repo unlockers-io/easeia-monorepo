@@ -1,11 +1,11 @@
 import { prisma, type SiteLanguage } from "@repo/db";
 import { generatePostImage as realGeneratePostImage, buildBodyImagePrompt } from "@repo/hero";
 import type { ConsumerContext } from "@repo/jobs";
-import { applyBodyImages, type BodyImage, reviseBody as realReviseBody } from "@repo/posts";
+import { createJobLogger } from "@repo/observability/worker";
+import { type BodyImage, illustrate as realIllustrate } from "@repo/posts";
 import { planBodyImages as realPlanBodyImages } from "@repo/rewrite";
 
 import { env } from "../lib/env";
-import { createJobLogger } from "../lib/logger";
 
 type PostForBodyImages = {
   body: string;
@@ -17,23 +17,12 @@ type PostForBodyImages = {
   title: string;
 };
 
-type UpsertBodyImageInput = {
-  alt: string;
-  blobKey: string;
-  blobUrl: string;
-  filename: string;
-  height: number;
-  postId: string;
-  width: number;
-};
-
 type Deps = {
   enabled?: boolean;
   findPost?: (postId: string) => Promise<PostForBodyImages | null>;
   generatePostImage?: typeof realGeneratePostImage;
+  illustrate?: typeof realIllustrate;
   planBodyImages?: typeof realPlanBodyImages;
-  reviseBody?: typeof realReviseBody;
-  upsertImage?: (input: UpsertBodyImageInput) => Promise<void>;
 };
 
 const MARKDOWN_IMAGE = /!\[[^\]]*\]\(/v;
@@ -52,20 +41,6 @@ const defaultFindPost = (postId: string): Promise<PostForBodyImages | null> =>
     where: { id: postId },
   });
 
-const defaultUpsertImage = async (input: UpsertBodyImageInput): Promise<void> => {
-  await prisma.postImage.upsert({
-    create: { ...input, isHero: false, mime: "image/jpeg" },
-    update: {
-      alt: input.alt,
-      blobKey: input.blobKey,
-      blobUrl: input.blobUrl,
-      height: input.height,
-      width: input.width,
-    },
-    where: { postId_filename: { filename: input.filename, postId: input.postId } },
-  });
-};
-
 export const makeHandleGenerateBodyImages =
   (deps: Deps = {}) =>
   async (ctx: ConsumerContext<"GENERATE_BODY_IMAGES">): Promise<void> => {
@@ -75,8 +50,7 @@ export const makeHandleGenerateBodyImages =
     const findPost = deps.findPost ?? defaultFindPost;
     const planBodyImages = deps.planBodyImages ?? realPlanBodyImages;
     const generatePostImage = deps.generatePostImage ?? realGeneratePostImage;
-    const upsertImage = deps.upsertImage ?? defaultUpsertImage;
-    const reviseBody = deps.reviseBody ?? realReviseBody;
+    const illustrate = deps.illustrate ?? realIllustrate;
     const log = createJobLogger({ jobId, queue: "generate-body-images" });
     log.set({ postId });
 
@@ -138,19 +112,19 @@ export const makeHandleGenerateBodyImages =
         }),
       });
 
-      await upsertImage({
+      inserted.push({
         alt: planned.alt,
         blobKey: image.key,
         blobUrl: image.url,
         filename,
         height: image.height,
-        postId: post.id,
+        line: planned.line,
+        mime: image.mime,
         width: image.width,
       });
-      inserted.push({ alt: planned.alt, line: planned.line, url: image.url });
     }
 
-    await reviseBody(post.id, { body: applyBodyImages(post.body, inserted), from: post.body });
+    await illustrate(post.id, { from: post.body, images: inserted });
     log.set({ insertedImages: inserted.length });
     log.info("generate-body-images: done");
     log.emit();

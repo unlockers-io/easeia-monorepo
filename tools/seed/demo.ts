@@ -63,18 +63,22 @@ const ago = (days: number) => new Date(Date.now() - days * 86_400_000);
 
 const seedSite = async (site: (typeof SITES)[number], index: number) => {
   const niches = ["PHOTOGRAPHY" as const, "LIFESTYLE" as const];
-  const { id: siteId } = await Sites.upsert({ domain: site.domain, isEnabled: true, niches });
+  const { id: siteId } = await Sites.ensure(site.domain, niches);
   await Sites.update(siteId, {
     authorBio: "An editorial team in the synthetic Easeia demo network.",
     authorName: "Demo Editorial",
-    autoPublishEnabled: false,
-    bucketRefillAt: null,
-    bucketTarget: 6,
-    cadenceDays: 2,
     defaultCategory: "journal",
+    isEnabled: true,
     language: "EN",
     moneySiteId: "demo-money-site",
+    niches,
     topicHints: site.keyword,
+  });
+  await Sites.updateSchedule(siteId, {
+    autoPublishEnabled: false,
+    bucketRefillAt: 3,
+    bucketTarget: 6,
+    cadenceDays: 2,
   });
 
   for (let day = 0; day < 14; day += 1) {
@@ -90,7 +94,6 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       gscClicks: 76 + index * 18,
       gscImpressions: 2100 + index * 700,
       healthScore: site.score - Math.floor(day / 4),
-      onPageScore: site.score,
       postsLast30d: 6,
       postsLast7d: 6,
       reachable: true,
@@ -152,9 +155,7 @@ const seedLinks = async () => {
       const link = {
         anchorText: "related editorial guide",
         fromPostId: `demo-post-${index}-${n}`,
-        lastCheckedAt: ago(1),
         source: "IMPORTED" as const,
-        status: "ACTIVE" as const,
         toPostId: `demo-post-${next}-${n}`,
         toUrl: `https://${nextSite.domain}/journal/guide-${n + 1}/`,
         type: "PBN" as const,

@@ -24,13 +24,15 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 
 **Publish claim**: the compare-and-set that moves a Post into SCHEDULED before its PUBLISH Job is enqueued. SCHEDULED is not claimable, so one of two concurrent publishes fails.
 
-**Publish completion**: `Posts.completePublish`: the Post becomes PUBLISHED, then its Site is redeployed, then EMBED, CRAWL_LINKS and body-image Jobs are enqueued.
+**Publish completion**: `Posts.completePublish`: in one transaction the Post becomes PUBLISHED and its redeploy, EMBED, CRAWL_LINKS and GENERATE_BODY_IMAGES intents are recorded. The GENERATE_BODY_IMAGES handler alone reads `BODY_IMAGES_ENABLED`.
 
-**May be deployed**: a Post whose `publishedAt` is set and which is not ARCHIVED. Unpublishing or removing it requests a redeploy.
+**Build membership**: the Posts a Site's build serves: PUBLISHED, or published before and not ARCHIVED (`Posts.deployedWhere`), so a live post being republished stays in builds. `Posts.listForBuild` serves them in the build contract that `@easeia/astro-content` exports.
+
+**May be deployed**: a Post with build membership (`mayBeDeployed`). Unpublishing or removing it requests a redeploy.
 
 **Body revision**: a change to a stored Post body through `Posts.reviseBody`: a compare-and-set on the body the writer read, then normalization by Site language and the content-changed consequences (ADR-0009). Every body writer goes through it.
 
-**Bucket draft**: a DRAFT Post without `scheduledAt`, waiting to be auto-published.
+**Bucket draft**: a DRAFT Post without `scheduledAt` (`Posts.bucketDraftWhere`), waiting to be auto-published. `Posts.publishBucketDraft` claims one and stamps the Site's `lastAutoPublishedAt` in the same transaction.
 
 **Auto-publish due**: a Site that is enabled, has auto-publish on and a bucket draft, and whose `cadenceDays` have passed since `lastAutoPublishedAt`. Owned by `@repo/auto-publish`.
 
@@ -48,6 +50,6 @@ Domain terms used in code, ADRs and reviews. Each names one concept and the modu
 
 **Tick**: a recurring Job produced by a BullMQ job scheduler (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`). Runs once per interval regardless of worker replicas (ADR-0010).
 
-**Backfill**: a network-wide catch-up run (network, rewrite) whose state is its chain of Jobs; each tick enqueues its successor. One run at a time. Owned by `@repo/backfill`.
+**Backfill**: a network-wide catch-up run, a `BackfillRun` of kind NETWORK or REWRITE. It freezes its member Posts and money sites, then advances phase by phase once the phase's child Jobs are terminal. One run per kind at a time. Owned by `@repo/backfill`.
 
-**Optional-AI Job**: a Job kind that completes without doing work when AI is not configured: CLASSIFY, EMBED, GENERATE_IMAGE, GENERATE_BODY_IMAGES. Any other Job ends FAILED without retry when AI is unavailable.
+**Optional-AI Job**: a Job kind marked `aiOptional` in the worker registry (`apps/worker/src/jobs.ts`); it completes without doing work when AI is not configured: CLASSIFY, EMBED, GENERATE_IMAGE, GENERATE_BODY_IMAGES. CRAWL_MONEY_SITE_PAGE records a page's title and excerpt without AI and skips its classification and embedding. Any other Job ends FAILED without retry when AI is unavailable.

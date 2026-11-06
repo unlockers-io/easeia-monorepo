@@ -1,0 +1,209 @@
+"use client";
+
+import { deployHookUrlSchema, siteDomainSchema } from "@repo/api-types";
+import { Niche, SiteLanguage } from "@repo/db/browser";
+import { Button } from "@repo/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@repo/ui/components/dialog";
+import { Field, FieldLabel, FieldGroup } from "@repo/ui/components/field";
+import { Input } from "@repo/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ui/components/select";
+import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
+import { FormAlert } from "@repo/ui/compositions/form-alert";
+import { FormFieldError } from "@repo/ui/compositions/form-field-error";
+import { useClientReady } from "@repo/ui/hooks/use-client-ready";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { useRouter } from "next/navigation";
+import { useId, useState } from "react";
+import { z } from "zod";
+
+import { createSiteAction } from "@/app/dashboard/sites/actions";
+import { NicheToggleGroup } from "@/components/niche-toggle-group";
+import { matching } from "@/lib/form-schemas";
+
+const formSchema = z.object({
+  domain: siteDomainSchema,
+  isEnabled: z.boolean(),
+  language: z.enum(SiteLanguage),
+  niches: z.array(z.enum(Niche)),
+  vercelDeployHookUrl: matching(
+    deployHookUrlSchema,
+    "Enter an HTTP(S) deploy hook URL or leave it blank.",
+  ),
+});
+
+const LANGUAGES = [
+  { label: "Português", value: SiteLanguage.PT },
+  { label: "English", value: SiteLanguage.EN },
+  { label: "Español", value: SiteLanguage.ES },
+];
+
+const isSiteLanguage = (value: string | null): value is SiteLanguage =>
+  LANGUAGES.some((language) => language.value === value);
+
+const defaultValues: z.input<typeof formSchema> = {
+  domain: "",
+  isEnabled: true,
+  language: "PT",
+  niches: [],
+  vercelDeployHookUrl: "",
+};
+
+export const SiteCreateDialog = () => {
+  const [open, setOpen] = useState(false);
+  const ready = useClientReady();
+  const [error, setError] = useState<string | null>(null);
+  const id = useId();
+  const router = useRouter();
+
+  const form = useForm({
+    defaultValues,
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setError(null);
+      const result = await createSiteAction(value);
+
+      if (!result.ok) {
+        setError(result.error);
+
+        return;
+      }
+
+      setOpen(false);
+      form.reset();
+      router.push(`/dashboard/sites/${result.data}`);
+      router.refresh();
+    },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: formSchema },
+  });
+
+  return (
+    <Dialog onOpenChange={setOpen} open={open}>
+      <DialogTrigger disabled={!ready} render={<Button>Add site</Button>} />
+      <DialogContent className="max-h-(--layout-max-h-sheet-viewport) overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Add a site</DialogTitle>
+          <DialogDescription>
+            Connect an Astro site to your network. You can configure publishing after saving.
+          </DialogDescription>
+        </DialogHeader>
+        <ClientReadyForm
+          id={form.formId}
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <FieldGroup>
+            <FormAlert message={error} />
+            <form.Field name="domain">
+              {(field) => (
+                <Field data-invalid={!field.state.meta.isValid || undefined}>
+                  <FieldLabel htmlFor={`${id}-domain`}>Domain</FieldLabel>
+                  <Input
+                    aria-describedby={field.state.meta.isValid ? undefined : `${id}-domain-error`}
+                    aria-invalid={!field.state.meta.isValid}
+                    autoComplete="url"
+                    id={`${id}-domain`}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    placeholder="photo-blog.example"
+                    value={field.state.value}
+                  />
+                  <FormFieldError errors={field.state.meta.errors} id={`${id}-domain-error`} />
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="language">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor={`${id}-language`}>Content language</FieldLabel>
+                  <Select
+                    items={LANGUAGES}
+                    onValueChange={(value) => {
+                      if (isSiteLanguage(value)) {
+                        field.handleChange(value);
+                      }
+                    }}
+                    value={field.state.value}
+                  >
+                    <SelectTrigger id={`${id}-language`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGES.map((language) => (
+                        <SelectItem key={language.value} value={language.value}>
+                          {language.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="niches">
+              {(field) => (
+                <Field>
+                  <FieldLabel>Niches</FieldLabel>
+                  <NicheToggleGroup onChange={field.handleChange} value={field.state.value} />
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="vercelDeployHookUrl">
+              {(field) => (
+                <Field data-invalid={!field.state.meta.isValid || undefined}>
+                  <FieldLabel htmlFor={`${id}-hook`}>Deploy hook URL (optional)</FieldLabel>
+                  <Input
+                    aria-describedby={field.state.meta.isValid ? undefined : `${id}-hook-error`}
+                    aria-invalid={!field.state.meta.isValid}
+                    autoComplete="off"
+                    id={`${id}-hook`}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => {
+                      field.handleChange(event.target.value);
+                    }}
+                    placeholder="https://api.vercel.com/v1/integrations/deploy/…"
+                    type="url"
+                    value={field.state.value}
+                  />
+                  <FormFieldError errors={field.state.meta.errors} id={`${id}-hook-error`} />
+                </Field>
+              )}
+            </form.Field>
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(pending) => (
+                <Button disabled={pending} type="submit">
+                  {pending ? "Adding site…" : "Create site"}
+                </Button>
+              )}
+            </form.Subscribe>
+          </FieldGroup>
+        </ClientReadyForm>
+      </DialogContent>
+    </Dialog>
+  );
+};

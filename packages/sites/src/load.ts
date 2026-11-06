@@ -1,9 +1,15 @@
-import { prisma, type Site } from "@repo/db";
+import { type Prisma, prisma, type Site } from "@repo/db";
 
 import { SiteNotFoundError } from "./errors";
 
-export const load = async (siteId: string): Promise<Site> => {
-  const site = await prisma.site.findUnique({ where: { id: siteId } });
+export const find = (siteId: string, tx: Prisma.TransactionClient = prisma): Promise<Site | null> =>
+  tx.site.findUnique({ where: { id: siteId } });
+
+export const load = async (
+  siteId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Site> => {
+  const site = await find(siteId, tx);
 
   if (!site) {
     throw new SiteNotFoundError(siteId);

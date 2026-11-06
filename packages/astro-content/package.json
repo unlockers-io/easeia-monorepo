@@ -38,7 +38,6 @@
     "build": "cp ../../LICENSE LICENSE && tsdown",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
     "dev": "tsdown --watch",
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

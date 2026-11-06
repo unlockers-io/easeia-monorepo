@@ -6,24 +6,17 @@
   "entry": [
     "**/prisma.config.ts",
     "apps/*/src/lib/observability.ts",
+    "apps/api/src/test-env.ts",
     "oxlint.config.ts",
-    "tools/maintenance/*.ts",
     "packages/transactional/src/emails/**/*.tsx"
   ],
-  "ignorePatterns": [
-    "tests/e2e/setup/auth.setup.ts",
-    "tools/_shared",
-    "verify-auth.js",
-    ".github/ci/*.mjs"
-  ],
+  "ignorePatterns": ["tests/e2e/setup/auth.setup.ts", ".github/ci/*.mjs"],
   "ignoreDependencies": [
-    "eslint-plugin-*",
     "better-auth",
     "hono",
     "@tailwindcss/postcss",
     "postcss",
     "postcss-load-config",
-    "pino-pretty",
     "tailwindcss",
     "@prisma/client",
     "@vitest/coverage-v8",
@@ -32,12 +25,14 @@
     "@shadcn/lint",
     "react",
     "@react-email/ui",
-    "@react-email/preview-server",
     "react-email",
     "@types/react-dom",
     "react-dom",
     "@tanstack/react-form"
   ],
+  "duplicates": {
+    "ignore": ["apps/landing/src/app/privacy/page.tsx", "apps/landing/src/app/terms/page.tsx"]
+  },
   "rules": {
     "unused-dependencies": "warn",
     "private-type-leaks": "off"

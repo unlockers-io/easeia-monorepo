@@ -1,4 +1,4 @@
-import { DomainError } from "@repo/sites";
+import { DomainError } from "@repo/errors";
 
 export class InvalidApiKeyError extends DomainError {
   constructor() {

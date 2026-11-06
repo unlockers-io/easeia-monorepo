@@ -3,7 +3,7 @@
 **Status:** accepted (2026-10-07); amends ADR-0004; `completeRewrite` and body writes restated by
 [ADR-0009](./0009-post-intake-owns-storing-a-body.md); bucket drafts amended by
 [ADR-0010](./0010-ticks-are-scheduled-jobs.md); atomic consequences and publish retries amended by
-[ADR-0011](./0011-atomic-intents-and-backfill-runs.md)
+[ADR-0011](./0011-atomic-intents-and-backfill-runs.md); amended 2026-11-06 (below)
 
 ## Context
 
@@ -63,3 +63,12 @@
 - Obsolete: `recordPublishedAstro`, `recordPublishFailure`, `publishToAstro`, the classify
   `resolveCategory` export (now internal to `@repo/posts`), `state-error.ts`,
   `validation-error.ts`, the web create fallback to a draft and the crawl's deploy fan-out.
+
+## Amendment (2026-11-06)
+
+- `publishBucketDraft` claims only a bucket draft (DRAFT without `scheduledAt`,
+  `bucketDraftWhere`) and stamps the Site's `lastAutoPublishedAt` through `Sites.updateSchedule`
+  in the claim transaction, as the table above says. ADR-0010 had moved the stamp into a second
+  transaction, so a failure between the two could publish twice.
+- The build feed serves the same set the redeploy rule uses (`deployedWhere`): PUBLISHED, or
+  published before and not ARCHIVED. A live post being republished stays in builds.

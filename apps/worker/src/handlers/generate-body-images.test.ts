@@ -4,7 +4,7 @@ vi.hoisted(() => {
   Object.assign(process.env, {
     DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
     REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
 });
 
@@ -22,7 +22,7 @@ const post = {
   title: "Guia de Microfones",
 };
 
-const ctx = { attemptsMade: 0, finalAttempt: false, jobId: "j", payload: { postId: "p1" } };
+const ctx = { jobId: "j", payload: { postId: "p1" } };
 
 const plan = [
   { alt: "Um microfone", line: 3, prompt: "a condenser microphone on a stand" },
@@ -32,6 +32,7 @@ const plan = [
 const image = (n: number) => ({
   height: 1024,
   key: `k${n}`,
+  mime: "image/jpeg",
   url: `https://img.easeia.com/${n}.jpg`,
   width: 1536,
 });
@@ -39,9 +40,8 @@ const image = (n: number) => ({
 type Mocks = {
   findPost: Mock;
   generatePostImage: Mock;
+  illustrate: Mock;
   planBodyImages: Mock;
-  reviseBody: Mock;
-  upsertImage: Mock;
 };
 
 const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boolean } = {}) => {
@@ -54,9 +54,8 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
 
       return Promise.resolve(image(generated));
     }),
+    illustrate: vi.fn().mockResolvedValue(undefined),
     planBodyImages: vi.fn().mockResolvedValue(plan),
-    reviseBody: vi.fn().mockResolvedValue(undefined),
-    upsertImage: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 
@@ -67,18 +66,26 @@ const wire = ({ enabled = true, ...overrides }: Partial<Mocks> & { enabled?: boo
 };
 
 describe("handleGenerateBodyImages", () => {
-  it("generates every planned image and revises the body it planned against", async () => {
+  it("generates every planned image and illustrates the body it planned against", async () => {
     const { deps, handle } = wire();
     await handle(ctx);
 
     expect(deps.generatePostImage).toHaveBeenCalledTimes(2);
-    expect(deps.upsertImage).toHaveBeenCalledTimes(2);
-    expect(deps.reviseBody).toHaveBeenCalledOnce();
-    const [postId, revision] = deps.reviseBody.mock.calls[0] ?? [];
-    expect(postId).toBe("p1");
-    expect(revision.from).toBe(body);
-    expect(revision.body).toContain("![Um microfone](https://img.easeia.com/1.jpg)");
-    expect(revision.body).toContain("![O estúdio](https://img.easeia.com/2.jpg)");
+    expect(deps.illustrate).toHaveBeenCalledExactlyOnceWith("p1", {
+      from: body,
+      images: [
+        expect.objectContaining({
+          alt: "Um microfone",
+          blobUrl: "https://img.easeia.com/1.jpg",
+          line: 3,
+        }),
+        expect.objectContaining({
+          alt: "O estúdio",
+          blobUrl: "https://img.easeia.com/2.jpg",
+          line: 5,
+        }),
+      ],
+    });
   });
 
   it("names files per post and index so a retry upserts instead of duplicating", async () => {
@@ -89,13 +96,13 @@ describe("handleGenerateBodyImages", () => {
       "guia-de-microfones-1.jpg",
       "guia-de-microfones-2.jpg",
     ]);
-    expect(deps.upsertImage.mock.calls[0]?.[0]).toMatchObject({
+    expect(deps.illustrate.mock.calls[0]?.[1].images[0]).toMatchObject({
       alt: "Um microfone",
       blobKey: "k1",
       blobUrl: "https://img.easeia.com/1.jpg",
       filename: "guia-de-microfones-1.jpg",
       height: 1024,
-      postId: "p1",
+      mime: "image/jpeg",
       width: 1536,
     });
   });
@@ -118,7 +125,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.planBodyImages).not.toHaveBeenCalled();
-    expect(deps.reviseBody).not.toHaveBeenCalled();
+    expect(deps.illustrate).not.toHaveBeenCalled();
   });
 
   it("skips when the planner finds no spots", async () => {
@@ -126,7 +133,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.generatePostImage).not.toHaveBeenCalled();
-    expect(deps.reviseBody).not.toHaveBeenCalled();
+    expect(deps.illustrate).not.toHaveBeenCalled();
   });
 
   it("skips when BODY_IMAGES_ENABLED is off", async () => {
@@ -142,6 +149,6 @@ describe("handleGenerateBodyImages", () => {
     });
 
     await expect(handle(ctx)).rejects.toThrow("openai 429");
-    expect(deps.reviseBody).not.toHaveBeenCalled();
+    expect(deps.illustrate).not.toHaveBeenCalled();
   });
 });

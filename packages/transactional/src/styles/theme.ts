@@ -70,4 +70,4 @@ const tailwindConfig = {
   },
 };
 
-export { emailTheme, tailwindConfig };
+export { tailwindConfig };

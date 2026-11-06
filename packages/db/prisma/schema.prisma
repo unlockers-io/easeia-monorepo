@@ -12,13 +12,13 @@ generator client {
 // ─── Auth (Better Auth) ────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   name          String?
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   username        String? @unique
   displayUsername String? @unique
@@ -113,11 +113,9 @@ enum JobKind {
   SNAPSHOT_SITE
   CLASSIFY
   SUGGEST_LINKS
-  BACKFILL_NETWORK
   CRAWL_MONEY_SITE
   CRAWL_MONEY_SITE_PAGE
   REWRITE_POST
-  BACKFILL_REWRITE
   CRAWL_GSC_LINKS
   BACKFILL_GSC_LINKS
   // Generates a brand-new post for a Site via LLM and stores it as a
@@ -150,6 +148,11 @@ enum ExternalBacklinkSource {
   GSC_API
 }
 
+enum BackfillKind {
+  NETWORK
+  REWRITE
+}
+
 enum BackfillPhase {
   CLASSIFY_EMBED
   SUGGEST_LINKS
@@ -175,12 +178,6 @@ enum LinkSource {
   MANUAL
   SUGGESTED
   IMPORTED
-}
-
-enum LinkStatus {
-  ACTIVE
-  BROKEN
-  REMOVED
 }
 
 // Niches operate like tags; multi-valued per Site and per Post.
@@ -215,20 +212,20 @@ enum SiteLanguage {
 }
 
 model Site {
-  id          String    @id @default(cuid())
-  domain      String    @unique
-  isEnabled   Boolean   @default(true)
+  id          String       @id @default(cuid())
+  domain      String       @unique
+  isEnabled   Boolean      @default(true)
   // Content language. Passed explicitly into generation prompts and
   // checked against the generated body via franc; a mismatch throws
   // LanguageMismatchError so the bucket never accumulates English drafts
   // on a Portuguese site (or vice versa). Default PT because the initial
   // network is Portuguese-speaking; flip per site as the network grows.
   language    SiteLanguage @default(PT)
-  niches      Niche[]   @default([])
+  niches      Niche[]      @default([])
   // Optional photographic style shared by hero and body image prompts.
   imageStyle  String?
   moneySiteId String?
-  moneySite   MoneySite? @relation(fields: [moneySiteId], references: [id], onDelete: SetNull)
+  moneySite   MoneySite?   @relation(fields: [moneySiteId], references: [id], onDelete: SetNull)
 
   // Astro publishing. Each migrated Site has a Vercel project with a deploy
   // hook URL: POSTed after publish to trigger a static rebuild. The other
@@ -260,27 +257,27 @@ model Site {
   // `lastAutoPublishedAt + cadenceDays` has passed.
   // `topicHints` is a free-text prompt seed passed to the post generator:
   // "Focus on destination weddings in coastal Portugal" type guidance.
-  autoPublishEnabled    Boolean   @default(false)
-  cadenceDays           Int?
-  topicHints            String?
-  lastAutoPublishedAt   DateTime?
+  autoPublishEnabled  Boolean   @default(false)
+  cadenceDays         Int?
+  topicHints          String?
+  lastAutoPublishedAt DateTime?
 
   // Bucket of pre-generated DRAFT Posts. The hourly tick publishes one
   // draft per due site on cadence and, separately, refills the bucket
   // (enqueues GENERATE_POST jobs) when live DRAFT count + in-flight
   // generations dips below `bucketRefillAt`, topping back up to
   // `bucketTarget`. Both null → auto-refill off (manual only).
-  bucketTarget          Int?
-  bucketRefillAt        Int?
+  bucketTarget   Int?
+  bucketRefillAt Int?
 
   posts             Post[]
   jobs              Job[]
   snapshots         SiteSnapshot[]
   externalBacklinks ExternalBacklink[]
   gscReferringUrls  GscReferringUrl[]
-  apiKeys           ApiKey[]            @relation("ApiKeySite")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  apiKeys           ApiKey[]           @relation("ApiKeySite")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([isEnabled])
   @@index([autoPublishEnabled, lastAutoPublishedAt])
@@ -330,24 +327,23 @@ model Post {
   siteId String
   site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
-  slug     String
-  title    String
+  slug    String
+  title   String
   body    String  @db.Text
   excerpt String?
 
   status      PostStatus @default(DRAFT)
   scheduledAt DateTime?
   publishedAt DateTime?
-  // Marker for idempotency: BACKFILL_REWRITE skips posts where this is non-null
-  // unless `force: true` is passed.
+  // Marker for idempotency: the rewrite backfill skips posts where this is
+  // non-null unless `force: true` is passed.
   rewrittenAt DateTime?
 
   // Stored for DataForSEO SERP rank tracking. Not pushed to WordPress;
   // each WP site's SEO plugin handles its own meta locally.
   focusKeyword String?
 
-  featuredImage    String?
-  featuredImagePrompt String? // last prompt used when AI-generated
+  featuredImage String?
 
   categories String[] @default([])
   tags       String[] @default([])
@@ -356,8 +352,8 @@ model Post {
   // pgvector: text-embedding-3-small dim. Re-embed only when body changes.
   embedding Unsupported("vector(1536)")?
 
-  outbound Link[] @relation("outbound")
-  inbound  Link[] @relation("inbound")
+  outbound Link[]      @relation("outbound")
+  inbound  Link[]      @relation("inbound")
   jobs     Job[]
   images   PostImage[]
 
@@ -375,9 +371,9 @@ model PostImage {
   id        String   @id @default(cuid())
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  blobKey   String   // sites/{siteId}/posts/{postId}/{hash}.{ext}
-  blobUrl   String   // public read URL composed from R2_PUBLIC_BASE_URL + blobKey
-  filename  String   // stable filename used in MD body and on-disk during build
+  blobKey   String // sites/{siteId}/posts/{postId}/{hash}.{ext}
+  blobUrl   String // public read URL composed from R2_PUBLIC_BASE_URL + blobKey
+  filename  String // stable filename used in MD body and on-disk during build
   mime      String
   width     Int?
   height    Int?
@@ -403,7 +399,6 @@ model Link {
   // Raw href as it appears in the rendered HTML; always populated.
   toUrl      String
   anchorText String
-  rel        String? // "nofollow", "ugc", "sponsored", null
   position   Int? // paragraph index within fromPost.body
 
   // null = pending review, true = approved, false = rejected. Used for
@@ -414,20 +409,17 @@ model Link {
   suggestedAt DateTime?
 
   source LinkSource @default(MANUAL)
-  status LinkStatus @default(ACTIVE)
 
-  lastCheckedAt DateTime?
-  createdAt     DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([fromPostId])
   @@index([toPostId])
   @@index([type])
-  @@index([status])
   @@index([fromPostId, source, approved])
 }
 
 model Job {
-  id     String @id @default(cuid())
+  id     String    @id @default(cuid())
   kind   JobKind
   status JobStatus @default(QUEUED)
 
@@ -437,10 +429,10 @@ model Job {
   siteId String?
   site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
 
-  runId String?
-  run BackfillRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
-  phase BackfillPhase?
-  availableAt DateTime @default(now())
+  runId        String?
+  run          BackfillRun?   @relation(fields: [runId], references: [id], onDelete: SetNull)
+  phase        BackfillPhase?
+  availableAt  DateTime       @default(now())
   dispatchedAt DateTime?
 
   attempts  Int     @default(0)
@@ -450,9 +442,9 @@ model Job {
   // BullMQ job id: lets us reconcile state if the queue and DB drift.
   queueJobId String? @unique
 
-  createdAt   DateTime  @default(now())
-  startedAt   DateTime?
-  finishedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
 
   @@index([runId, phase])
   @@index([status, dispatchedAt])
@@ -465,16 +457,16 @@ model Job {
 }
 
 model ApiKey {
-  id     String @id @default(cuid())
-  name   String
+  id   String @id @default(cuid())
+  name String
 
   // sha256 of the full token. The token itself is only ever shown to the
   // creator at issue time; never stored or logged.
   hash   String @unique
   prefix String // first 8 chars for display in UI ("cm_live_a1b2…")
 
-  scopes    String[] @default([]) // posts:read posts:write sites:read sync:write links:write
-  createdAt DateTime @default(now())
+  scopes    String[]  @default([]) // posts:read posts:write sites:read sync:write links:write
+  createdAt DateTime  @default(now())
   revokedAt DateTime?
   lastUsed  DateTime?
 
@@ -507,9 +499,9 @@ model AuditLog {
 // (scope: webmasters.readonly). Tokens are encrypted at rest with the same
 // libsodium key as Site credentials (`WP_ENCRYPTION_KEY`).
 model GoogleConnection {
-  id           String @id @default(cuid())
-  userId       String @unique
-  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Encrypted Google OAuth tokens.
   accessToken  String
@@ -519,10 +511,10 @@ model GoogleConnection {
 
   // Email of the connected Google account (informational; matches the
   // identity that consented to the OAuth grant).
-  googleEmail  String?
+  googleEmail String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Daily rollup written by the worker's SNAPSHOT_SITE job. The dashboard
@@ -541,7 +533,6 @@ model SiteSnapshot {
   domainRank       Int?
   backlinksTotal   Int?
   referringDomains Int?
-  onPageScore      Float?
 
   // Search Console
   gscImpressions Int?
@@ -549,8 +540,8 @@ model SiteSnapshot {
   gscAvgPosition Float?
 
   // Local (always populated)
-  postsLast7d          Int @default(0)
-  postsLast30d         Int @default(0)
+  postsLast7d          Int  @default(0)
+  postsLast30d         Int  @default(0)
   daysSinceLastPublish Int?
 
   // Reachability: gates the score; null score when unreachable.
@@ -585,19 +576,19 @@ model MoneySite {
 }
 
 model MoneySitePage {
-  id            String                          @id @default(cuid())
+  id            String                       @id @default(cuid())
   moneySiteId   String
-  moneySite     MoneySite                       @relation(fields: [moneySiteId], references: [id], onDelete: Cascade)
+  moneySite     MoneySite                    @relation(fields: [moneySiteId], references: [id], onDelete: Cascade)
   url           String
   title         String
   // Plain-text extract used for embedding + display. Not full HTML.
-  excerpt       String                          @db.Text
-  niches        Niche[]                         @default([])
-  tags          String[]                        @default([])
+  excerpt       String                       @db.Text
+  niches        Niche[]                      @default([])
+  tags          String[]                     @default([])
   embedding     Unsupported("vector(1536)")?
   lastCrawledAt DateTime?
-  createdAt     DateTime                        @default(now())
-  updatedAt     DateTime                        @updatedAt
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
 
   @@unique([moneySiteId, url])
   @@index([moneySiteId])
@@ -613,7 +604,7 @@ model WaitlistSignup {
 
 model BackfillRun {
   id           String        @id @default(cuid())
-  kind         JobKind
+  kind         BackfillKind
   status       JobStatus     @default(RUNNING)
   phase        BackfillPhase
   postIds      String[]

@@ -6,11 +6,11 @@ FROM runtime AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
-RUN npm install --global pnpm@11.13.1 turbo@2.10.12
+RUN npm install --global pnpm@11.13.1
 
 FROM base AS pruner
 COPY . .
-RUN turbo prune api worker web @tools/seed --docker
+RUN pnpm dlx turbo@"$(node -p 'require("./package.json").devDependencies.turbo')" prune api worker web @tools/seed --docker
 
 FROM base AS dependencies
 COPY --from=pruner /app/out/json/ .

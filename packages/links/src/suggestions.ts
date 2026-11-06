@@ -1,5 +1,5 @@
 import type { SuggestionListQuery } from "@repo/api-types";
-import { type Link, LinkSource, type Prisma, prisma } from "@repo/db";
+import { type Link, LinkSource, pageOf, type Prisma, prisma } from "@repo/db";
 
 import { editPostBody } from "./body";
 import { SuggestionAppliedError, SuggestionNotFoundError } from "./errors";
@@ -15,7 +15,7 @@ const postRef = {
   },
 } as const;
 
-export const listSuggestions = ({
+export const listSuggestions = async ({
   cursor,
   fromPostId,
   limit,
@@ -46,7 +46,7 @@ export const listSuggestions = ({
     where.toPost = { siteId: targetSiteId };
   }
 
-  return prisma.link.findMany({
+  const rows = await prisma.link.findMany({
     cursor: hasCursor ? { id: cursor } : undefined,
     include: { fromPost: postRef, toPost: postRef },
     orderBy: { suggestedAt: "desc" },
@@ -54,17 +54,26 @@ export const listSuggestions = ({
     take: limit + 1,
     where,
   });
+
+  return pageOf(rows, limit);
 };
 
-const approve = async (fromPostId: string, links: ReadonlyArray<Link>): Promise<void> => {
+const approve = async (
+  fromPostId: string,
+  links: ReadonlyArray<Link>,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
   if (links.length === 0) {
     return;
   }
 
-  await editPostBody(fromPostId, (post) =>
-    Promise.resolve({ body: withSeeAlsoLinks(post.body, links, post.language), result: null }),
+  await editPostBody(
+    fromPostId,
+    (post) =>
+      Promise.resolve({ body: withSeeAlsoLinks(post.body, links, post.language), result: null }),
+    tx,
   );
-  await prisma.link.updateMany({
+  await tx.link.updateMany({
     data: { approved: true },
     where: { id: { in: links.map((link) => link.id) } },
   });
@@ -82,7 +91,7 @@ const requireSuggestion = async (id: string): Promise<Link> => {
 
 export const approveSuggestion = async (id: string): Promise<Link> => {
   const link = await requireSuggestion(id);
-  await approve(link.fromPostId, [link]);
+  await prisma.$transaction((tx) => approve(link.fromPostId, [link], tx));
 
   return { ...link, approved: true };
 };
@@ -90,12 +99,17 @@ export const approveSuggestion = async (id: string): Promise<Link> => {
 export const approveSuggestions = async (
   fromPostId: string,
   ids: ReadonlyArray<string>,
+  tx?: Prisma.TransactionClient,
 ): Promise<void> => {
-  const links = await prisma.link.findMany({
-    where: { fromPostId, id: { in: [...ids] }, source: LinkSource.SUGGESTED },
-  });
+  const run = async (db: Prisma.TransactionClient) => {
+    const links = await db.link.findMany({
+      where: { fromPostId, id: { in: [...ids] }, source: LinkSource.SUGGESTED },
+    });
 
-  await approve(fromPostId, links);
+    await approve(fromPostId, links, db);
+  };
+
+  await (tx === undefined ? prisma.$transaction(run) : run(tx));
 };
 
 const reviseUnappliedSuggestion = async (

@@ -6,10 +6,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./worker": "./src/worker.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -5,6 +5,7 @@ import {
   buildRewritePrompt,
   EVAL_CASES,
   EVAL_LANGUAGE_TO_SITE,
+  rewriteOutputSchema,
   type EvalCase,
 } from "@repo/rewrite";
 import { z } from "zod";
@@ -12,13 +13,6 @@ import { z } from "zod";
 const argv = process.argv.slice(2);
 const langFilter = argv.find((a) => a.startsWith("--lang="))?.slice("--lang=".length);
 const caseFilter = argv.find((a) => a.startsWith("--case="))?.slice("--case=".length);
-
-const rewriteSchema = z.object({
-  body: z.string().min(50),
-  excerpt: z.string().min(20).max(300),
-  focusKeyword: z.string().min(2).max(80),
-  title: z.string().min(10).max(120),
-});
 
 const gradingResultSchema = z.object({ pass: z.boolean(), reason: z.string() });
 
@@ -53,7 +47,7 @@ const runCase = async (
     siteNiches: ["WEDDING"],
   });
 
-  const rewrite = await generateStructured({ prompt, schema: rewriteSchema });
+  const rewrite = await generateStructured({ prompt, schema: rewriteOutputSchema });
 
   const gradingPrompt = [
     "You are grading a blog post rewrite against a checklist.",

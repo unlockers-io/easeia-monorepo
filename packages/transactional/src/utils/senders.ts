@@ -13,6 +13,7 @@ type MailerConfig = {
 };
 
 type WelcomePayload = {
+  expiresInHours: number;
   userEmail: string;
   userId: string;
   username?: string;
@@ -29,6 +30,7 @@ type SignUpAttemptPayload = {
 
 type PasswordResetPayload = {
   browserInfo?: string;
+  expiresInHours: number;
   ipAddress?: string;
   resetUrl: string;
   userEmail: string;
@@ -39,6 +41,7 @@ type PasswordResetPayload = {
 type ChangeEmailPayload = {
   changeUrl: string;
   currentEmail: string;
+  expiresInHours: number;
   newEmail: string;
   userId: string;
   username?: string;
@@ -58,15 +61,23 @@ const TEMPLATES = {
   "change-email-confirmation": ({
     changeUrl,
     currentEmail,
+    expiresInHours,
     newEmail,
     username,
   }: ChangeEmailPayload) => ({
     subject: "Confirm change of your Easeia account email",
-    template: React.createElement(ChangeEmail, { changeUrl, currentEmail, newEmail, username }),
+    template: React.createElement(ChangeEmail, {
+      changeUrl,
+      currentEmail,
+      expiresInHours,
+      newEmail,
+      username,
+    }),
     to: currentEmail,
   }),
   "password-reset": ({
     browserInfo,
+    expiresInHours,
     ipAddress,
     resetUrl,
     userEmail,
@@ -75,6 +86,7 @@ const TEMPLATES = {
     subject: "Reset your Easeia password",
     template: React.createElement(PasswordResetEmail, {
       browserInfo,
+      expiresInHours,
       ipAddress,
       resetUrl,
       userEmail,
@@ -97,9 +109,14 @@ const TEMPLATES = {
     }),
     to: userEmail,
   }),
-  welcome: ({ userEmail, username, verificationUrl }: WelcomePayload) => ({
+  welcome: ({ expiresInHours, userEmail, username, verificationUrl }: WelcomePayload) => ({
     subject: `Welcome to Easeia${username !== undefined && username !== "" ? `, ${username}` : ""}! Please verify your email`,
-    template: React.createElement(WelcomeEmail, { userEmail, username, verificationUrl }),
+    template: React.createElement(WelcomeEmail, {
+      expiresInHours,
+      userEmail,
+      username,
+      verificationUrl,
+    }),
     to: userEmail,
   }),
 } satisfies {
@@ -154,6 +171,6 @@ const createSendTransactionalEmail =
 
 const sendTransactionalEmail = createSendTransactionalEmail(sendEmail);
 
-export type { MailerConfig, TransactionalEmail };
+export type { MailerConfig };
 
 export { createSendTransactionalEmail, sendTransactionalEmail };

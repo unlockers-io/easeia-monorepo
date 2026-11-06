@@ -1,6 +1,6 @@
 # ADR-0006: Jobs owns its transport and every Job read; backfills are a domain module
 
-**Status:** accepted (2026-10-07); amends the interface in ADR-0002; deploy dedupe amended by [ADR-0007](./0009-site-module-owns-redeploy.md); job schedulers added by [ADR-0010](./0013-ticks-are-scheduled-jobs.md)
+**Status:** accepted (2026-10-07); amends the interface in ADR-0002; deploy dedupe amended by [ADR-0007](./0007-site-module-owns-redeploy.md); job schedulers added by [ADR-0010](./0010-ticks-are-scheduled-jobs.md)
 
 ## Context
 
@@ -45,3 +45,14 @@ closeJobs()
 - A second concurrent backfill or deploy for the same Site is rejected or skipped atomically.
 - Obsolete: the `redisUrl` parameter, `runPhaseOrchestrator`, the terminal `DONE` phase written
   back into `Job.payload`, and `getStoredJobPayload`.
+
+## Amendment (2026-11-06)
+
+- The main entry of `@repo/jobs` is Postgres only: the producers (`enqueue`, `enqueueUnlessInFlight`,
+  `enqueueUnlessQueued`, `lockJobs`, `recordCompletedJob`, `skipJob`) and the reads. Web, api and
+  tools never load BullMQ or need `REDIS_URL`.
+- `consume`, `dispatchPendingJobs`, `reapStuckJobs`, `schedule`, `unschedule` and `closeJobs`
+  moved to `@repo/jobs/worker`. `consume` parses each payload with its zod schema and runs the
+  kind's `onFailure` once a Job fails for good; reaped Jobs run it too.
+- `findLatestJob` is removed; `findLatestJobByPost` takes a kind. Queue names derive from the kind.
+- Backfill runs are `BackfillRun` rows, not chains of Jobs (ADR-0011).

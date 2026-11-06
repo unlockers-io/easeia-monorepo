@@ -18,14 +18,12 @@ export const tick = async (now = new Date()): Promise<TickResult> => {
   return { ...published, refills };
 };
 
-export {
-  AutoPublishConfigError,
-  applyNetworkDefaults,
-  configure,
-  type AutoPublishInput,
-  type NetworkDefaultsInput,
-} from "./config";
+export { AutoPublishConfigError, applyNetworkDefaults, configure, setCadence } from "./config";
+
+export type { AutoPublishInput, NetworkDefaultsInput, Schedule, ScheduleIssue } from "./rules";
 
 export { readBuckets, refill, refillAll } from "./bucket";
+
+export { nextDueAt, TICK_EVERY_MS } from "./rules";
 
 export { publishDraft, publishNext } from "./publish";

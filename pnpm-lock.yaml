@@ -16,9 +16,6 @@ importers:
 
   .:
     dependencies:
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -32,24 +29,18 @@ importers:
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
-      '@repo/blob':
+      '@repo/auth':
         specifier: workspace:*
-        version: link:packages/blob
+        version: link:packages/auth
       '@repo/db':
         specifier: workspace:*
         version: link:packages/db
-      '@repo/hero':
-        specifier: workspace:*
-        version: link:packages/hero
       '@repo/jobs':
         specifier: workspace:*
         version: link:packages/jobs
       '@repo/portless-env':
         specifier: workspace:*
         version: link:packages/portless-env
-      '@repo/search-console':
-        specifier: workspace:*
-        version: link:packages/search-console
       '@repo/sites':
         specifier: workspace:*
         version: link:packages/sites
@@ -83,27 +74,21 @@ importers:
       oxlint-tsgolint:
         specifier: ^7.0.2003
         version: 7.0.2003
-      sharp:
-        specifier: ^0.35.5
-        version: 0.35.5(@types/node@26.2.0)
       turbo:
         specifier: ^2.11.3
         version: 2.11.4
-      zod-compiler:
-        specifier: ^1.27.0
-        version: 1.27.0(esbuild@0.28.2)(rolldown@1.2.14)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))(zod@4.6.5)
 
   apps/api:
     dependencies:
+      '@easeia/astro-content':
+        specifier: workspace:*
+        version: link:../../packages/astro-content
       '@hono/node-server':
         specifier: ^2.1.0
         version: 2.1.0(hono@4.13.9)
       '@hono/zod-openapi':
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.9)(zod@4.6.5)
-      '@repo/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
       '@repo/api-types':
         specifier: workspace:*
         version: link:../../packages/api-types
@@ -116,6 +101,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../../packages/errors
       '@repo/jobs':
         specifier: workspace:*
         version: link:../../packages/jobs
@@ -140,9 +128,6 @@ importers:
       '@repo/sites':
         specifier: workspace:*
         version: link:../../packages/sites
-      '@repo/transactional':
-        specifier: workspace:*
-        version: link:../../packages/transactional
       '@scalar/hono-api-reference':
         specifier: ^0.11.13
         version: 0.11.13(hono@4.13.9)
@@ -162,6 +147,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@repo/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@repo/config-vitest':
         specifier: workspace:*
         version: link:../../packages/config-vitest
@@ -223,9 +211,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@repo/config-vitest':
-        specifier: workspace:*
-        version: link:../../packages/config-vitest
       '@repo/portless-env':
         specifier: workspace:*
         version: link:../../packages/portless-env
@@ -256,9 +241,6 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
-      vitest:
-        specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
 
   apps/web:
     dependencies:
@@ -283,6 +265,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../../packages/errors
       '@repo/health':
         specifier: workspace:*
         version: link:../../packages/health
@@ -486,9 +471,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
-      '@repo/health':
+      '@repo/errors':
         specifier: workspace:*
-        version: link:../health
+        version: link:../errors
       ai:
         specifier: ^7.0.58
         version: 7.0.58(zod@4.6.5)
@@ -582,6 +567,9 @@ importers:
       better-auth:
         specifier: ^1.7.6
         version: 1.7.6(@prisma/client@7.10.0(prisma@7.10.0(@types/node@26.2.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(typescript@7.0.2))(mysql2@3.24.3(@types/node@26.2.0))(next@16.3.8(@playwright/test@1.63.0)(@types/node@26.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.0)(prisma@7.10.0(@types/node@26.2.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1)(vue@3.5.43(typescript@7.0.2))
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@repo/config-vitest':
         specifier: workspace:*
@@ -613,6 +601,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../errors
       '@repo/jobs':
         specifier: workspace:*
         version: link:../jobs
@@ -647,6 +638,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../errors
       '@repo/jobs':
         specifier: workspace:*
         version: link:../jobs
@@ -748,6 +742,9 @@ importers:
       vitest:
         specifier: ^5.0.1
         version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
+      zod-compiler:
+        specifier: ^1.27.0
+        version: 1.27.0(esbuild@0.28.2)(rolldown@1.2.14)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))(zod@4.6.5)
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
@@ -758,9 +755,6 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
-      zod-compiler:
-        specifier: ^1.27.0
-        version: 1.27.0(esbuild@0.28.2)(rolldown@1.2.14)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))(zod@4.6.5)
 
   packages/dataforseo:
     dependencies:
@@ -821,6 +815,15 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
 
+  packages/errors:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../config-typescript
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/health:
     dependencies:
       '@repo/db':
@@ -854,12 +857,9 @@ importers:
       '@repo/blob':
         specifier: workspace:*
         version: link:../blob
-      '@repo/db':
+      '@repo/posts':
         specifier: workspace:*
-        version: link:../db
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../sites
+        version: link:../posts
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@26.2.0)
@@ -867,6 +867,9 @@ importers:
       '@repo/config-vitest':
         specifier: workspace:*
         version: link:../config-vitest
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
       '@repo/jobs':
         specifier: workspace:*
         version: link:../jobs
@@ -922,9 +925,18 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@repo/jobs':
+        specifier: workspace:*
+        version: link:../jobs
       '@repo/posts':
         specifier: workspace:*
         version: link:../posts
+      '@repo/search-console':
+        specifier: workspace:*
+        version: link:../search-console
       '@repo/sites':
         specifier: workspace:*
         version: link:../sites
@@ -938,9 +950,6 @@ importers:
       '@repo/config-vitest':
         specifier: workspace:*
         version: link:../config-vitest
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../jobs
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../config-typescript
@@ -968,6 +977,12 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@repo/jobs':
+        specifier: workspace:*
+        version: link:../jobs
       linkedom:
         specifier: ^0.18.13
         version: 0.18.13
@@ -1033,12 +1048,12 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
-      '@repo/observability':
+      '@repo/errors':
         specifier: workspace:*
-        version: link:../observability
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../sites
+        version: link:../errors
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@repo/config-vitest':
         specifier: workspace:*
@@ -1076,6 +1091,9 @@ importers:
 
   packages/posts:
     dependencies:
+      '@easeia/astro-content':
+        specifier: workspace:*
+        version: link:../astro-content
       '@repo/ai':
         specifier: workspace:*
         version: link:../ai
@@ -1085,6 +1103,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../errors
       '@repo/jobs':
         specifier: workspace:*
         version: link:../jobs
@@ -1174,6 +1195,9 @@ importers:
       google-auth-library:
         specifier: ^10.9.0
         version: 10.9.0
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@repo/config-vitest':
         specifier: workspace:*
@@ -1193,12 +1217,18 @@ importers:
 
   packages/sites:
     dependencies:
+      '@easeia/astro-content':
+        specifier: workspace:*
+        version: link:../astro-content
       '@repo/api-types':
         specifier: workspace:*
         version: link:../api-types
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/errors':
+        specifier: workspace:*
+        version: link:../errors
       '@repo/jobs':
         specifier: workspace:*
         version: link:../jobs
@@ -1224,6 +1254,9 @@ importers:
 
   packages/social-image:
     dependencies:
+      '@repo/ui':
+        specifier: workspace:*
+        version: link:../ui
       fontkit:
         specifier: 2.0.4
         version: 2.0.4
@@ -1357,34 +1390,6 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
 
-  scripts:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../packages/db
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../packages/jobs
-      '@repo/policy':
-        specifier: workspace:*
-        version: link:../packages/policy
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../packages/sites
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../packages/config-typescript
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
   tools/aggregate-site-niches:
     dependencies:
       '@repo/db':
@@ -1435,81 +1440,6 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  tools/backfill-link-urls:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../../packages/sites
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/backfill-permalinks:
-    dependencies:
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/dedupe-suffixed-posts:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../../packages/jobs
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../../packages/posts
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-    devDependencies:
-      '@repo/config-vitest':
-        specifier: workspace:*
-        version: link:../../packages/config-vitest
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
-
   tools/enrich-internal-links:
     dependencies:
       '@repo/ai':
@@ -1518,9 +1448,6 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../../packages/jobs
       '@repo/links':
         specifier: workspace:*
         version: link:../../packages/links
@@ -1570,35 +1497,13 @@ importers:
       tsx:
         specifier: ^4.23.11
         version: 4.23.11
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/fix-uncategorized-posts:
-    dependencies:
-      '@repo/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../../packages/posts
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
       zod:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@repo/config-vitest':
+        specifier: workspace:*
+        version: link:../../packages/config-vitest
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/config-typescript
@@ -1608,12 +1513,12 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
 
   tools/maintenance:
     dependencies:
-      '@repo/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
       '@repo/blob':
         specifier: workspace:*
         version: link:../../packages/blob
@@ -1623,30 +1528,15 @@ importers:
       '@repo/hero':
         specifier: workspace:*
         version: link:../../packages/hero
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../../packages/jobs
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../../packages/posts
       '@repo/search-console':
         specifier: workspace:*
         version: link:../../packages/search-console
-      '@repo/sites':
-        specifier: workspace:*
-        version: link:../../packages/sites
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
-      sharp:
-        specifier: ^0.35.5
-        version: 0.35.5(@types/node@26.2.0)
       tsx:
         specifier: ^4.23.11
         version: 4.23.11
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
@@ -1666,6 +1556,9 @@ importers:
       '@repo/posts':
         specifier: workspace:*
         version: link:../../packages/posts
+      '@repo/sites':
+        specifier: workspace:*
+        version: link:../../packages/sites
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1683,60 +1576,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  tools/normalize-post-bodies:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../../packages/jobs
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../../packages/posts
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/recrawl-rewritten:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../../packages/jobs
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/rename-categories:
+  tools/normalize-posts:
     dependencies:
       '@repo/db':
         specifier: workspace:*
@@ -1750,46 +1590,6 @@ importers:
       tsx:
         specifier: ^4.23.11
         version: 4.23.11
-    devDependencies:
-      '@repo/config-vitest':
-        specifier: workspace:*
-        version: link:../../packages/config-vitest
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.2.0)(@vitest/coverage-v8@5.0.1)(jsdom@30.0.1(@noble/hashes@2.3.0))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
-
-  tools/repair-corrupted-bodies:
-    dependencies:
-      '@repo/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/jobs':
-        specifier: workspace:*
-        version: link:../../packages/jobs
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../../packages/posts
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
@@ -1877,6 +1677,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/money-sites':
+        specifier: workspace:*
+        version: link:../../packages/money-sites
       '@repo/sites':
         specifier: workspace:*
         version: link:../../packages/sites
@@ -1893,56 +1696,6 @@ importers:
       tsx:
         specifier: ^4.23.11
         version: 4.23.11
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/spread-bulk-publish-dates:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
-  tools/strip-em-dashes:
-    dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@repo/posts':
-        specifier: workspace:*
-        version: link:../../packages/posts
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.11
-        version: 4.23.11
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/config-typescript
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

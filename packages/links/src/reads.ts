@@ -1,5 +1,6 @@
 import { LinkType, PostStatus, type Prisma, prisma } from "@repo/db";
 
+import { sourceDomainOf } from "./hosts";
 import { liveLinkSql, liveLinkWhere } from "./live";
 
 const pbnBacklinksWhere = {
@@ -40,6 +41,22 @@ export const countInternalInboundLinks = async (
   return counts;
 };
 
+export const outboundLinks = (postId: string) =>
+  prisma.link.findMany({
+    include: { toPost: { select: { id: true, slug: true, title: true } } },
+    orderBy: { position: "asc" },
+    where: { ...liveLinkWhere, fromPostId: postId },
+  });
+
+export const linksTo = <L extends { toUrl: string }>(
+  links: ReadonlyArray<L>,
+  domain: string,
+): Array<L> => {
+  const target = domain.replace(/^www\./v, "").toLowerCase();
+
+  return links.filter((link) => sourceDomainOf(link.toUrl) === target);
+};
+
 export const countPbnBacklinks = (): Promise<number> =>
   prisma.link.count({ where: pbnBacklinksWhere });
 
@@ -77,9 +94,9 @@ export const recentPbnBacklinks = (siteId: string, limit: number) =>
     where: siteBacklinksWhere(siteId),
   });
 
-type PbnEdge = { count: number; fromSiteId: string; toSiteId: string };
+export type PbnEdge = { count: number; fromSiteId: string; toSiteId: string };
 
-type MoneyEdge = { count: number; fromSiteId: string; moneySiteId: string };
+export type MoneyEdge = { count: number; fromSiteId: string; moneySiteId: string };
 
 export const networkLinkEdges = async (): Promise<{
   moneyEdges: Array<MoneyEdge>;

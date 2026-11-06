@@ -1,5 +1,4 @@
 import { getJob } from "@repo/jobs";
-import { Badge } from "@repo/ui/components/badge";
 import { buttonVariants } from "@repo/ui/components/button";
 import {
   Card,
@@ -13,7 +12,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { JobStatusBadge } from "@/components/job-status-badge";
+import { JobKindBadge, JobStatusBadge } from "@/components/job-status-badge";
 
 const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
@@ -43,9 +42,7 @@ const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) =>
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <JobStatusBadge status={job.status} />
-          <Badge variant="outline">
-            <span className="inline-flex items-center gap-1 font-mono">{job.kind}</span>
-          </Badge>
+          <JobKindBadge kind={job.kind} />
           <code className="text-xs text-muted-foreground">{job.id}</code>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">

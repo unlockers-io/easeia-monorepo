@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type Tone = "default" | "destructive" | "success" | "muted";
+type Tone = "default" | "destructive" | "muted";
 
 type Emphasis = "lead" | "minor";
 
@@ -10,7 +10,6 @@ const TONE_CLASS = {
   default: "text-foreground",
   destructive: "text-destructive",
   muted: "text-muted-foreground",
-  success: "text-foreground",
 } satisfies ToneClassContract;
 
 export type StatItem = {
@@ -18,7 +17,6 @@ export type StatItem = {
   description?: string;
   /** `lead` figures print at display size and take two columns; `minor` ones stay compact. */
   emphasis?: Emphasis;
-  href?: string;
   label: string;
   /** Printed after the value at a smaller size, e.g. "/100". */
   suffix?: string;
@@ -58,46 +56,33 @@ const StatCell = ({ item }: { item: StatItem }) => {
   const tone = item.tone ?? "default";
   const emphasis = item.emphasis ?? "default";
 
-  const inner = (
-    <div className="flex min-w-0 flex-col py-4 md:pr-4">
-      <p
-        className={`truncate tabular-nums ${VALUE_CLASS[emphasis]} ${TONE_CLASS[tone]}`}
-        title={typeof item.value === "string" ? item.value : undefined}
-      >
-        {item.value}
-        {item.suffix === undefined ? null : (
-          <span className="ml-0.5 text-lg font-medium tracking-normal text-muted-foreground">
-            {item.suffix}
-          </span>
-        )}
-      </p>
-      <p className="mt-2 truncate text-xs font-semibold text-muted-foreground" title={item.label}>
-        {item.label}
-      </p>
-      {item.description === undefined ? null : (
-        <p className="truncate text-xs text-muted-foreground/80">{item.description}</p>
-      )}
-    </div>
-  );
-
-  const cellClass = `border-b border-border md:border-b-0 md:border-r md:last:border-r-0 ${
-    emphasis === "lead" ? "lg:col-span-2" : ""
-  }`;
-
-  if (item.href !== undefined && item.href !== "") {
-    return (
-      <li className={cellClass}>
-        <a
-          className="block transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-          href={item.href}
+  return (
+    <li
+      className={`border-b border-border md:border-r md:border-b-0 md:last:border-r-0 ${
+        emphasis === "lead" ? "lg:col-span-2" : ""
+      }`}
+    >
+      <div className="flex min-w-0 flex-col py-4 md:pr-4">
+        <p
+          className={`truncate tabular-nums ${VALUE_CLASS[emphasis]} ${TONE_CLASS[tone]}`}
+          title={typeof item.value === "string" ? item.value : undefined}
         >
-          {inner}
-        </a>
-      </li>
-    );
-  }
-
-  return <li className={cellClass}>{inner}</li>;
+          {item.value}
+          {item.suffix === undefined ? null : (
+            <span className="ml-0.5 text-lg font-medium tracking-normal text-muted-foreground">
+              {item.suffix}
+            </span>
+          )}
+        </p>
+        <p className="mt-2 truncate text-xs font-semibold text-muted-foreground" title={item.label}>
+          {item.label}
+        </p>
+        {item.description === undefined ? null : (
+          <p className="truncate text-xs text-muted-foreground/80">{item.description}</p>
+        )}
+      </div>
+    </li>
+  );
 };
 
 /**

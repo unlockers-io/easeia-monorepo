@@ -1,4 +1,10 @@
-abstract class AiUnavailableError extends Error {}
+import { DomainError } from "@repo/errors";
+
+abstract class AiUnavailableError extends DomainError {
+  constructor(message: string) {
+    super(message, "AI_UNAVAILABLE", 503);
+  }
+}
 
 class AiNotConfiguredError extends AiUnavailableError {
   constructor() {

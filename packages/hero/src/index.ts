@@ -1,5 +1,4 @@
-import { prisma } from "@repo/db";
-import { requestRedeploy } from "@repo/sites";
+import * as Posts from "@repo/posts";
 
 import { generatePostImage } from "./generate-image";
 import type { GeneratePostImageDeps } from "./generate-image";
@@ -71,7 +70,7 @@ const pick = (options: ReadonlyArray<string>, hash: number, salt: number): strin
  * Deterministic look for a seed. Body images seed on `${slug}-${index}` so the
  * three photos in one post don't come back as near-identical frames.
  */
-export const buildLook = (seed: string): string => {
+const buildLook = (seed: string): string => {
   const hash = hashSlug(seed);
 
   return [
@@ -131,8 +130,7 @@ export const buildBodyImagePrompt = (input: {
   ].join(" ");
 };
 
-export type GenerateHeroPost = {
-  categories: ReadonlyArray<string>;
+type GenerateHeroPost = {
   id: string;
   siteId: string;
   slug: string;
@@ -140,64 +138,12 @@ export type GenerateHeroPost = {
   title: string;
 };
 
-export type GenerateHeroResult = { key: string; url: string };
-
-type WriteHeroInput = {
-  blobKey: string;
-  blobUrl: string;
-  filename: string;
-  height: number;
-  isHero: true;
-  mime: "image/jpeg";
-  postId: string;
-  width: number;
-};
-
-export type GenerateHeroDeps = GeneratePostImageDeps & {
-  writeHero?: (input: WriteHeroInput) => Promise<void>;
-};
-
-const defaultWriteHero = async (input: WriteHeroInput): Promise<void> => {
-  await prisma.$transaction(async (tx) => {
-    await tx.postImage.upsert({
-      create: {
-        alt: null,
-        blobKey: input.blobKey,
-        blobUrl: input.blobUrl,
-        filename: input.filename,
-        height: input.height,
-        isHero: true,
-        mime: input.mime,
-        postId: input.postId,
-        width: input.width,
-      },
-      update: {
-        blobKey: input.blobKey,
-        blobUrl: input.blobUrl,
-        height: input.height,
-        isHero: true,
-        mime: input.mime,
-        width: input.width,
-      },
-      where: { postId_filename: { filename: input.filename, postId: input.postId } },
-    });
-    await tx.post.update({
-      data: { featuredImage: input.blobUrl },
-      where: { id: input.postId },
-    });
-    const post = await tx.post.findUniqueOrThrow({ where: { id: input.postId } });
-
-    if (post.status === "PUBLISHED") {
-      await requestRedeploy(post.siteId, tx);
-    }
-  });
-};
+type GenerateHeroDeps = GeneratePostImageDeps & { setHero?: typeof Posts.setHero };
 
 export const generateHero = async (
   input: { post: GenerateHeroPost; site: { imageStyle: string | null } },
-  deps: GenerateHeroDeps = {},
-): Promise<GenerateHeroResult> => {
-  const { writeHero = defaultWriteHero, ...imageDeps } = deps;
+  { setHero = Posts.setHero, ...imageDeps }: GenerateHeroDeps = {},
+): Promise<void> => {
   const filename = `${input.post.slug}.jpg`;
 
   const image = await generatePostImage(
@@ -209,24 +155,14 @@ export const generateHero = async (
     imageDeps,
   );
 
-  await writeHero({
+  await setHero(input.post.id, {
     blobKey: image.key,
     blobUrl: image.url,
     filename,
     height: image.height,
-    isHero: true,
-    mime: "image/jpeg",
-    postId: input.post.id,
+    mime: image.mime,
     width: image.width,
   });
-
-  return { key: image.key, url: image.url };
 };
 
 export { generatePostImage } from "./generate-image";
-
-export type {
-  GeneratePostImageDeps,
-  GeneratePostImageInput,
-  GeneratePostImageResult,
-} from "./generate-image";

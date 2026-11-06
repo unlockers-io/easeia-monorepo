@@ -2,14 +2,11 @@ import { createRoute } from "@hono/zod-openapi";
 import { networkBackfill } from "@repo/backfill";
 
 import { commonErrors, jsonResponse, startedRunSchema } from "@/lib/openapi-schemas";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { recordAudit } from "@/middleware/audit";
-import { apiRateLimit } from "@/middleware/security";
+import { guards } from "@/lib/protected-router";
 
 import { createRunRouter, type RunRouteDependencies } from "./run-router";
 
 type BackfillRouteDependencies = RunRouteDependencies & {
-  audit: typeof recordAudit;
   start: typeof networkBackfill.start;
 };
 
@@ -39,11 +36,8 @@ const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {
 };
 
 const backfillRoutes = createBackfillRoutes({
-  apiAuth: apiAuthMiddleware,
-  audit: recordAudit,
-  rateLimit: apiRateLimit,
+  ...guards,
   readStatus: networkBackfill.readStatus,
-  requirePermission: requireAction,
   start: networkBackfill.start,
 });
 

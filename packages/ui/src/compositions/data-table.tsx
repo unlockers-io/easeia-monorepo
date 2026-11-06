@@ -43,7 +43,6 @@ type DataTableProps<TData extends RowData> = {
   columns: Array<ColumnDef<TData>>;
   data: Array<TData>;
   emptyState?: ReactNode;
-  initialPageSize?: number;
   toolbar?: (table: DataTableInstance<TData>) => ReactNode;
 };
 
@@ -52,7 +51,6 @@ const DataTable = <TData extends RowData>({
   columns,
   data,
   emptyState,
-  initialPageSize = 25,
   toolbar,
 }: DataTableProps<TData>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -63,7 +61,7 @@ const DataTable = <TData extends RowData>({
     columns,
     data,
     features: dataTableFeatures,
-    initialState: { pagination: { pageIndex: 0, pageSize: initialPageSize } },
+    initialState: { pagination: { pageIndex: 0, pageSize: 25 } },
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onSortingChange: setSorting,
@@ -105,7 +103,7 @@ const DataTable = <TData extends RowData>({
             </TableRow>
           ) : (
             rows.map((row) => (
-              <TableRow data-state={row.getIsSelected() && "selected"} key={row.id}>
+              <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

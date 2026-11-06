@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { moneySiteListItemSchema, moneySitePublicSchema } from "@repo/api-types";
 
 const errorDetailSchema = z.object({ field: z.string(), message: z.string() });
 
@@ -26,48 +27,15 @@ export const idParamSchema = z.object({
 
 export const startedRunSchema = z.object({ runId: z.string() });
 export const queuedJobSchema = z.object({ jobId: z.string() });
-export const okSchema = z.object({ ok: z.boolean() });
+export const okSchema = z.object({ ok: z.literal(true) }).openapi("OkResponse");
 export const forceBodySchema = z.object({ force: z.boolean().optional() });
 
 export { backfillRunStatusSchema as orchestratorStatusSchema } from "@repo/api-types";
 
-const moneySiteSchema = z.object({
-  contentPathPrefix: z.string().nullable(),
-  createdAt: z.coerce.date(),
-  domain: z.string(),
-  id: z.string(),
-  isEnabled: z.boolean(),
-  name: z.string(),
-  sitemapUrl: z.string(),
-  updatedAt: z.coerce.date(),
-});
+export const moneySiteResponseSchema = z.object({ data: moneySitePublicSchema });
+export const moneySiteListSchema = z.object({ data: z.array(moneySiteListItemSchema) });
 
-export const moneySiteResponseSchema = z.object({ data: moneySiteSchema });
-const pageCountSchema = z.object({ pages: z.number() });
-const countedMoneySiteSchema = moneySiteSchema.extend({ _count: pageCountSchema });
-export const moneySiteListSchema = z.object({ data: z.array(countedMoneySiteSchema) });
-
-const postReferenceSchema = z.object({
-  id: z.string(),
-  site: z.object({ domain: z.string() }),
-  siteId: z.string(),
-  slug: z.string(),
-  title: z.string(),
-});
-
-export const suggestionPublicSchema = z.object({
-  anchorText: z.string(),
-  fromPost: postReferenceSchema,
-  id: z.string(),
-  suggestedAt: z.coerce.date().nullable(),
-  toPost: postReferenceSchema.nullable(),
-  type: z.enum(["INTERNAL", "PBN", "EXTERNAL"]),
-});
-
-export const suggestionPageSchema = z.object({
-  data: z.array(suggestionPublicSchema),
-  meta: z.object({ nextCursor: z.string().nullable() }),
-});
+export { suggestionPageSchema, suggestionPublicSchema } from "@repo/api-types";
 
 export const suggestionDecisionSchema = z.object({
   link: z.object({ anchorText: z.string(), approved: z.boolean().nullable(), id: z.string() }),

@@ -1,6 +1,7 @@
 # ADR-0010: Ticks are scheduled Jobs; auto-publish is one module
 
-**Status:** accepted (2026-10-09); amends ADR-0002, ADR-0006 and ADR-0008
+**Status:** accepted (2026-10-09); amends ADR-0002, ADR-0006 and ADR-0008; amended 2026-11-06
+(below)
 
 ## Context
 
@@ -65,3 +66,13 @@ unschedule(kind);
 - Obsolete: the worker's `setInterval` table, `scheduler-fanout.ts`, `snapshot-fanout.ts`,
   `packages/posts/src/bucket.ts`, `Posts.publishNextBucketDraft`, the web refill-all factory, and
   the clamps in the site and bucket actions.
+
+## Amendment (2026-11-06)
+
+- `Posts.publishBucketDraft` stamps `lastAutoPublishedAt` in the claim transaction again
+  (ADR-0008). `publishDraft` and `publishNext` no longer write the Site.
+- `configure` and `applyNetworkDefaults` reject out-of-range cadence and bucket sizes with
+  `AutoPublishConfigError` instead of clamping. Schedule columns are written only through
+  `Sites.updateSchedule` and `Sites.updateEnabledSchedules`. Refills of one Site run one at a time.
+- `schedule(kind, everyMs)` takes no payload. The ticks and their intervals are declared in the
+  worker's Job registry, `apps/worker/src/jobs.ts`.

@@ -1,8 +1,9 @@
-import { isLiveLink } from "@repo/links";
+import { JobKind } from "@repo/db";
+import { findLatestJobByPost, listJobs } from "@repo/jobs";
+import { linksTo, outboundLinks } from "@repo/links";
 import * as Posts from "@repo/posts";
-import { hasDeployHook, postPath, postPublicUrl } from "@repo/sites";
+import { hasDeployHook, isDeployable, postPath, postPublicUrl } from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
-import { Button } from "@repo/ui/components/button";
 import {
   Card,
   CardContent,
@@ -17,31 +18,33 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { Banner } from "@/components/banner";
-import { RewriteTriggerButton } from "@/components/rewrite-trigger-button";
-import { SuggestedLinksPanel } from "@/components/suggested-links-panel";
+import { ActionButton } from "@/components/action-button";
+import { JobStatusBadge } from "@/components/job-status-badge";
 import { readIntegrations } from "@/lib/integrations";
 
-import { publishPostAction } from "../../actions";
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
+import { publishPostAction } from "../actions";
 import { PostStatusBadge } from "../post-status-badge";
 
 import { PostAuditCard, SeoNotApplicable, SerpRankCard } from "./dataforseo-cards";
 import { OutboundLinksCard } from "./outbound-links";
 import { PostActionsMenu } from "./post-actions-menu";
-import { JobStatusBadge, PostTimingLabel } from "./post-badges";
+import { PostTimingLabel } from "./post-badges";
 import { MoneySiteLinksPanel, RewrittenBadge } from "./rewrite-panels";
+import { RewriteTriggerButton } from "./rewrite-trigger-button";
 import { PostSearchConsoleCard } from "./search-console-card";
 import { SimilarPostsCard } from "./similar-posts";
+import { SuggestedLinksPanel } from "./suggested-links-panel";
 
-type PostPageProps = {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
-};
+const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
 
-const PostPage = async ({ params, searchParams }: PostPageProps) => {
-  const [{ id }, { error }] = await Promise.all([params, searchParams]);
-  const post = await Posts.detail(id);
+  const [post, liveOutbound, { data: jobs }, latestPublish] = await Promise.all([
+    Posts.detail(id),
+    outboundLinks(id),
+    listJobs({ limit: 5, postId: id }),
+    findLatestJobByPost(JobKind.PUBLISH, [id]),
+  ]);
 
   if (!post) {
     notFound();
@@ -49,20 +52,11 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
 
   const moneySiteDomain = post.site.moneySite?.domain ?? null;
 
-  // predicates. The money-site panel used to filter on `approved: true`, but the
-  // crawler writes IMPORTED rows with `approved` NULL, so it hid every link
-  // actually present in the published HTML and showed only the subset the
-  // rewriter had flipped. `isLiveLink` is the same rule the dashboard and
-  // network graph use.
-  const liveOutbound = post.outbound.filter(isLiveLink);
-
   const moneySiteLinks =
     moneySiteDomain !== null && moneySiteDomain !== ""
-      ? liveOutbound.filter((l) => l.toUrl.includes(moneySiteDomain))
+      ? linksTo(liveOutbound, moneySiteDomain)
       : [];
 
-  // Captured once so every relative-time string on the page formats against a
-  // single reference instant.
   // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
   const publicPageUrl = postPublicUrl(post.site, post);
@@ -74,7 +68,7 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <PostStatusBadge
-              job={post.jobs[0] ?? null}
+              job={latestPublish.get(id) ?? null}
               nowMs={nowMs}
               publishedAt={post.publishedAt}
               scheduledAt={post.scheduledAt}
@@ -98,13 +92,13 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
         </div>
         <div className="flex items-center gap-2">
           <RewriteTriggerButton aiConfigured={readIntegrations().openai.configured} postId={id} />
-          <form action={publishPostAction}>
-            <input name="id" type="hidden" value={post.id} />
-            <Button disabled={!post.site.isEnabled || !hasDeployHook(post.site)} type="submit">
-              <Send className="size-4" />
-              Publish
-            </Button>
-          </form>
+          <ActionButton
+            action={publishPostAction.bind(null, post.id)}
+            disabled={!isDeployable(post.site)}
+          >
+            <Send className="size-4" />
+            Publish
+          </ActionButton>
           <PostActionsMenu
             domain={post.site.domain}
             postId={post.id}
@@ -112,8 +106,6 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
           />
         </div>
       </header>
-
-      {error !== undefined && error !== "" ? <Banner tone="error">{error}</Banner> : null}
 
       {!hasDeployHook(post.site) && (
         <output className="text-sm">
@@ -173,10 +165,10 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
             <CardTitle>
               <h2>Recent jobs</h2>
             </CardTitle>
-            <CardDescription>Last 5 publish attempts for this post.</CardDescription>
+            <CardDescription>Last 5 jobs for this post.</CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            {post.jobs.length === 0 ? (
+            {jobs.length === 0 ? (
               <p className="px-6 pb-6 text-sm text-muted-foreground">No jobs yet.</p>
             ) : (
               <Table>
@@ -189,7 +181,7 @@ const PostPage = async ({ params, searchParams }: PostPageProps) => {
                   ]}
                 />
                 <TableBody>
-                  {post.jobs.map((job) => (
+                  {jobs.map((job) => (
                     <TableRow key={job.id}>
                       <TableCell className="text-xs font-medium text-muted-foreground">
                         <Link className="hover:underline" href={`/dashboard/jobs/${job.id}`}>

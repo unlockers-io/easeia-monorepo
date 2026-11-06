@@ -4,13 +4,8 @@ import { expect, test as setup } from "@playwright/test";
 
 import { verification } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { TEST_USER } from "../helpers/test-user";
 import { webUrl } from "../urls";
-
-const TEST_USER = {
-  email: "e2e-test@easeia.localhost",
-  name: "E2E Test User",
-  password: "TestPassword123!",
-};
 
 setup("create and authenticate test user", async ({ page, request }) => {
   await mkdir("tests/e2e/.auth", { recursive: true });

@@ -1,28 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.hoisted(() => {
-  Object.assign(process.env, {
-    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
-    DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
-    FROM_EMAIL: "test@easeia.dev",
-    REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
-  });
-});
-
 import { createRewriteRoutes } from "./rewrite";
-import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
+import { mountForTest, openGuards } from "./test-harness";
 
 const requestRewrite = vi.fn(() => Promise.resolve({ id: "job_1" }));
 const start = vi.fn(() => Promise.resolve({ runId: "run_2" }));
 
 const rewriteRoutes = createRewriteRoutes({
-  apiAuth: bypassMiddleware,
-  audit: () => Promise.resolve(),
-  rateLimit: bypassMiddleware,
+  ...openGuards,
   readStatus: () => Promise.resolve({ active: false }),
   requestRewrite,
-  requirePermission: allowAction,
   start,
 });
 

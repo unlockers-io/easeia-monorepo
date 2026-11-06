@@ -3,9 +3,8 @@ import { Queue, type Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { QUEUE_NAMES } from "./queue";
-
-import { closeJobs, consume, schedule, unschedule } from "./index";
+import { queueName } from "./transport";
+import { closeJobs, consume, schedule, unschedule } from "./worker";
 
 const KIND = JobKind.AUDIT_SLUG_DRIFT;
 
@@ -21,7 +20,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
     beforeAll(async () => {
       admin = new Redis(process.env.REDIS_URL ?? "", { maxRetriesPerRequest: null });
-      queue = new Queue(QUEUE_NAMES[KIND], { connection: admin });
+      queue = new Queue(queueName(KIND), { connection: admin });
       await queue.obliterate({ force: true });
     });
 
@@ -40,7 +39,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const replicas = 3;
 
       for (let replica = 0; replica < replicas; replica += 1) {
-        await schedule({ everyMs: 400, kind: KIND, payload: {} });
+        await schedule(KIND, 400);
         workers.push(consume({ handler, kind: KIND }));
       }
 
@@ -63,9 +62,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     });
 
     it("keeps one scheduler when replicas register it again", async () => {
-      await schedule({ everyMs: 60_000, kind: KIND, payload: {} });
+      await schedule(KIND, 60_000);
       const [first] = await queue.getJobSchedulers();
-      await schedule({ everyMs: 60_000, kind: KIND, payload: {} });
+      await schedule(KIND, 60_000);
       const [again] = await queue.getJobSchedulers();
 
       expect(await queue.getJobSchedulersCount()).toBe(1);

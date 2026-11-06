@@ -39,6 +39,7 @@ const BucketsContent = async () => {
     lastAutoPublishedAt: bucket.lastAutoPublishedAt?.toISOString() ?? null,
     missedCadence: bucket.missedCadence,
     needsRefill: bucket.needsRefill,
+    nextDueAt: bucket.nextDueAt?.toISOString() ?? null,
     niches: bucket.niches,
     siteDomain: bucket.domain,
     siteId: bucket.id,

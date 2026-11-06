@@ -1,131 +1,40 @@
 "use server";
 
-import { AiUnavailableError, type FixAdvice } from "@repo/ai";
 import * as Sites from "@repo/sites";
 import { z } from "zod";
 
-import { getSession } from "@/lib/auth-helpers";
-import { log } from "@/lib/observability";
+import { settle, withAuth } from "@/lib/server-action";
 
-import { checkNameSchema, createGetFixAdviceAction } from "./fix-advice-action-service";
-import { callGenerator, getCachedAdvice, setCachedAdvice } from "./fix-advice-cache";
+import { checkNameSchema, createFixAdvice } from "./fix-advice";
+import { generateFixAdvice } from "./fix-advice-generator";
 
-const bulkInputSchema = z.object({
-  checkNames: z.array(checkNameSchema).min(1).max(100),
-  siteId: z.string().min(1),
-});
-
-export type BulkFixAdviceInput = z.infer<typeof bulkInputSchema>;
-
-export type BulkFixAdviceResult =
-  | {
-      ok: true;
-      results: ReadonlyArray<
-        | { advice: FixAdvice; checkName: string; ok: true }
-        | {
-            checkName: string;
-            error: string;
-            ok: false;
-          }
-      >;
-    }
-  | { error: string; ok: false };
-
-const getFixAdviceAction = createGetFixAdviceAction({
-  findSite: Sites.find,
-  generate: callGenerator,
-  getCached: getCachedAdvice,
-  getSession,
-  logError: ({ checkName, error, siteId }) => {
-    log.error({ checkName, error, message: "getFixAdviceAction failed", siteId });
-  },
-  setCached: setCachedAdvice,
-});
+const adviceFor = createFixAdvice(generateFixAdvice);
 
 const BULK_CONCURRENCY = 8;
 
+const checkNamesSchema = z.array(checkNameSchema).min(1).max(100);
+
+export const getFixAdviceAction = async (siteId: string, checkName: string) =>
+  withAuth(async () => adviceFor(await Sites.load(siteId), checkNameSchema.parse(checkName)));
+
 export const bulkGenerateFixAdviceAction = async (
-  input: BulkFixAdviceInput,
-): Promise<BulkFixAdviceResult> => {
-  const session = await getSession();
+  siteId: string,
+  checkNames: ReadonlyArray<string>,
+) =>
+  withAuth(async () => {
+    const site = await Sites.load(siteId);
+    const unique = [...new Set(checkNamesSchema.parse(checkNames))];
 
-  if (!session) {
-    return { error: "Not authenticated.", ok: false };
-  }
+    const adviceResult = async (checkName: string) => ({
+      checkName,
+      result: await settle(async () => adviceFor(site, checkName)),
+    });
 
-  const parsed = bulkInputSchema.safeParse(input);
+    const results: Array<Awaited<ReturnType<typeof adviceResult>>> = [];
 
-  if (!parsed.success) {
-    return { error: "Invalid input.", ok: false };
-  }
-
-  const { checkNames, siteId } = parsed.data;
-
-  const site = await Sites.find(siteId);
-
-  if (!site) {
-    return { error: "Site not found.", ok: false };
-  }
-
-  const siteContext = {
-    domain: site.domain,
-    niches: site.niches,
-  };
-
-  const unique = [...new Set(checkNames)];
-
-  const results: Array<
-    | { advice: FixAdvice; checkName: string; ok: true }
-    | { checkName: string; error: string; ok: false }
-  > = [];
-
-  for (let i = 0; i < unique.length; i += BULK_CONCURRENCY) {
-    const chunk = unique.slice(i, i + BULK_CONCURRENCY);
-
-    const batch = await Promise.allSettled(
-      chunk.map(async (checkName) => {
-        const cached = getCachedAdvice(siteId, checkName);
-
-        if (cached) {
-          return { advice: cached, checkName };
-        }
-
-        const advice = await callGenerator({ checkName, site: siteContext });
-        setCachedAdvice(siteId, checkName, advice);
-
-        return { advice, checkName };
-      }),
-    );
-
-    for (const [idx, settled] of batch.entries()) {
-      const checkName = chunk[idx];
-
-      if (checkName === undefined || checkName === "") {
-        continue;
-      }
-
-      if (settled.status === "fulfilled") {
-        results.push({ advice: settled.value.advice, checkName, ok: true });
-      } else {
-        const reason: unknown = settled.reason;
-
-        const message =
-          reason instanceof AiUnavailableError ? reason.message : "Could not generate fix advice.";
-
-        if (!(reason instanceof AiUnavailableError)) {
-          log.error({
-            checkName,
-            error: reason instanceof Error ? reason.message : String(reason),
-            message: "bulkGenerateFixAdviceAction failed",
-          });
-        }
-
-        results.push({ checkName, error: message, ok: false });
-      }
+    for (let i = 0; i < unique.length; i += BULK_CONCURRENCY) {
+      results.push(...(await Promise.all(unique.slice(i, i + BULK_CONCURRENCY).map(adviceResult))));
     }
-  }
 
-  return { ok: true, results };
-};
-
-export { getFixAdviceAction };
+    return results;
+  });

@@ -1,30 +1,20 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { siteCreateSchema, sitePublicSchema, siteUpdatePatchSchema } from "@repo/api-types";
-import type { Action } from "@repo/policy";
 import * as Sites from "@repo/sites";
-import type { Context, MiddlewareHandler } from "hono";
 
-import { createRouter } from "@/lib/openapi";
-import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
-import type { AuthVariables } from "@/middleware/api-auth";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { recordAudit } from "@/middleware/audit";
-import { apiRateLimit } from "@/middleware/security";
+import { commonErrors, idParamSchema } from "@/lib/openapi-schemas";
+import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
-type SiteRouteDependencies = {
-  apiAuth: MiddlewareHandler;
-  audit: typeof recordAudit;
+type SiteRouteDependencies = Guards & {
   createSite: typeof Sites.create;
   listSites: typeof Sites.list;
   loadSite: typeof Sites.load;
-  rateLimit: MiddlewareHandler;
-  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
   updateSite: typeof Sites.update;
 };
 
 const itemResponse = z.object({ data: sitePublicSchema }).openapi("SiteResponse");
 const listResponse = z.object({ data: z.array(sitePublicSchema) });
-const moneySiteInput = z.object({ moneySiteId: z.string().min(1).nullable() });
+const moneySiteInput = siteUpdatePatchSchema.pick({ moneySiteId: true }).required();
 
 const moneySiteResponse = z.object({
   data: z.object({ id: z.string(), moneySiteId: z.string().nullable() }),
@@ -32,28 +22,16 @@ const moneySiteResponse = z.object({
 
 const itemContent = { "application/json": { schema: itemResponse } };
 
-const errors = {
-  400: errorResponse("Invalid request"),
-  401: errorResponse("Missing or invalid bearer token"),
-  403: errorResponse("Insufficient scope"),
-  404: errorResponse("Site does not exist"),
-  409: errorResponse("A site with this domain already exists"),
-};
-
 const createSiteRoutes = (deps: SiteRouteDependencies) => {
-  const routes = createRouter<{ Variables: AuthVariables }>();
-  routes.use("*", deps.apiAuth);
-  routes.use("*", deps.rateLimit);
-  routes.use("*", (c: Context<{ Variables: AuthVariables }, string>, next) =>
-    deps.requirePermission(c.req.method === "GET" ? "sites:read" : "sites:write")(c, next),
-  );
+  const routes = createProtectedRouter(deps);
 
   routes.openapi(
     createRoute({
       method: "get",
+      middleware: [deps.requirePermission("sites:read")] as const,
       path: "/",
       responses: {
-        ...errors,
+        ...commonErrors,
         200: {
           content: {
             "application/json": { schema: listResponse },
@@ -75,9 +53,10 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
   routes.openapi(
     createRoute({
       method: "get",
+      middleware: [deps.requirePermission("sites:read", "id")] as const,
       path: "/{id}",
       request: { params: idParamSchema },
-      responses: { ...errors, 200: { content: itemContent, description: "Site found" } },
+      responses: { ...commonErrors, 200: { content: itemContent, description: "Site found" } },
       security: [{ bearerAuth: [] }],
       summary: "Get site",
       tags: ["Sites"],
@@ -92,11 +71,12 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
   routes.openapi(
     createRoute({
       method: "post",
+      middleware: [deps.requirePermission("sites:write")] as const,
       path: "/",
       request: {
         body: { content: { "application/json": { schema: siteCreateSchema } }, required: true },
       },
-      responses: { ...errors, 201: { content: itemContent, description: "Site created" } },
+      responses: { ...commonErrors, 201: { content: itemContent, description: "Site created" } },
       security: [{ bearerAuth: [] }],
       summary: "Create site",
       tags: ["Sites"],
@@ -112,6 +92,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
   routes.openapi(
     createRoute({
       method: "patch",
+      middleware: [deps.requirePermission("sites:write", "id")] as const,
       path: "/{id}",
       request: {
         body: {
@@ -120,7 +101,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
         },
         params: idParamSchema,
       },
-      responses: { ...errors, 200: { content: itemContent, description: "Site updated" } },
+      responses: { ...commonErrors, 200: { content: itemContent, description: "Site updated" } },
       security: [{ bearerAuth: [] }],
       summary: "Update site",
       tags: ["Sites"],
@@ -136,6 +117,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
   routes.openapi(
     createRoute({
       method: "patch",
+      middleware: [deps.requirePermission("sites:write", "id")] as const,
       path: "/{id}/money-site",
       request: {
         body: {
@@ -147,7 +129,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
         params: idParamSchema,
       },
       responses: {
-        ...errors,
+        ...commonErrors,
         200: {
           content: {
             "application/json": {
@@ -173,13 +155,10 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
 };
 
 const siteRoutes = createSiteRoutes({
-  apiAuth: apiAuthMiddleware,
-  audit: recordAudit,
+  ...guards,
   createSite: Sites.create,
   listSites: Sites.list,
   loadSite: Sites.load,
-  rateLimit: apiRateLimit,
-  requirePermission: requireAction,
   updateSite: Sites.update,
 });
 

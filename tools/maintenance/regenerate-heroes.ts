@@ -4,8 +4,6 @@ import { remove } from "@repo/blob";
 import { prisma } from "@repo/db";
 import { generateHero } from "@repo/hero";
 
-import { redeploySites } from "../_shared/redeploy";
-
 const DEFAULT_SINCE_DAYS = 45;
 const USD_PER_IMAGE = 0.041;
 const PAUSE_MS = 1500;
@@ -56,7 +54,6 @@ const main = async (): Promise<number> => {
   const posts = await prisma.post.findMany({
     orderBy: { createdAt: "desc" },
     select: {
-      categories: true,
       id: true,
       images: { select: { blobKey: true }, where: { isHero: true } },
       site: { select: { domain: true, imageStyle: true } },
@@ -102,7 +99,6 @@ const main = async (): Promise<number> => {
     return 0;
   }
 
-  const affectedSiteIds = new Set<string>();
   const failures: Array<Failure> = [];
   let done = 0;
 
@@ -112,7 +108,6 @@ const main = async (): Promise<number> => {
     try {
       await generateHero({
         post: {
-          categories: post.categories,
           id: post.id,
           siteId: post.siteId,
           slug: post.slug,
@@ -121,7 +116,6 @@ const main = async (): Promise<number> => {
         },
         site: post.site,
       });
-      affectedSiteIds.add(post.siteId);
       done++;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -154,8 +148,6 @@ const main = async (): Promise<number> => {
   for (const failure of failures) {
     console.log(`  [fail] ${failure.domain}/${failure.slug}: ${failure.error}`);
   }
-
-  await redeploySites(affectedSiteIds);
 
   return failures.length > 0 ? 1 : 0;
 };

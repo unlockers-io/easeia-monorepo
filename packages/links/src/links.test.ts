@@ -1,5 +1,6 @@
 import { JobKind, LinkSource, LinkType, PostStatus, prisma, type SiteLanguage } from "@repo/db";
-import { closeJobs, countJobs } from "@repo/jobs";
+import { countJobs } from "@repo/jobs";
+import { closeJobs } from "@repo/jobs/worker";
 import * as Posts from "@repo/posts";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -10,7 +11,7 @@ import {
   countPbnBacklinks,
   crawlPost,
   editSuggestionAnchor,
-  isLiveLink,
+  outboundLinks,
   listSuggestions,
   networkLinkEdges,
   pbnBacklinkSummary,
@@ -80,9 +81,9 @@ const inboundOf = async (id: string): Promise<number> => {
 };
 
 const pendingIds = async (fromPostId: string): Promise<Array<string>> => {
-  const rows = await listSuggestions({ fromPostId, limit: 50 });
+  const { data } = await listSuggestions({ fromPostId, limit: 50 });
 
-  return rows.map((r) => r.id);
+  return data.map((r) => r.id);
 };
 
 const withDatabaseAndRedis =
@@ -123,7 +124,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
 
   const suggestFromSource = async () => {
     await suggestForPost(source);
-    const rows = await listSuggestions({ fromPostId: source, limit: 50 });
+    const { data: rows } = await listSuggestions({ fromPostId: source, limit: 50 });
 
     const to = (toPostId: string) => {
       const row = rows.find((r) => r.toPostId === toPostId);
@@ -143,7 +144,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     await embed(unrelated, [unrelatedPost]);
 
     expect(await suggestForPost(source)).toEqual({ internal: 1, pbn: 1 });
-    const rows = await listSuggestions({ fromPostId: source, limit: 50 });
+    const { data: rows } = await listSuggestions({ fromPostId: source, limit: 50 });
     expect(
       rows
         .map((r) => ({ toPostId: r.toPostId, toUrl: r.toUrl, type: r.type }))
@@ -174,10 +175,12 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     const before = await countPbnBacklinks();
     const { internal, pbn } = await suggestFromSource();
 
-    const approved = await approveSuggestion(internal.id);
+    await approveSuggestion(internal.id);
     await approveSuggestions(source, [pbn.id]);
 
-    expect(isLiveLink(approved)).toBe(true);
+    const live = await outboundLinks(source);
+
+    expect(live.map((link) => link.id).toSorted()).toEqual([internal.id, pbn.id].toSorted());
     expect(await bodyOf(source)).toBe(
       [
         "<p>Body.</p>",

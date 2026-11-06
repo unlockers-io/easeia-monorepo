@@ -48,7 +48,8 @@ test("register, add a site, save a draft, then configure publishing", async ({ p
   await page.goto("/dashboard/sites");
   await page.getByRole("button", { name: "Add site" }).first().click();
   await page.getByLabel("Domain", { exact: true }).fill(domain);
-  await page.getByLabel("Content language").selectOption("EN");
+  await page.getByRole("combobox", { name: "Content language" }).click();
+  await page.getByRole("option", { exact: true, name: "English" }).click();
   await page.getByRole("button", { exact: true, name: "Create site" }).click();
   await page.waitForURL(/\/dashboard\/sites\/[^/]+$/u);
   await expect(page.getByText("No deploy hook: publishing is blocked")).toBeVisible();

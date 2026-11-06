@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { JobKind, prisma } from "@repo/db";
 import { countJobs } from "@repo/jobs";
+import * as Sites from "@repo/sites";
 
 import { recordCleanup } from "../helpers/cleanup-record";
 import { holdScripts } from "../helpers/hold-scripts";
@@ -9,8 +10,9 @@ test.describe("Site settings forms", () => {
   test("author edits record one rebuild through the web action", async ({ page }) => {
     const domain = recordCleanup("site", `e2e-author-${crypto.randomUUID()}.example`);
 
-    const site = await prisma.site.create({
-      data: { domain, vercelDeployHookUrl: "https://deploy.example/author" },
+    const site = await Sites.create({
+      domain,
+      vercelDeployHookUrl: "https://deploy.example/author",
     });
 
     await page.goto(`/dashboard/sites/${site.id}`);
@@ -37,7 +39,7 @@ test.describe("Site settings forms", () => {
 
   test("auto-publish puts cross-field errors on their field after submit", async ({ page }) => {
     const domain = recordCleanup("site", `e2e-auto-publish-${crypto.randomUUID()}.example`);
-    const site = await prisma.site.create({ data: { domain } });
+    const site = await Sites.create({ domain });
     await page.goto(`/dashboard/sites/${site.id}`);
     const refill = page.getByLabel("Refill when below", { exact: true });
     const refillError = page.getByText("Refill threshold (12) must be ≤ bucket target (10).");
@@ -62,7 +64,7 @@ test.describe("Site settings forms", () => {
 
   test("keep their controls disabled until they hydrate", async ({ page }) => {
     const domain = recordCleanup("site", `e2e-${crypto.randomUUID()}.example`);
-    const site = await prisma.site.create({ data: { domain } });
+    const site = await Sites.create({ domain });
     const autoPublish = page.getByRole("switch", { includeHidden: true });
     const deployHook = page.getByLabel("Deploy hook URL", { exact: true });
 

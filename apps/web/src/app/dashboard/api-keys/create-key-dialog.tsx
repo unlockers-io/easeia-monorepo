@@ -1,6 +1,13 @@
 "use client";
 
-import { apiKeyCreateSchema, isSiteScopedScope, type ApiKeyScope } from "@repo/api-types";
+import {
+  API_KEY_NAME_MAX_LENGTH,
+  API_KEY_SCOPES,
+  apiKeyCreateSchema,
+  isSiteScopedScope,
+  SITE_SCOPED_API_KEY_SCOPES,
+  type ApiKeyScope,
+} from "@repo/api-types";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
@@ -23,13 +30,6 @@ import {
   FieldSet,
 } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/select";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
@@ -41,13 +41,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { SitePicker, type SiteOption } from "@/components/site-picker";
+
 import { createApiKeyAction } from "./actions";
 
-type Props = {
-  scopes: ReadonlyArray<ApiKeyScope>;
-  sites: ReadonlyArray<{ domain: string; id: string }>;
-  siteScopedScopes: ReadonlyArray<ApiKeyScope>;
-};
+const SITE_SCOPED = SITE_SCOPED_API_KEY_SCOPES.join(", ");
 
 const TokenIssued = ({ token }: { token: string }) => {
   const [copied, setCopied] = useState(false);
@@ -130,7 +128,7 @@ const ScopeOption = ({ checked, disabled, invalid, onCheckedChange, scope }: Sco
   </label>
 );
 
-const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
+const CreateKeyDialog = ({ sites }: { sites: ReadonlyArray<SiteOption> }) => {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -232,7 +230,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                         value={field.state.value}
                       />
                       <FieldDescription id="name-description">
-                        Up to 80 characters.
+                        Up to {API_KEY_NAME_MAX_LENGTH} characters.
                       </FieldDescription>
                       {isInvalid && (
                         <FormFieldError errors={field.state.meta.errors} id="name-error" />
@@ -254,7 +252,7 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                     >
                       <FieldLegend variant="label">Scopes</FieldLegend>
                       <div className="flex flex-wrap gap-2">
-                        {scopes.map((s) => (
+                        {API_KEY_SCOPES.map((s) => (
                           <ScopeOption
                             checked={selected.has(s)}
                             disabled={sites.length === 0 && isSiteScopedScope(s)}
@@ -273,8 +271,8 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
                       </div>
                       {sites.length === 0 && (
                         <FieldDescription id="scopes-no-site">
-                          {siteScopedScopes.join(", ")} keys are restricted to one site, and no
-                          enabled site exists yet. Enable a site to pick them.
+                          {SITE_SCOPED} keys are restricted to one site, and no enabled site exists
+                          yet. Enable a site to pick them.
                         </FieldDescription>
                       )}
                       {isInvalid && (
@@ -287,46 +285,13 @@ const CreateKeyDialog = ({ scopes, sites, siteScopedScopes }: Props) => {
 
               {needsSite && (
                 <form.Field name="siteId">
-                  {(field) => {
-                    const isInvalid = !field.state.meta.isValid;
-
-                    return (
-                      <Field data-invalid={isInvalid || undefined}>
-                        <FieldLabel htmlFor="siteId">Site</FieldLabel>
-                        <Select
-                          onValueChange={(next: string | null) => {
-                            field.handleChange(next ?? "");
-                          }}
-                          value={field.state.value}
-                        >
-                          <SelectTrigger
-                            aria-describedby={
-                              isInvalid ? "siteId-description siteId-error" : "siteId-description"
-                            }
-                            aria-invalid={isInvalid}
-                            className="w-full"
-                            id="siteId"
-                          >
-                            <SelectValue placeholder="Pick a site" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sites.map((site) => (
-                              <SelectItem key={site.id} value={site.id}>
-                                {site.domain}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FieldDescription id="siteId-description">
-                          Required: {siteScopedScopes.join(", ")} keys only work against the site
-                          they are bound to.
-                        </FieldDescription>
-                        {isInvalid && (
-                          <FormFieldError errors={field.state.meta.errors} id="siteId-error" />
-                        )}
-                      </Field>
-                    );
-                  }}
+                  {(field) => (
+                    <SitePicker
+                      description={`Required: ${SITE_SCOPED} keys only work against the site they are bound to.`}
+                      field={field}
+                      sites={sites}
+                    />
+                  )}
                 </form.Field>
               )}
             </FieldGroup>

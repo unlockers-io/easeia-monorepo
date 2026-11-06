@@ -1,7 +1,6 @@
 import type { ConsumerContext } from "@repo/jobs";
 import { crawlPage } from "@repo/money-sites";
-
-import { createJobLogger } from "../lib/logger";
+import { createJobLogger } from "@repo/observability/worker";
 
 export const handleCrawlMoneySitePage = async (
   ctx: ConsumerContext<"CRAWL_MONEY_SITE_PAGE">,

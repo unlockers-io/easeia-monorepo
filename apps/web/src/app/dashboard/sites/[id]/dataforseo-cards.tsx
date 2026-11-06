@@ -1,7 +1,4 @@
-import { prisma, type SiteLanguage } from "@repo/db";
-import { pbnBacklinkSummary } from "@repo/links";
-import { isConnected } from "@repo/search-console";
-import { Badge } from "@repo/ui/components/badge";
+import type { SiteLanguage } from "@repo/db";
 import {
   Table,
   TableBody,
@@ -14,8 +11,8 @@ import { CheckCircle2, ExternalLink, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { auditPage, domainRankOverview, rankedKeywords } from "@/app/dashboard/lib/dataforseo";
+import { RankBadge, Stat } from "@/app/dashboard/lib/metrics";
 
-import { ExternalBacklinksUpload } from "./external-backlinks-upload";
 import { FailingChecksList } from "./failing-checks-list";
 
 const DATAFORSEO_DESCRIPTION = "DataForSEO unavailable.";
@@ -211,7 +208,11 @@ export const TopKeywordsCard = async ({ domain, language }: MarketProps) => {
                     )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    <RankBadge rank={kw.rank} />
+                    {kw.rank === 0 ? (
+                      <NoData className="text-muted-foreground" />
+                    ) : (
+                      <RankBadge rank={kw.rank}>#{kw.rank}</RankBadge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right text-sm tabular-nums">
                     {kw.searchVolume?.toLocaleString() ?? "—"}
@@ -229,120 +230,6 @@ export const TopKeywordsCard = async ({ domain, language }: MarketProps) => {
   );
 };
 
-export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
-  const [
-    { backlinks, referringPosts, referringSites },
-    externalRows,
-    googleConnected,
-    gscReferringSamples,
-  ] = await Promise.all([
-    pbnBacklinkSummary(siteId),
-    prisma.externalBacklink.findMany({
-      orderBy: { linkingPages: "desc" },
-      select: { importedAt: true, linkingPages: true, source: true, sourceDomain: true },
-      where: { siteId },
-    }),
-    isConnected(),
-    prisma.gscReferringUrl.findMany({
-      orderBy: { observedAt: "desc" },
-      select: { observedAt: true, referringUrl: true },
-      take: 10,
-      where: { siteId },
-    }),
-  ]);
-
-  const externalReferringDomains = externalRows.length;
-  const externalLinkingPages = externalRows.reduce((sum, row) => sum + row.linkingPages, 0);
-
-  const externalLastImportedAt = externalRows.reduce<Date | null>((latest, row) => {
-    return !latest || row.importedAt > latest ? row.importedAt : latest;
-  }, null);
-
-  return (
-    <Section
-      description="Internal PBN links from our own Link table, plus external (off-network) backlinks ingested from a Google Search Console CSV export."
-      title="Backlinks"
-    >
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h4 className="text-xs font-medium text-muted-foreground">Internal (PBN)</h4>
-          <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
-            <Stat label="Backlinks" value={backlinks.toLocaleString()} />
-            <Stat label="Referring sites" value={referringSites.toLocaleString()} />
-            <Stat label="Referring posts" value={referringPosts.toLocaleString()} />
-          </dl>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <h4 className="text-xs font-medium text-muted-foreground">External (GSC)</h4>
-          {externalRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Upload a GSC Links CSV or click &ldquo;Auto-import from Search Console&rdquo; below to
-              populate.
-            </p>
-          ) : (
-            <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
-              <Stat label="Linking pages" value={externalLinkingPages.toLocaleString()} />
-              <Stat label="Referring domains" value={externalReferringDomains.toLocaleString()} />
-              <Stat
-                label="Last import"
-                value={externalLastImportedAt ? externalLastImportedAt.toLocaleDateString() : "—"}
-              />
-            </dl>
-          )}
-          {gscReferringSamples.length > 0 ? (
-            <div className="flex flex-col gap-1 border-t pt-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                Latest referring URLs from Search Console
-              </p>
-              <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto text-sm">
-                {gscReferringSamples.map((s) => (
-                  <li className="flex items-baseline gap-2" key={s.referringUrl}>
-                    <a
-                      className="flex-1 truncate text-muted-foreground hover:text-foreground"
-                      href={s.referringUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                      title={s.referringUrl}
-                    >
-                      {s.referringUrl}
-                    </a>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {s.observedAt.toLocaleDateString()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-
-        <ExternalBacklinksUpload hasGoogleConnection={googleConnected} siteId={siteId} />
-      </div>
-    </Section>
-  );
-};
-
-const TONES = {
-  default: "text-foreground",
-  destructive: "text-destructive",
-} as const;
-
-const Stat = ({
-  label,
-  tone = "default",
-  value,
-}: {
-  label: string;
-  tone?: keyof typeof TONES;
-  value: string;
-}) => (
-  <div className="flex flex-col gap-1">
-    <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-    <dd className={`text-xl font-semibold tabular-nums ${TONES[tone]}`}>{value}</dd>
-  </div>
-);
-
 const EM_DASH = "—";
 
 const NoData = ({ as: As = "span", className }: { as?: "span" | "p"; className?: string }) => (
@@ -355,19 +242,3 @@ const Fact = ({ label, value }: { label: string; value: string }) => (
     <span className="font-medium tabular-nums">{value}</span>
   </li>
 );
-
-const RankBadge = ({ rank }: { rank: number }) => {
-  if (rank === 0) {
-    return <NoData className="text-muted-foreground" />;
-  }
-
-  if (rank <= 3) {
-    return <Badge variant="default">#{rank}</Badge>;
-  }
-
-  if (rank <= 10) {
-    return <Badge variant="secondary">#{rank}</Badge>;
-  }
-
-  return <Badge variant="outline">#{rank}</Badge>;
-};

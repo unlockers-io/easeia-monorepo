@@ -48,3 +48,10 @@ export const withSeeAlsoLinks = (
 
   return lines.toSpliced(end, 0, ...(end === start + 1 ? ["", ...bullets] : bullets)).join("\n");
 };
+
+const SEE_ALSO_SECTION = new RegExp(
+  `\\n+## (?:${Object.values(SEE_ALSO).join("|")})\\n[\\s\\S]*$`,
+  "v",
+);
+
+export const withoutSeeAlso = (body: string): string => body.replace(SEE_ALSO_SECTION, "");

@@ -9,11 +9,11 @@ vi.hoisted(() => {
 });
 
 import { AiBudgetExceededError, AiNotConfiguredError } from "@repo/ai";
-import { JobKind, JobSkippedError } from "@repo/jobs";
+import { JobSkippedError } from "@repo/jobs";
 
-import { isRetryable, skipOptionalAiWhenUnconfigured } from "./ai-unavailable";
+import { isRetryable, skipWhenAiUnconfigured } from "./ai-unavailable";
 
-const ctx = { attemptsMade: 0, finalAttempt: false, jobId: "j", payload: { postId: "p1" } };
+const ctx = { jobId: "j", payload: { postId: "p1" } };
 const failingWith = (error: Error) => vi.fn().mockRejectedValue(error);
 
 describe("isRetryable", () => {
@@ -27,31 +27,16 @@ describe("isRetryable", () => {
   });
 });
 
-describe("skipOptionalAiWhenUnconfigured", () => {
+describe("skipWhenAiUnconfigured", () => {
   it("completes an optional-AI Job when AI is unconfigured", async () => {
-    const handle = skipOptionalAiWhenUnconfigured(
-      JobKind.EMBED,
-      failingWith(new AiNotConfiguredError()),
-    );
+    const handle = skipWhenAiUnconfigured(failingWith(new AiNotConfiguredError()));
 
     await expect(handle(ctx)).rejects.toBeInstanceOf(JobSkippedError);
   });
 
   it("fails an optional-AI Job when the budget is exhausted", async () => {
-    const handle = skipOptionalAiWhenUnconfigured(
-      JobKind.GENERATE_IMAGE,
-      failingWith(new AiBudgetExceededError("2026-10")),
-    );
+    const handle = skipWhenAiUnconfigured(failingWith(new AiBudgetExceededError("2026-10")));
 
     await expect(handle(ctx)).rejects.toBeInstanceOf(AiBudgetExceededError);
-  });
-
-  it("fails a Job whose output needs AI when AI is unconfigured", async () => {
-    const handle = skipOptionalAiWhenUnconfigured(
-      JobKind.REWRITE_POST,
-      failingWith(new AiNotConfiguredError()),
-    );
-
-    await expect(handle(ctx)).rejects.toBeInstanceOf(AiNotConfiguredError);
   });
 });

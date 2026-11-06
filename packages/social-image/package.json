@@ -5,16 +5,17 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./brand": "./src/brand.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@repo/ui": "workspace:*",
     "fontkit": "2.0.4",
     "react": "^19.3.0"
   },

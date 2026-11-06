@@ -1,3 +1,4 @@
+import { LinkType } from "@repo/db/browser";
 import { z } from "zod";
 
 export const suggestionListQuerySchema = z.object({
@@ -9,14 +10,30 @@ export const suggestionListQuerySchema = z.object({
   type: z.enum(["INTERNAL", "PBN"]).optional(),
 });
 
-export const suggestionApproveSchema = z.object({
-  anchorText: z.string().min(2).max(120).optional(),
-});
-
 export const suggestionAnchorPatchSchema = z.strictObject({
   anchorText: z.string().trim().min(2).max(120),
 });
 
-export type SuggestionListQuery = z.infer<typeof suggestionListQuerySchema>;
+const postReferenceSchema = z.object({
+  id: z.string(),
+  site: z.object({ domain: z.string() }),
+  siteId: z.string(),
+  slug: z.string(),
+  title: z.string(),
+});
 
-export type SuggestionAnchorPatch = z.infer<typeof suggestionAnchorPatchSchema>;
+export const suggestionPublicSchema = z.object({
+  anchorText: z.string(),
+  fromPost: postReferenceSchema,
+  id: z.string(),
+  suggestedAt: z.coerce.date().nullable(),
+  toPost: postReferenceSchema.nullable(),
+  type: z.enum(LinkType),
+});
+
+export const suggestionPageSchema = z.object({
+  data: z.array(suggestionPublicSchema),
+  meta: z.object({ nextCursor: z.string().nullable() }),
+});
+
+export type SuggestionListQuery = z.infer<typeof suggestionListQuerySchema>;

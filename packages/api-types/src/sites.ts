@@ -31,10 +31,12 @@ export const deployHookUrlSchema = z
   .nullable()
   .pipe(z.url({ protocol: /^https?$/v }).nullable());
 
+export const SITE_TEXT_MAX_LENGTH = 2000;
+
 const optionalText = z
   .string()
   .trim()
-  .max(2000)
+  .max(SITE_TEXT_MAX_LENGTH)
   .transform((value) => (value === "" ? null : value))
   .nullable()
   .optional();
@@ -51,16 +53,7 @@ export const siteCreateSchema = z.strictObject({
   vercelProjectName: optionalText,
 });
 
-export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
-
-export const siteCreateFromFormData = (form: FormData): SiteCreateInput =>
-  siteCreateSchema.parse({
-    domain: form.get("domain"),
-    isEnabled: form.get("isEnabled") === "on",
-    language: form.get("language") ?? "PT",
-    niches: form.getAll("niches"),
-    vercelDeployHookUrl: form.get("vercelDeployHookUrl") ?? undefined,
-  });
+export type SiteCreateInput = z.input<typeof siteCreateSchema>;
 
 export const sitePublicSchema = z.object({
   astroRepoUrl: z.string().nullable(),
@@ -75,69 +68,31 @@ export const sitePublicSchema = z.object({
   vercelProjectName: z.string().nullable(),
 });
 
-export type SitePublic = z.infer<typeof sitePublicSchema>;
+export const DEFAULT_CATEGORY = "sem-categoria";
 
-const categorySlugMapSchema = z.record(z.string(), z.string());
+export const categorySlugMapSchema = z.record(z.string(), z.string());
 
-const parseCategorySlugMap = (input: string): z.infer<typeof categorySlugMapSchema> | undefined => {
-  try {
-    const value: unknown = JSON.parse(input);
-    const parsed = categorySlugMapSchema.safeParse(value);
-
-    return parsed.success ? parsed.data : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-export const siteUpdatePatchSchema = siteCreateSchema.partial().extend({
+export const siteUpdatePatchSchema = z.strictObject({
+  astroRepoUrl: deployHookUrlSchema.optional(),
+  authorBio: optionalText,
+  authorName: optionalText,
+  authorPhotoUrl: optionalText,
+  authorUrl: optionalText,
   categorySlugMap: categorySlugMapSchema.optional(),
-  defaultCategory: z.string().min(1).optional(),
+  defaultCategory: z
+    .string()
+    .trim()
+    .transform((value) => (value === "" ? DEFAULT_CATEGORY : value))
+    .optional(),
+  domain: siteDomainSchema.optional(),
+  imageStyle: optionalText,
   isEnabled: z.boolean().optional(),
   language: z.enum(SiteLanguage).optional(),
+  moneySiteId: z.string().min(1).nullable().optional(),
   niches: z.array(z.enum(Niche)).optional(),
+  topicHints: optionalText,
+  vercelDeployHookUrl: deployHookUrlSchema.optional(),
+  vercelProjectName: optionalText,
 });
 
-export type SiteUpdatePatch = z.infer<typeof siteUpdatePatchSchema>;
-
-type SiteUpdateSubmission = { id: string; patch: SiteUpdatePatch };
-
-const categoryUrlFields = (formData: FormData): Partial<SiteUpdatePatch> => {
-  const fields: Partial<SiteUpdatePatch> = {};
-  const rawDefault = formData.get("defaultCategory");
-
-  if (typeof rawDefault === "string" && rawDefault.trim().length > 0) {
-    fields.defaultCategory = rawDefault.trim();
-  }
-
-  const rawMap = formData.get("categorySlugMap");
-
-  if (typeof rawMap === "string" && rawMap.length > 0) {
-    const categorySlugMap = parseCategorySlugMap(rawMap);
-
-    if (categorySlugMap !== undefined) {
-      fields.categorySlugMap = categorySlugMap;
-    }
-  }
-
-  return fields;
-};
-
-export const siteUpdateFromFormData = (formData: FormData): SiteUpdateSubmission => {
-  const idValue = formData.get("id");
-  const id = typeof idValue === "string" ? idValue : "";
-
-  if (!id) {
-    throw new Error("Site update requires id");
-  }
-
-  const patch = siteUpdatePatchSchema.parse({
-    isEnabled: formData.get("isEnabled") === "on",
-    niches: formData.getAll("niches").flatMap((value) => {
-      return typeof value === "string" && value !== "" ? [value] : [];
-    }),
-    ...categoryUrlFields(formData),
-  });
-
-  return { id, patch };
-};
+export type SiteUpdatePatch = z.input<typeof siteUpdatePatchSchema>;

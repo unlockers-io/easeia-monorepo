@@ -58,4 +58,4 @@ const proposeTopic = (input: ProposeTopicInput): Promise<ProposedTopic> =>
     schema: proposedTopicSchema,
   });
 
-export { buildProposeTopicPrompt, proposeTopic };
+export { proposeTopic };

@@ -1,5 +1,5 @@
 import { postListQuerySchema, type PostListQueryInput } from "@repo/api-types";
-import { type Post, type Prisma, prisma } from "@repo/db";
+import { pageOf, type Post, type Prisma, prisma } from "@repo/db";
 
 import { PostNotFoundError } from "./errors";
 import { parseOrThrow } from "./parse";
@@ -17,7 +17,7 @@ export const requirePost = async (
   return post;
 };
 
-export type ListResult = {
+type ListResult = {
   data: Array<Post>;
   meta: { nextCursor: string | undefined };
 };
@@ -59,9 +59,9 @@ export const list = async (input: PostListQueryInput): Promise<ListResult> => {
     where,
   });
 
-  const nextCursor = rows.length > limit ? rows[limit]?.id : undefined;
+  const { data, nextCursor } = pageOf(rows, limit);
 
-  return { data: rows.slice(0, limit), meta: { nextCursor } };
+  return { data, meta: { nextCursor } };
 };
 
 export const get = (id: string): Promise<Post> => requirePost(id);
@@ -69,22 +69,6 @@ export const get = (id: string): Promise<Post> => requirePost(id);
 export const detail = (postId: string) =>
   prisma.post.findUnique({
     include: {
-      jobs: {
-        orderBy: { createdAt: "desc" },
-        select: {
-          attempts: true,
-          createdAt: true,
-          id: true,
-          kind: true,
-          lastError: true,
-          status: true,
-        },
-        take: 5,
-      },
-      outbound: {
-        include: { toPost: { select: { id: true, slug: true, title: true } } },
-        orderBy: { position: "asc" },
-      },
       site: { include: { moneySite: { select: { domain: true } } } },
     },
     where: { id: postId },

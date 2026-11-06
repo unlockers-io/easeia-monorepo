@@ -1,7 +1,7 @@
 import type { MoneySite, Site, SiteSnapshot } from "@repo/db";
 import type { Recommendation } from "@repo/health";
 
-type MoneySiteSummary = Pick<MoneySite, "id" | "name" | "domain">;
+export type MoneySiteSummary = Pick<MoneySite, "id" | "name" | "domain">;
 
 type SiteCardModel = {
   latest: SiteSnapshot | null;
@@ -35,6 +35,12 @@ const standingOf = (snapshot: SiteSnapshot | null): Standing => {
   }
 
   return "good";
+};
+
+const needsAttention = ({ latest }: SiteCardModel): boolean => {
+  const standing = standingOf(latest);
+
+  return standing !== "good" && standing !== "pending";
 };
 
 const STANDING_LABEL = {
@@ -93,6 +99,7 @@ const formatLastPost = (days: number | null | undefined): string => {
 export {
   formatLastPost,
   formatPosition,
+  needsAttention,
   STANDING_FILL,
   STANDING_LABEL,
   STANDING_TEXT,
@@ -100,4 +107,4 @@ export {
   trendLabel,
 };
 
-export type { SiteCardModel, Standing };
+export type { SiteCardModel };

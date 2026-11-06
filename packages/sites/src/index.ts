@@ -1,217 +1,173 @@
-import { sitePublicSchema, type SiteUpdatePatch as ApiSiteUpdatePatch } from "@repo/api-types";
-import { prisma, type Site } from "@repo/db";
+import type { BuildAuthor } from "@easeia/astro-content";
+import {
+  siteCreateSchema,
+  siteDomainSchema,
+  sitePublicSchema,
+  siteUpdatePatchSchema,
+  type SiteCreateInput,
+  type SiteUpdatePatch,
+} from "@repo/api-types";
+import { Prisma, prisma, type Site } from "@repo/db";
 
 import { parseDeployHook } from "./deploy-hook";
 import { SiteDisabledError } from "./disabled-error";
-import { SiteDeployHookMissingError, SiteNotFoundError } from "./errors";
+import {
+  SiteDeployHookMissingError,
+  SiteDomainTakenError,
+  SiteMoneySiteNotFoundError,
+  SiteNotFoundError,
+} from "./errors";
+import { load } from "./load";
 import { requestRedeploy } from "./redeploy";
 
-export {
-  type ExternalBacklinkRow,
-  type ParseExternalBacklinksCsvOptions,
-  type ParseExternalBacklinksCsvResult,
-  parseExternalBacklinksCsv,
-} from "./external-backlinks-csv";
-
-export {
-  type CategoryUrlConfig,
-  DEFAULT_CATEGORY,
-  postPath,
-  postPublicUrl,
-  slugify,
-  toCategorySlugMap,
-} from "./post-url";
+export { postPath, postPublicUrl, slugify, toCategorySlugMap } from "./post-url";
 
 export { SiteDisabledError } from "./disabled-error";
 
-export { DomainError } from "./domain-error";
-
 export { SiteDeployHookMissingError, SiteDomainTakenError, SiteNotFoundError } from "./errors";
 
-export type SiteUpsertInput = {
-  domain: string;
-  isEnabled?: boolean;
-  niches?: Site["niches"];
-};
+export type { SiteUpdatePatch } from "@repo/api-types";
 
 export const hasDeployHook = (site: Pick<Site, "vercelDeployHookUrl">): boolean =>
   parseDeployHook(site.vercelDeployHookUrl) !== null;
 
-type FindSite = (siteId: string) => Promise<Site | null>;
+export const isDeployable = (site: Pick<Site, "isEnabled" | "vercelDeployHookUrl">): boolean =>
+  site.isEnabled && hasDeployHook(site);
 
-const createRequireEnabled =
-  (findSite: FindSite) =>
-  async (siteId: string): Promise<Site> => {
-    const site = await findSite(siteId);
+export { find, load } from "./load";
 
-    if (!site) {
-      throw new SiteNotFoundError(siteId);
-    }
+export const requireEnabled = async (
+  siteId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Site> => {
+  const site = await load(siteId, tx);
 
-    if (!site.isEnabled) {
-      throw new SiteDisabledError(site.domain);
-    }
+  if (!site.isEnabled) {
+    throw new SiteDisabledError(site.domain);
+  }
 
-    return site;
-  };
-
-const requireEnabled = createRequireEnabled((siteId) =>
-  prisma.site.findUnique({ where: { id: siteId } }),
-);
-
-export const createRequirePublishable = (findSite: FindSite) => {
-  const loadEnabled = createRequireEnabled(findSite);
-
-  return async (siteId: string): Promise<Site> => {
-    const site = await loadEnabled(siteId);
-
-    if (!hasDeployHook(site)) {
-      throw new SiteDeployHookMissingError();
-    }
-
-    return site;
-  };
+  return site;
 };
 
-export const requirePublishable = createRequirePublishable((siteId) =>
-  prisma.site.findUnique({ where: { id: siteId } }),
-);
+export const requirePublishable = async (
+  siteId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Site> => {
+  const site = await requireEnabled(siteId, tx);
 
-export const find = (siteId: string): Promise<Site | null> =>
-  prisma.site.findUnique({ where: { id: siteId } });
+  if (!hasDeployHook(site)) {
+    throw new SiteDeployHookMissingError();
+  }
+
+  return site;
+};
 
 export const list = (): Promise<Array<Site>> =>
   prisma.site.findMany({ orderBy: { domain: "asc" } });
 
-export const upsert = (input: SiteUpsertInput): Promise<Site> => {
-  const data = {
-    domain: input.domain,
-    isEnabled: input.isEnabled ?? true,
-    niches: input.niches ?? [],
-  };
+export const listEnabled = () =>
+  prisma.site.findMany({
+    orderBy: { domain: "asc" },
+    select: { domain: true, id: true },
+    where: { isEnabled: true },
+  });
+
+const writing = async <T>(write: () => Promise<T>): Promise<T> => {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new SiteDomainTakenError();
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      throw new SiteMoneySiteNotFoundError();
+    }
+
+    throw error;
+  }
+};
+
+export const create = (input: SiteCreateInput): Promise<Site> =>
+  writing(() => prisma.site.create({ data: siteCreateSchema.parse(input) }));
+
+export const ensure = async (domain: string, niches: Site["niches"] = []): Promise<Site> => {
+  const normalized = siteDomainSchema.parse(domain);
 
   return prisma.site.upsert({
-    create: data,
-    update: {
-      isEnabled: input.isEnabled ?? true,
-      niches: input.niches ?? [],
-    },
-    where: { domain: input.domain },
+    create: { domain: normalized, niches },
+    update: {},
+    where: { domain: normalized },
   });
 };
 
-export type SiteUpdatePatch = ApiSiteUpdatePatch &
-  Partial<
-    Pick<
-      Site,
-      | "authorBio"
-      | "authorName"
-      | "authorPhotoUrl"
-      | "authorUrl"
-      | "autoPublishEnabled"
-      | "bucketRefillAt"
-      | "bucketTarget"
-      | "cadenceDays"
-      | "lastAutoPublishedAt"
-      | "moneySiteId"
-      | "topicHints"
-    >
-  >;
-
-const buildProjection = (site: Site) => [
-  site.domain,
-  site.language,
+export const buildAuthor = (
+  site: Pick<Site, "authorBio" | "authorName" | "authorPhotoUrl" | "authorUrl">,
+): BuildAuthor | null =>
   site.authorName === null || site.authorName === ""
     ? null
-    : [site.authorName, site.authorBio, site.authorPhotoUrl, site.authorUrl],
-];
+    : {
+        bio: site.authorBio,
+        name: site.authorName,
+        photoUrl: site.authorPhotoUrl,
+        url: site.authorUrl,
+      };
 
-export const update = (siteId: string, patch: SiteUpdatePatch): Promise<Site> =>
-  prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT id FROM "Site" WHERE id = ${siteId} FOR UPDATE`;
-    const before = await tx.site.findUniqueOrThrow({ where: { id: siteId } });
-    const site = await tx.site.update({ data: patch, where: { id: siteId } });
+const buildProjection = (site: Site): string =>
+  JSON.stringify([site.domain, site.language, buildAuthor(site)]);
 
-    if (JSON.stringify(buildProjection(before)) !== JSON.stringify(buildProjection(site))) {
-      await requestRedeploy(siteId, tx);
-    }
+export const update = (siteId: string, input: SiteUpdatePatch): Promise<Site> => {
+  const patch = siteUpdatePatchSchema.parse(input);
 
-    return site;
-  });
+  return writing(() =>
+    prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT id FROM "Site" WHERE id = ${siteId} FOR UPDATE`;
+      const before = await tx.site.findUnique({ where: { id: siteId } });
 
-type NetworkDefaults = {
-  bucket: { refillAt: number; target: number } | null;
-  cadenceDays: number | null;
-  scope: "overwrite" | "unconfigured";
+      if (before === null) {
+        throw new SiteNotFoundError(siteId);
+      }
+
+      const site = await tx.site.update({ data: patch, where: { id: siteId } });
+
+      if (buildProjection(before) !== buildProjection(site)) {
+        await requestRedeploy(siteId, tx);
+      }
+
+      return site;
+    }),
+  );
 };
 
-export const applyNetworkDefaults = (defaults: NetworkDefaults) =>
-  prisma.$transaction(async (tx) => {
-    const unconfigured = defaults.scope === "unconfigured";
+type Schedule = Partial<
+  Pick<
+    Site,
+    "autoPublishEnabled" | "bucketRefillAt" | "bucketTarget" | "cadenceDays" | "lastAutoPublishedAt"
+  >
+>;
 
-    const cadence =
-      defaults.cadenceDays === null
-        ? { count: 0 }
-        : await tx.site.updateMany({
-            data: { autoPublishEnabled: true, cadenceDays: defaults.cadenceDays },
-            where: unconfigured ? { cadenceDays: null, isEnabled: true } : { isEnabled: true },
-          });
+export const updateSchedule = (
+  siteId: string,
+  schedule: Schedule,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Site> => tx.site.update({ data: schedule, where: { id: siteId } });
 
-    const bucket =
-      defaults.bucket === null
-        ? { count: 0 }
-        : await tx.site.updateMany({
-            data: {
-              bucketRefillAt: defaults.bucket.refillAt,
-              bucketTarget: defaults.bucket.target,
-            },
-            where: unconfigured
-              ? { bucketRefillAt: null, bucketTarget: null, isEnabled: true }
-              : { isEnabled: true },
-          });
-
-    return { bucketSitesUpdated: bucket.count, cadenceSitesUpdated: cadence.count };
+export const updateEnabledSchedules = async (
+  schedule: Schedule,
+  where: Pick<Prisma.SiteWhereInput, "bucketRefillAt" | "bucketTarget" | "cadenceDays">,
+  tx: Prisma.TransactionClient,
+): Promise<number> => {
+  const { count } = await tx.site.updateMany({
+    data: schedule,
+    where: { ...where, isEnabled: true },
   });
 
-export const aggregateSiteNiches = async (siteId: string): Promise<Site["niches"]> => {
-  const posts = await prisma.post.findMany({
-    select: { niches: true },
-    where: {
-      niches: { isEmpty: false },
-      siteId,
-      status: "PUBLISHED",
-    },
-  });
-
-  const counts = new Map<Site["niches"][number], number>();
-
-  for (const post of posts) {
-    for (const niche of post.niches) {
-      counts.set(niche, (counts.get(niche) ?? 0) + 1);
-    }
-  }
-
-  const top3 = [...counts.entries()]
-    .toSorted((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([niche]) => niche);
-
-  await prisma.site.update({ data: { niches: top3 }, where: { id: siteId } });
-
-  return top3;
+  return count;
 };
-
-export { createRequireEnabled, requireEnabled };
-
-export { load } from "./load";
-
-export { create, createSite } from "./create";
 
 export { deploy, requestRedeploy } from "./redeploy";
 
-export { requestSnapshots } from "./snapshots";
-
-export type { FindSite };
+export { requestSnapshots, snapshotDay } from "./snapshots";
 
 export const toPublic = (site: Site) =>
   sitePublicSchema.parse({ ...site, hasDeployHook: hasDeployHook(site) });

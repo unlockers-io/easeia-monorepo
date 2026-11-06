@@ -2,11 +2,6 @@ import { z } from "zod";
 
 type CategorySlugMap = Record<string, string>;
 
-type CategoryUrlConfig = {
-  categorySlugMap?: CategorySlugMap;
-  defaultCategory?: string;
-};
-
 const slugify = (input: string): string =>
   input
     .normalize("NFD")
@@ -16,8 +11,6 @@ const slugify = (input: string): string =>
     .trim()
     .replaceAll(/[\s\-]+/gv, "-")
     .replaceAll(/^-+|-+$/gv, "");
-
-const DEFAULT_CATEGORY = "sem-categoria";
 
 const categorySlugMapSchema = z.record(z.string(), z.unknown());
 
@@ -65,6 +58,6 @@ const postPath = (site: PostUrlSite, post: PostUrlPost): string => {
 const postPublicUrl = (site: PostUrlSite & { domain: string }, post: PostUrlPost): string =>
   `https://${site.domain}${postPath(site, post)}`;
 
-export type { CategoryUrlConfig, PostUrlPost, PostUrlSite };
+export type { PostUrlPost, PostUrlSite };
 
-export { DEFAULT_CATEGORY, postPath, postPublicUrl, slugify, toCategorySlugMap };
+export { postPath, postPublicUrl, slugify, toCategorySlugMap };

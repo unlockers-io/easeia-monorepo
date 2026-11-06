@@ -4,13 +4,13 @@
  */
 import "dotenv/config";
 
-import { generateSeoSuggestions } from "@repo/ai";
 import { PostStatus, prisma } from "@repo/db";
 import { classifyDescriptionLength, classifyTitleLength, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
 import { stripHtml, update } from "@repo/posts";
 
 import { applyInboundFix, type ListedPost, planInboundFixes } from "./inbound";
+import { generateSeoSuggestions } from "./seo";
 
 const APPLY = process.argv.includes("--apply");
 const SKIP_META = process.argv.includes("--skip-meta");

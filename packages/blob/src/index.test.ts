@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { buildBlobKey, createBlobStore, hashBytes, readConfig } from "./index";
+import {
+  buildBlobKey,
+  createBlobStore,
+  hashBytes,
+  isBlobUrl,
+  mimeFor,
+  R2_ENV_VARS,
+  readConfig,
+} from "./index";
 import type { BlobBackend, R2Config } from "./index";
 
 describe("buildBlobKey", () => {
@@ -53,11 +61,8 @@ describe("hashBytes", () => {
   });
 });
 
-type ListObjectsPage = Awaited<ReturnType<BlobBackend["listObjects"]>>;
-
 type BackendCall = { input: object; name: keyof BlobBackend };
 
-const listResponses: Array<ListObjectsPage> = [];
 const backendCalls: Array<BackendCall> = [];
 
 const backend: BlobBackend = {
@@ -65,11 +70,6 @@ const backend: BlobBackend = {
     backendCalls.push({ input, name: "deleteObject" });
 
     return Promise.resolve();
-  },
-  listObjects: (input) => {
-    backendCalls.push({ input, name: "listObjects" });
-
-    return Promise.resolve(listResponses.shift() ?? { Contents: [], IsTruncated: false });
   },
   putObject: (input) => {
     backendCalls.push({ input, name: "putObject" });
@@ -96,18 +96,9 @@ const validEnvironment: NodeJS.ProcessEnv = {
 
 const blobStore = createBlobStore(() => ({ client: backend, config }));
 
-const R2_ENV_VARS = [
-  "R2_ENDPOINT",
-  "R2_ACCESS_KEY_ID",
-  "R2_SECRET_ACCESS_KEY",
-  "R2_BUCKET",
-  "R2_PUBLIC_BASE_URL",
-] as const;
-
 describe("R2 client operations", () => {
   beforeEach(() => {
     backendCalls.length = 0;
-    listResponses.length = 0;
   });
 
   it("sends a PutObjectCommand to the configured bucket and composes a public URL", async () => {
@@ -142,60 +133,6 @@ describe("R2 client operations", () => {
     });
   });
 
-  it("paginates listForSite across multiple pages and forwards ContinuationToken", async () => {
-    listResponses.push(
-      {
-        Contents: [
-          { Key: "sites/s1/posts/p1/a.jpg", Size: 11 },
-          { Key: "sites/s1/posts/p1/b.jpg", Size: 22 },
-        ],
-        IsTruncated: true,
-        NextContinuationToken: "page-2",
-      },
-      {
-        Contents: [{ Key: "sites/s1/posts/p1/c.jpg", Size: 33 }],
-        IsTruncated: false,
-      },
-    );
-
-    const result = await blobStore.listForSite("s1");
-
-    expect(backendCalls).toHaveLength(2);
-    expect(backendCalls[0]?.name).toBe("listObjects");
-    expect(backendCalls[0]?.input).toMatchObject({
-      Bucket: "easeia",
-      ContinuationToken: undefined,
-      Prefix: "sites/s1/",
-    });
-    expect(backendCalls[1]?.input).toMatchObject({ ContinuationToken: "page-2" });
-    expect(result).toEqual([
-      {
-        key: "sites/s1/posts/p1/a.jpg",
-        size: 11,
-        url: "https://images.example.com/sites/s1/posts/p1/a.jpg",
-      },
-      {
-        key: "sites/s1/posts/p1/b.jpg",
-        size: 22,
-        url: "https://images.example.com/sites/s1/posts/p1/b.jpg",
-      },
-      {
-        key: "sites/s1/posts/p1/c.jpg",
-        size: 33,
-        url: "https://images.example.com/sites/s1/posts/p1/c.jpg",
-      },
-    ]);
-  });
-
-  it("throws when ListObjectsV2 returns an entry without Key", async () => {
-    listResponses.push({
-      Contents: [{ Size: 99 }],
-      IsTruncated: false,
-    });
-
-    await expect(blobStore.listForSite("s1")).rejects.toThrow(/without Key/v);
-  });
-
   it.each(R2_ENV_VARS)("names %s when only that var is missing", (missingVar) => {
     const environment: NodeJS.ProcessEnv = { ...validEnvironment };
     Reflect.deleteProperty(environment, missingVar);
@@ -206,5 +143,21 @@ describe("R2 client operations", () => {
     expect(() =>
       readConfig({ ...validEnvironment, R2_PUBLIC_BASE_URL: "images.example.com" }),
     ).toThrow(/not a parseable absolute URL/v);
+  });
+});
+
+describe("blob URLs and types", () => {
+  it("recognizes URLs under the configured public base only", () => {
+    const environment = { R2_PUBLIC_BASE_URL: "https://images.example.com/" };
+
+    expect(isBlobUrl("https://images.example.com/sites/s1/a.jpg", environment)).toBe(true);
+    expect(isBlobUrl("https://cdn.other.test/a.jpg", environment)).toBe(false);
+    expect(isBlobUrl("https://images.example.com/a.jpg", {})).toBe(false);
+  });
+
+  it("infers the image type from the filename", () => {
+    expect(mimeFor("hero.PNG")).toBe("image/png");
+    expect(mimeFor("hero.webp")).toBe("image/webp");
+    expect(mimeFor("hero")).toBe("image/jpeg");
   });
 });

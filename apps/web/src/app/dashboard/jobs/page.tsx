@@ -1,6 +1,4 @@
-import type { JobKind } from "@repo/db";
 import { listJobs } from "@repo/jobs";
-import { Badge } from "@repo/ui/components/badge";
 import {
   Card,
   CardContent,
@@ -17,12 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/ui/components/table";
-import { ArrowUpRight, Hash } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { JobStatusBadge } from "@/components/job-status-badge";
+import { JobKindBadge, JobStatusBadge } from "@/components/job-status-badge";
 
 const JobsTable = async () => {
   await connection();
@@ -49,7 +47,7 @@ const JobsTable = async () => {
           {jobs.map((job) => (
             <TableRow key={job.id}>
               <TableCell>
-                <KindBadge kind={job.kind} />
+                <JobKindBadge kind={job.kind} />
               </TableCell>
               <TableCell>
                 <JobStatusBadge status={job.status} />
@@ -138,15 +136,6 @@ const TargetCell = ({ job }: { job: JobRow }) => {
 
   return <span className="text-sm text-muted-foreground">—</span>;
 };
-
-const KindBadge = ({ kind }: { kind: JobKind }) => (
-  <Badge variant="outline">
-    <span className="inline-flex items-center gap-1 font-mono">
-      <Hash className="size-3" />
-      {kind}
-    </span>
-  </Badge>
-);
 
 /** @public Next.js app-router reads the instant segment config via the module loader */
 export const instant = true;

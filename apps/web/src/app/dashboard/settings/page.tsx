@@ -1,4 +1,9 @@
-import { isGoogleConfigured, listVerifiedSites, loadConnection } from "@repo/search-console";
+import {
+  GOOGLE_ENV_VARS,
+  isGoogleConfigured,
+  listVerifiedSites,
+  loadConnection,
+} from "@repo/search-console";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -10,9 +15,9 @@ import {
 } from "@repo/ui/components/card";
 import { CheckCircle2, ExternalLink, Plug, Unplug } from "lucide-react";
 
-import { Banner } from "@/components/banner";
 import { getSession } from "@/lib/auth-helpers";
 
+import { Banner } from "./banner";
 import { IntegrationsCard } from "./integrations";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
@@ -42,7 +47,7 @@ const ConnectionCard = async ({ userId }: { userId: string }) => {
           </form>
           {!isGoogleConfigured() && (
             <p className="mt-2 text-sm text-muted-foreground">
-              Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to connect Google.
+              Set {GOOGLE_ENV_VARS.join(" and ")} to connect Google.
             </p>
           )}
         </CardContent>

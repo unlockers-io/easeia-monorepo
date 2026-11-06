@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
-import { updateSiteCadenceAction } from "./[id]/actions";
+import { updateSiteCadenceAction } from "./actions";
 
 const OFF = "off";
 
@@ -73,10 +73,10 @@ export const CadenceSelect = ({
       setOptimisticValue(next);
       const cadence = next === OFF ? null : Number(next);
 
-      try {
-        await updateSiteCadenceAction(siteId, cadence);
-      } catch {
-        toast.error("Failed to update cadence. Please try again.");
+      const result = await updateSiteCadenceAction(siteId, cadence);
+
+      if (!result.ok) {
+        toast.error(result.error);
       }
     });
   };

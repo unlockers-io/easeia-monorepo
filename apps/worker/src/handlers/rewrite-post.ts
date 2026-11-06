@@ -1,7 +1,6 @@
 import type { ConsumerContext } from "@repo/jobs";
+import { createJobLogger } from "@repo/observability/worker";
 import { rewritePost } from "@repo/rewrite";
-
-import { createJobLogger } from "../lib/logger";
 
 export const handleRewritePost = async (ctx: ConsumerContext<"REWRITE_POST">): Promise<void> => {
   const { jobId, payload } = ctx;

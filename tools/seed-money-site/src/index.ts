@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { prisma } from "@repo/db";
+import * as MoneySites from "@repo/money-sites";
 import * as Sites from "@repo/sites";
 
 const requireEnv = (name: string): string => {
@@ -23,11 +24,12 @@ const main = async (): Promise<void> => {
     sitemapUrl: requireEnv("MONEY_SITE_SITEMAP_URL"),
   };
 
-  const moneySite = await prisma.moneySite.upsert({
-    create: { ...data, domain },
-    update: data,
-    where: { domain },
-  });
+  const existing = await prisma.moneySite.findUnique({ select: { id: true }, where: { domain } });
+
+  const moneySite =
+    existing === null
+      ? await MoneySites.createMoneySite({ ...data, domain })
+      : await MoneySites.updateMoneySite(existing.id, data);
 
   console.log("MoneySite:", moneySite.id, moneySite.domain);
 

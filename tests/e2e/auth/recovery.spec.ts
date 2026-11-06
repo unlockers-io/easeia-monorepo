@@ -1,4 +1,5 @@
 import { test, expect } from "../fixtures/auth.fixture";
+import { TEST_USER } from "../helpers/test-user";
 
 const mailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.FROM_EMAIL);
 
@@ -8,7 +9,7 @@ test.describe("Password Recovery", () => {
     await page.context().clearCookies();
 
     await recoverPage.goto();
-    await recoverPage.requestReset("e2e-test@easeia.localhost");
+    await recoverPage.requestReset(TEST_USER.email);
 
     await recoverPage.expectSuccessVisible();
     expect(page.url()).toContain("/recover");

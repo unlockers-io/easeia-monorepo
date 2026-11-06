@@ -1,6 +1,6 @@
 # ADR-0009: Post intake owns storing a body
 
-**Status:** accepted (2026-10-09); amends ADR-0007 and ADR-0008
+**Status:** accepted (2026-10-09); amends ADR-0007 and ADR-0008; amended 2026-11-06 (below)
 
 ## Context
 
@@ -60,3 +60,11 @@ recordSeedPost(post); // demo fixtures
   (`method`, `candidate`, `dropped`, `--accept-superseded`), `approveSuggestions`' body parameter,
   the body-images handler's own read, write and redeploy, and the tools `dedupe-post-bodies` and
   `fix-markdown-links-in-html`.
+
+## Amendment (2026-11-06)
+
+- Titles, excerpts and focus keywords get the em-dash rules on every write, like bodies.
+  `strip-em-dashes` and `dedupe-suffixed-posts` are deleted. `pnpm normalize:bodies` is now
+  `pnpm normalize:posts` and normalizes those fields with the body.
+- `@easeia/astro-content` keeps its read-time strip for Sites that build against an older or
+  self-hosted API.

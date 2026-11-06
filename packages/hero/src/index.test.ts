@@ -108,7 +108,6 @@ describe("buildBodyImagePrompt", () => {
 
 describe("generateHero", () => {
   const post = {
-    categories: ["audio"],
     id: "post_1",
     siteId: "site_1",
     slug: "guia-de-microfones",
@@ -122,7 +121,7 @@ describe("generateHero", () => {
     const fake = createFakeOpenAi();
     const calls: Record<string, unknown> = {};
 
-    const result = await generateHero(
+    await generateHero(
       { post, site },
       {
         blob: {
@@ -136,8 +135,8 @@ describe("generateHero", () => {
           },
         },
         generateImage: fake.ai.generateImage,
-        writeHero: (input) => {
-          calls.writeHero = input;
+        setHero: (postId, image) => {
+          calls.setHero = { ...image, postId };
 
           return Promise.resolve();
         },
@@ -151,14 +150,14 @@ describe("generateHero", () => {
     expect(upload.filename).toBe("guia-de-microfones.jpg");
     expect(upload.postId).toBe("post_1");
     expect([...upload.bytes.subarray(0, 2)]).toEqual([0xff, 0xd8]);
-    expect(calls.writeHero).toMatchObject({
+    expect(calls.setHero).toMatchObject({
       blobUrl: "https://img.easeia.com/sites/site_1/posts/post_1/abc.jpg",
+      filename: "guia-de-microfones.jpg",
       height: 1,
-      isHero: true,
+      mime: "image/jpeg",
       postId: "post_1",
       width: 1,
     });
-    expect(result.url).toContain("img.easeia.com");
   });
 
   it("propagates generation failures (caller decides what to do)", async () => {

@@ -8,7 +8,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -16,14 +15,16 @@
   "dependencies": {
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/errors": "workspace:*",
+    "@repo/jobs": "workspace:*",
     "@repo/posts": "workspace:*",
+    "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
     "linkedom": "^0.18.13",
     "marked": "^18.1.0"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
-    "@repo/jobs": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^26.2.0",
     "typescript": "^7.0.2",

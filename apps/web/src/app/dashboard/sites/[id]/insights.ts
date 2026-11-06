@@ -2,13 +2,12 @@
  * Server-side helpers that fetch live and local data for a Site.
  * Returns plain JSON-friendly shapes for async server components.
  */
-import { PostStatus, prisma } from "@repo/db";
+import { prisma, type Site } from "@repo/db";
 import { type OnPageCounts, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
+import { deployedWhere } from "@repo/posts";
 import { postPublicUrl } from "@repo/sites";
-import { cacheLife, cacheTag } from "next/cache";
-
-import { sitePublishedPostsTag } from "@/lib/cache-tags";
+import { cacheLife } from "next/cache";
 
 import { discoverSitemap, isSameSite } from "./discover-sitemap";
 
@@ -17,21 +16,18 @@ export type HealthCheck = { detail?: string; name: string; ok: boolean };
 type HealthReport = { checks: Array<HealthCheck>; ok: boolean };
 
 const trimOrigin = (url: string, base: string): string => {
-  try {
-    if (!isSameSite(url, base)) {
-      return url;
-    }
-
-    const parsed = new URL(url);
-
-    return `${parsed.pathname}${parsed.search}` || "/";
-  } catch {
+  if (!isSameSite(url, base)) {
     return url;
   }
+
+  const parsed = new URL(url);
+
+  return `${parsed.pathname}${parsed.search}` || "/";
 };
 
-export const fetchHealth = async (siteId: string): Promise<HealthReport> => {
-  const site = await prisma.site.findUniqueOrThrow({ where: { id: siteId } });
+export const fetchHealth = async (
+  site: Pick<Site, "domain" | "isEnabled">,
+): Promise<HealthReport> => {
   const checks: Array<HealthCheck> = [{ name: "Site enabled", ok: site.isEnabled }];
 
   const siteUrl = `https://${site.domain}`;
@@ -96,11 +92,10 @@ const toOnPageChecks = (summary: OnPageCounts): Array<HealthCheck> => [
 export const fetchOnPageSeo = async (siteId: string): Promise<OnPageSeoReport> => {
   "use cache";
   cacheLife("minutes");
-  cacheTag(sitePublishedPostsTag(siteId));
 
   const posts = await prisma.post.findMany({
     select: { excerpt: true, id: true, title: true },
-    where: { siteId, status: PostStatus.PUBLISHED },
+    where: { ...deployedWhere, siteId },
   });
 
   const inboundCount = await countInternalInboundLinks(posts.map((p) => p.id));
@@ -126,14 +121,13 @@ type SiteStats = {
 export const fetchSiteStats = async (siteId: string): Promise<SiteStats> => {
   "use cache";
   cacheLife("minutes");
-  cacheTag(sitePublishedPostsTag(siteId));
 
   const [postsTotal, lastPost] = await Promise.all([
-    prisma.post.count({ where: { siteId, status: PostStatus.PUBLISHED } }),
+    prisma.post.count({ where: { ...deployedWhere, siteId } }),
     prisma.post.findFirst({
       orderBy: { publishedAt: "desc" },
       select: { publishedAt: true },
-      where: { siteId, status: PostStatus.PUBLISHED },
+      where: { ...deployedWhere, siteId },
     }),
   ]);
 
@@ -154,7 +148,6 @@ export type RecentPost = {
 export const fetchRecentPosts = async (siteId: string, limit = 10): Promise<Array<RecentPost>> => {
   "use cache";
   cacheLife("minutes");
-  cacheTag(sitePublishedPostsTag(siteId));
 
   const posts = await prisma.post.findMany({
     orderBy: { publishedAt: "desc" },
@@ -167,7 +160,7 @@ export const fetchRecentPosts = async (siteId: string, limit = 10): Promise<Arra
       title: true,
     },
     take: limit,
-    where: { siteId, status: PostStatus.PUBLISHED },
+    where: { ...deployedWhere, siteId },
   });
 
   return posts.map((p) => ({
@@ -179,36 +172,41 @@ export const fetchRecentPosts = async (siteId: string, limit = 10): Promise<Arra
   }));
 };
 
-type LocalStats = {
-  byNiche: Array<{ count: number; niche: string }>;
-  publishesPerWeek: Array<{ count: number; weekStart: string }>;
-};
-
-export const fetchLocalStats = async (siteId: string): Promise<LocalStats> => {
-  const posts = await prisma.post.findMany({
-    select: { niches: true, publishedAt: true },
-    where: { siteId },
-  });
-
-  const nicheMap = new Map<string, number>();
+export const fetchNicheCounts = async (
+  siteId: string,
+): Promise<Array<{ count: number; niche: string }>> => {
+  const posts = await prisma.post.findMany({ select: { niches: true }, where: { siteId } });
+  const counts = new Map<string, number>();
 
   for (const post of posts) {
     for (const n of post.niches) {
-      nicheMap.set(n, (nicheMap.get(n) ?? 0) + 1);
+      counts.set(n, (counts.get(n) ?? 0) + 1);
     }
   }
 
-  const byNiche = [...nicheMap.entries()]
+  return [...counts.entries()]
     .map(([niche, count]) => ({ count, niche }))
     .toSorted((a, b) => b.count - a.count);
+};
 
+const WEEKS = 12;
+
+export const fetchWeeklyPublishes = async (
+  siteId: string,
+): Promise<Array<{ count: number; weekStart: string }>> => {
   const now = new Date();
-  const weeks: Array<{ count: number; weekStart: string }> = [];
+  const firstWeek = new Date(now);
+  firstWeek.setDate(now.getDate() - (WEEKS - 1) * 7 - now.getDay());
+  firstWeek.setHours(0, 0, 0, 0);
 
-  for (let i = 11; i >= 0; i--) {
-    const start = new Date(now);
-    start.setDate(now.getDate() - i * 7 - now.getDay());
-    start.setHours(0, 0, 0, 0);
+  const posts = await prisma.post.findMany({
+    select: { publishedAt: true },
+    where: { publishedAt: { gte: firstWeek }, siteId },
+  });
+
+  return Array.from({ length: WEEKS }, (_, i) => {
+    const start = new Date(firstWeek);
+    start.setDate(firstWeek.getDate() + i * 7);
     const end = new Date(start);
     end.setDate(start.getDate() + 7);
 
@@ -216,8 +214,6 @@ export const fetchLocalStats = async (siteId: string): Promise<LocalStats> => {
       (p) => p.publishedAt !== null && p.publishedAt >= start && p.publishedAt < end,
     ).length;
 
-    weeks.push({ count, weekStart: start.toISOString() });
-  }
-
-  return { byNiche, publishesPerWeek: weeks };
+    return { count, weekStart: start.toISOString() };
+  });
 };

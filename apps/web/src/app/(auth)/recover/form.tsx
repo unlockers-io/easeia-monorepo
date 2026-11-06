@@ -1,17 +1,16 @@
 "use client";
 
 import { Button } from "@repo/ui/components/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
-import { Input } from "@repo/ui/components/input";
+import { Field, FieldDescription, FieldGroup } from "@repo/ui/components/field";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormAlert } from "@repo/ui/compositions/form-alert";
-import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
 import { useState } from "react";
 
-import { authClient, authFailureMessage } from "@/lib/auth-client";
+import { AuthEmailField } from "@/components/auth-email-field";
+import { authClient, runAuth } from "@/lib/auth-client";
 import { recoverSchema } from "@/lib/form-schemas";
 
 const RecoverForm = () => {
@@ -26,21 +25,16 @@ const RecoverForm = () => {
       },
     },
     onSubmit: async ({ value }) => {
-      const result = await authClient
-        .requestPasswordReset({
+      const result = await runAuth(
+        authClient.requestPasswordReset({
           email: value.email,
           redirectTo: `${window.location.origin}/reset-password`,
-        })
-        .catch(authFailureMessage);
+        }),
+        "Failed to send password reset email",
+      );
 
-      if (typeof result === "string") {
-        setError(result);
-
-        return;
-      }
-
-      if (result.error) {
-        setError(result.error.message ?? "Failed to send password reset email");
+      if (!result.ok) {
+        setError(result.error);
 
         return;
       }
@@ -88,31 +82,7 @@ const RecoverForm = () => {
       <FieldGroup>
         <FormAlert message={error} />
         <form.Field name="email">
-          {(field) => {
-            const isInvalid = !field.state.meta.isValid;
-
-            return (
-              <Field data-invalid={isInvalid || undefined}>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  aria-describedby={isInvalid ? "email-error" : undefined}
-                  aria-invalid={isInvalid}
-                  autoComplete="email"
-                  disabled={isLoading}
-                  id="email"
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => {
-                    field.handleChange(e.target.value);
-                  }}
-                  placeholder="you@example.com"
-                  type="email"
-                  value={field.state.value}
-                />
-                {isInvalid && <FormFieldError errors={field.state.meta.errors} id="email-error" />}
-              </Field>
-            );
-          }}
+          {(field) => <AuthEmailField disabled={isLoading} field={field} />}
         </form.Field>
 
         <Field>

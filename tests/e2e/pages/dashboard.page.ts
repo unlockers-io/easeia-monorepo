@@ -1,6 +1,8 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
+import { TEST_USER } from "../helpers/test-user";
+
 export class DashboardPage {
   private readonly heading: Locator;
   private readonly signOutButton: Locator;
@@ -9,7 +11,7 @@ export class DashboardPage {
   constructor(private readonly page: Page) {
     this.heading = page.getByRole("heading", { name: /network report/i });
     this.signOutButton = page.getByRole("button", { name: /sign out/i });
-    this.userEmail = page.getByText("e2e-test@easeia.localhost", { exact: true });
+    this.userEmail = page.getByText(TEST_USER.email, { exact: true });
   }
 
   goto = async () => {

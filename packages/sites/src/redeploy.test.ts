@@ -1,6 +1,7 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
-import { closeJobs, consume, countJobs, listJobs } from "@repo/jobs";
+import { countJobs, listJobs } from "@repo/jobs";
 import { runDelayedJobsNow } from "@repo/jobs/testing";
+import { closeJobs, consume } from "@repo/jobs/worker";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deploy, requestRedeploy } from "./index";

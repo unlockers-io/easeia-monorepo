@@ -1,6 +1,8 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
+import { formAlert } from "../helpers/form-alert";
+
 export class ResetPasswordPage {
   private readonly heading: Locator;
   private readonly passwordInput: Locator;
@@ -8,6 +10,7 @@ export class ResetPasswordPage {
   private readonly submitButton: Locator;
   private readonly invalidLinkHeading: Locator;
   private readonly requestNewLink: Locator;
+  private readonly rootError: Locator;
 
   constructor(private readonly page: Page) {
     this.heading = page.getByText("Reset your password", { exact: true });
@@ -16,6 +19,7 @@ export class ResetPasswordPage {
     this.submitButton = page.getByRole("button", { name: /reset password/i });
     this.invalidLinkHeading = page.getByText("Invalid reset link", { exact: true });
     this.requestNewLink = page.getByRole("link", { name: "Request a new reset link" });
+    this.rootError = formAlert(page);
   }
 
   goto = async (token?: string) => {
@@ -31,6 +35,10 @@ export class ResetPasswordPage {
 
   expectHeadingVisible = async () => {
     await expect(this.heading).toBeVisible();
+  };
+
+  expectErrorVisible = async () => {
+    await expect(this.rootError).toBeVisible();
   };
 
   expectInvalidLinkVisible = async () => {

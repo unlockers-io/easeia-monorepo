@@ -1,8 +1,6 @@
 name: Check
 on:
   pull_request:
-  # Dispatched by release.yml for the changeset-release/main PR, whose
-  # pull_request runs are parked unexecuted behind an approval gate.
   workflow_dispatch:
   schedule:
     - cron: 43 4 * * 1
@@ -103,9 +101,10 @@ jobs:
           PGAPPNAME: easeia:ci:test
           TEST_DATABASE: "true"
           TEST_REDIS: "true"
+          TURBO_CONCURRENCY: "1"
         run: |
           pnpm --filter @repo/db db:push
-          node .github/ci/ci.mjs run test -- pnpm exec turbo run test --concurrency=1
+          node .github/ci/ci.mjs run test -- pnpm test
       - name: Install zizmor
         if: ${{ !cancelled() }}
         env:

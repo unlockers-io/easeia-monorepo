@@ -1,38 +1,9 @@
 import * as Blob from "@repo/blob";
-import { prisma } from "@repo/db";
 import { generateHero as defaultGenerateHero } from "@repo/hero";
+import { log } from "@repo/observability";
+import * as Posts from "@repo/posts";
 
 import { type HeroRow, planHero } from "./hero-plan";
-import { log } from "./logger";
-
-type BlobLike = Pick<typeof Blob, "upload">;
-
-type PostImageUpsert = {
-  blobKey: string;
-  blobUrl: string;
-  filename: string;
-  isHero: boolean;
-  mime: string;
-  postId: string;
-};
-
-const inferMime = (filename: string): string => {
-  const ext = filename.slice(filename.lastIndexOf(".") + 1).toLowerCase();
-
-  if (ext === "png") {
-    return "image/png";
-  }
-
-  if (ext === "webp") {
-    return "image/webp";
-  }
-
-  if (ext === "gif") {
-    return "image/gif";
-  }
-
-  return "image/jpeg";
-};
 
 /**
  * Every collaborator is required. Resolving them with `??` against a default
@@ -40,18 +11,17 @@ const inferMime = (filename: string): string => {
  * that misspelled a field, silently ran the real Prisma/R2/OpenAI path.
  */
 export type EnsureHeroDeps = {
-  blob: BlobLike;
+  blob: Pick<typeof Blob, "upload">;
   fetchImage: (url: string) => Promise<Uint8Array>;
-  findHeroImage: (postId: string) => Promise<HeroRow | null>;
   generateHero: typeof defaultGenerateHero;
-  r2PublicBaseUrl: string | undefined;
-  upsertPostImage: (input: PostImageUpsert) => Promise<void>;
+  heroOf: (postId: string) => Promise<HeroRow | null>;
+  isBlobUrl: (url: string) => boolean;
+  setHero: typeof Posts.setHero;
 };
 
 type EnsureHeroInput = {
-  autogenEnabled?: boolean;
+  autogenEnabled: boolean;
   post: {
-    categories: ReadonlyArray<string>;
     featuredImage: string | null;
     id: string;
     siteId: string;
@@ -72,32 +42,18 @@ const defaultFetchImage = async (url: string): Promise<Uint8Array> => {
   return new Uint8Array(await res.arrayBuffer());
 };
 
-const defaultUpsertPostImage = async (input: PostImageUpsert) => {
-  await prisma.postImage.upsert({
-    create: input,
-    update: { blobKey: input.blobKey, blobUrl: input.blobUrl, isHero: input.isHero },
-    where: { postId_filename: { filename: input.filename, postId: input.postId } },
-  });
-};
-
-const defaultFindHeroImage = (postId: string): Promise<HeroRow | null> =>
-  prisma.postImage.findFirst({
-    select: { blobUrl: true, filename: true },
-    where: { isHero: true, postId },
-  });
-
 export const makeEnsureHero =
   (deps: EnsureHeroDeps) =>
   async (input: EnsureHeroInput): Promise<void> => {
     const plan = planHero({
-      autogenEnabled: input.autogenEnabled !== false,
+      autogenEnabled: input.autogenEnabled,
       featuredImage: input.post.featuredImage,
-      hero: await deps.findHeroImage(input.post.id),
-      r2PublicBaseUrl: deps.r2PublicBaseUrl,
+      hero: await deps.heroOf(input.post.id),
+      isBlobUrl: deps.isBlobUrl,
     });
 
     if (plan.kind === "import") {
-      const mime = inferMime(plan.filename);
+      const mime = Blob.mimeFor(plan.filename);
       const bytes = await deps.fetchImage(plan.sourceUrl);
 
       const result = await deps.blob.upload({
@@ -108,27 +64,17 @@ export const makeEnsureHero =
         siteId: input.post.siteId,
       });
 
-      await deps.upsertPostImage({
+      await deps.setHero(input.post.id, {
         blobKey: result.key,
         blobUrl: result.url,
         filename: plan.filename,
-        isHero: true,
+        height: null,
         mime,
-        postId: input.post.id,
+        width: null,
       });
     } else if (plan.kind === "generate") {
       try {
-        await deps.generateHero({
-          post: {
-            categories: input.post.categories,
-            id: input.post.id,
-            siteId: input.post.siteId,
-            slug: input.post.slug,
-            tags: input.post.tags,
-            title: input.post.title,
-          },
-          site: input.site,
-        });
+        await deps.generateHero({ post: input.post, site: input.site });
       } catch (error) {
         log.warn({
           err: error,
@@ -147,8 +93,8 @@ export const makeEnsureHero =
 export const ensureHero = makeEnsureHero({
   blob: Blob,
   fetchImage: defaultFetchImage,
-  findHeroImage: defaultFindHeroImage,
   generateHero: defaultGenerateHero,
-  r2PublicBaseUrl: process.env.R2_PUBLIC_BASE_URL,
-  upsertPostImage: defaultUpsertPostImage,
+  heroOf: Posts.heroOf,
+  isBlobUrl: (url) => Blob.isBlobUrl(url),
+  setHero: Posts.setHero,
 });

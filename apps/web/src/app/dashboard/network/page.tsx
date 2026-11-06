@@ -17,8 +17,9 @@ const NetworkPage = async () => {
     .toSorted((a, b) => a.name.localeCompare(b.name));
 
   const pbnLinkTotal = data.pbnEdges.reduce((sum, e) => sum + e.count, 0);
-  const moneyLinkTotal = data.moneyEdges.reduce((sum, e) => sum + e.count, 0);
-  const sitesFeedingMoney = new Set(data.moneyEdges.map((e) => e.fromSiteId)).size;
+  const moneyLinks = nodes.flatMap((n) => (n.type === "pbn-site" ? [n.data.moneyLinks] : []));
+  const moneyLinkTotal = moneyLinks.reduce((sum, count) => sum + count, 0);
+  const sitesFeedingMoney = moneyLinks.filter((count) => count > 0).length;
 
   const rollupItems: ReadonlyArray<StatItem> = [
     { label: "PBN sites", value: data.pbnSites.length.toLocaleString() },

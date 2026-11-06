@@ -9,7 +9,7 @@ import {
   serpOrganicResultSchema,
 } from "./schemas";
 
-export { DataForSeoNotConfiguredError, isDataForSeoConfigured } from "./credentials";
+export { DATAFORSEO_ENV_VARS, DataForSeoNotConfiguredError } from "./credentials";
 
 export { DataForSeoError } from "./error";
 

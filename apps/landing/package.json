@@ -8,12 +8,8 @@
     "dev": "portless run --name easeia.landing next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf .next",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
     "dev:plain": "next dev --turbopack --port 3001"
   },
   "dependencies": {
@@ -29,7 +25,6 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@repo/config-vitest": "workspace:*",
     "@repo/portless-env": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
@@ -39,7 +34,6 @@
     "@types/react-dom": "^19.3.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "typescript": "^7.0.2"
   }
 }

@@ -10,4 +10,4 @@ pnpm -w backfill:body-images --limit 20
 pnpm -w backfill:body-images --all --site <siteId>
 ```
 
-Requires `DATABASE_URL`; actual enqueueing also requires `REDIS_URL`. Check the target environment before running against the live network.
+Requires `DATABASE_URL`. Check the target environment before running against the live network.
