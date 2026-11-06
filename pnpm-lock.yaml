@@ -259,6 +259,9 @@ importers:
       '@repo/backfill':
         specifier: workspace:*
         version: link:../../packages/backfill
+      '@repo/blob':
+        specifier: workspace:*
+        version: link:../../packages/blob
       '@repo/dataforseo':
         specifier: workspace:*
         version: link:../../packages/dataforseo

@@ -14,6 +14,7 @@ import {
 } from "@repo/ui/components/table";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { ActionButton } from "@/components/action-button";
@@ -40,6 +41,8 @@ const avgTone = (avg: number | null): StatItem["tone"] => {
 };
 
 const DashboardContent = async () => {
+  await connection();
+
   const [sites, { data: recentJobs }, moneySiteCount, rewriteCount, pbnBacklinksTotal] =
     await Promise.all([
       prisma.site.findMany({
