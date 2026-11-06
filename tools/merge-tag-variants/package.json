@@ -5,12 +5,12 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "tsx index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/db": "workspace:*",
     "@repo/posts": "workspace:*",
+    "@repo/sites": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.11"
   },

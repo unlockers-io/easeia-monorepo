@@ -1,9 +1,9 @@
 import { prisma } from "@repo/db";
+import { DomainError } from "@repo/errors";
 import * as Posts from "@repo/posts";
-import * as Sites from "@repo/sites";
 
-import { BUCKET_DRAFT, nextDraft } from "./bucket";
-import { isDue } from "./due";
+import { nextDraft } from "./bucket";
+import { isDue } from "./rules";
 
 export type Published = { postId: string; siteId: string };
 
@@ -18,8 +18,7 @@ export type PublishDueResult = {
 };
 
 export const publishDraft = async (postId: string): Promise<void> => {
-  const { post } = await Posts.publishBucketDraft(postId);
-  await Sites.update(post.siteId, { lastAutoPublishedAt: new Date() });
+  await Posts.publishBucketDraft(postId);
 };
 
 export const publishNext = async (siteId: string): Promise<Published | null> => {
@@ -41,7 +40,7 @@ const findDue = async (now: Date) => {
       autoPublishEnabled: true,
       cadenceDays: { not: null },
       isEnabled: true,
-      posts: { some: BUCKET_DRAFT },
+      posts: { some: Posts.bucketDraftWhere },
     },
   });
 
@@ -62,7 +61,7 @@ export const publishDue = async (now: Date): Promise<PublishDueResult> => {
       } else {
         result.published.push(outcome.value);
       }
-    } else if (outcome.reason instanceof Sites.DomainError) {
+    } else if (outcome.reason instanceof DomainError) {
       result.skipped.push({ reason: outcome.reason.message, siteId });
     } else {
       result.failed.push({

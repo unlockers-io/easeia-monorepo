@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const VALID_ENV = {
   BETTER_AUTH_SECRET: "a".repeat(32),
   FROM_EMAIL: "noreply@easeia.com",
-  REDIS_URL: "redis://test",
 } as const;
 
 const loadGetEnv = async (overrides: Record<string, string | undefined> = {}) => {

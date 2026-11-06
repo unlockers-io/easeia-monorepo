@@ -4,17 +4,13 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { createRoute, z } from "@hono/zod-openapi";
 import { prisma } from "@repo/db";
-import { createIdentify } from "@repo/observability/auth";
-import { honoEvlog, initApiLogger } from "@repo/observability/hono";
+import { honoEvlog, initApiLogger, log } from "@repo/observability/hono";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
-import type { Context, Next } from "hono";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 
-import { auth } from "./lib/auth";
 import { env } from "./lib/env";
-import { log } from "./lib/logger";
 import { apiDocConfig, createOpenAPIApp } from "./lib/openapi";
 import { errorHandler, notFound } from "./middleware/error-handler";
 import { requestSizeLimit, standardRateLimit } from "./middleware/security";
@@ -33,17 +29,9 @@ initApiLogger({ service: "api" });
 
 const app = createOpenAPIApp();
 
-const identify = createIdentify(auth);
-
 app.use("*", requestId());
 
 app.use("*", honoEvlog());
-
-app.use("*", async (c: Context, next: Next) => {
-  await identify(c.get("log"), c.req.raw.headers, c.req.path);
-
-  return next();
-});
 
 app.use("*", compress());
 
@@ -180,7 +168,7 @@ app.notFound(notFound);
 app.onError(errorHandler);
 
 const port = env.PORT;
-const hostname = env.HOST || "0.0.0.0";
+const hostname = env.HOST;
 
 log.info({
   cors: env.CORS_ORIGINS,

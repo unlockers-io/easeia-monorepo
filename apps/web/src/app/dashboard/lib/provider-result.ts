@@ -1,11 +1,11 @@
-type ErrorClass = abstract new (...args: ReadonlyArray<never>) => Error;
+import type { ActionResult } from "@/lib/action-result";
 
-export type ProviderResult<T> = { data: T; ok: true } | { error: string; ok: false };
+type ErrorClass = abstract new (...args: ReadonlyArray<never>) => Error;
 
 export const tryProvider = async <T>(
   fn: () => Promise<T>,
   expectedErrors: ReadonlyArray<ErrorClass>,
-): Promise<ProviderResult<T>> => {
+): Promise<ActionResult<T>> => {
   try {
     return { data: await fn(), ok: true };
   } catch (error) {

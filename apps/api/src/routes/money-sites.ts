@@ -3,16 +3,14 @@ import {
   moneySiteCreateSchema as createSchema,
   moneySiteUpdateSchema as updateSchema,
 } from "@repo/api-types";
-import { JobKind } from "@repo/db";
-import { enqueue } from "@repo/jobs";
 import {
-  listMoneySites,
   createMoneySite,
-  updateMoneySite,
   deleteMoneySite,
+  listMoneySites,
+  requestCrawl,
+  updateMoneySite,
 } from "@repo/money-sites";
 
-import { createRouter } from "@/lib/openapi";
 import {
   commonErrors,
   idParamSchema,
@@ -22,21 +20,16 @@ import {
   okSchema,
   queuedJobSchema,
 } from "@/lib/openapi-schemas";
-import type { AuthVariables } from "@/middleware/api-auth";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { recordAudit } from "@/middleware/audit";
-import { apiRateLimit } from "@/middleware/security";
+import { createProtectedRouter, guards } from "@/lib/protected-router";
 
-const app = createRouter<{ Variables: AuthVariables }>();
+const { audit, requirePermission } = guards;
 
-app.use("*", apiAuthMiddleware);
-
-app.use("*", apiRateLimit);
+const app = createProtectedRouter(guards);
 
 app.openapi(
   createRoute({
     method: "get",
-    middleware: [requireAction("sites:read")] as const,
+    middleware: [requirePermission("sites:read")] as const,
     path: "/",
     request: {},
     responses: { ...commonErrors, 200: jsonResponse("List money sites", moneySiteListSchema) },
@@ -54,7 +47,7 @@ app.openapi(
 app.openapi(
   createRoute({
     method: "post",
-    middleware: [requireAction("sites:write")] as const,
+    middleware: [requirePermission("sites:write")] as const,
     path: "/",
     request: {
       body: { content: { "application/json": { schema: createSchema } }, required: true },
@@ -65,9 +58,8 @@ app.openapi(
     tags: ["Money Sites"],
   }),
   async (c) => {
-    const parsed = { data: c.req.valid("json") };
-    const site = await createMoneySite(parsed.data);
-    await recordAudit(c, { action: "moneysite.create", target: `moneysite:${site.id}` });
+    const site = await createMoneySite(c.req.valid("json"));
+    await audit(c, { action: "moneysite.create", target: `moneysite:${site.id}` });
 
     return c.json({ data: site }, 201);
   },
@@ -76,7 +68,7 @@ app.openapi(
 app.openapi(
   createRoute({
     method: "patch",
-    middleware: [requireAction("sites:write")] as const,
+    middleware: [requirePermission("sites:write")] as const,
     path: "/{id}",
     request: {
       body: { content: { "application/json": { schema: updateSchema } }, required: true },
@@ -89,9 +81,8 @@ app.openapi(
   }),
   async (c) => {
     const id = c.req.valid("param").id;
-    const parsed = { data: c.req.valid("json") };
-    const site = await updateMoneySite(id, parsed.data);
-    await recordAudit(c, { action: "moneysite.update", target: `moneysite:${id}` });
+    const site = await updateMoneySite(id, c.req.valid("json"));
+    await audit(c, { action: "moneysite.update", target: `moneysite:${id}` });
 
     return c.json({ data: site }, 200);
   },
@@ -100,7 +91,7 @@ app.openapi(
 app.openapi(
   createRoute({
     method: "delete",
-    middleware: [requireAction("sites:write")] as const,
+    middleware: [requirePermission("sites:write")] as const,
     path: "/{id}",
     request: { params: idParamSchema },
     responses: { ...commonErrors, 200: jsonResponse("Delete money site", okSchema) },
@@ -111,16 +102,16 @@ app.openapi(
   async (c) => {
     const id = c.req.valid("param").id;
     await deleteMoneySite(id);
-    await recordAudit(c, { action: "moneysite.delete", target: `moneysite:${id}` });
+    await audit(c, { action: "moneysite.delete", target: `moneysite:${id}` });
 
-    return c.json({ ok: true }, 200);
+    return c.json({ ok: true as const }, 200);
   },
 );
 
 app.openapi(
   createRoute({
     method: "post",
-    middleware: [requireAction("sites:write")] as const,
+    middleware: [requirePermission("sites:write")] as const,
     path: "/{id}/recrawl",
     request: { params: idParamSchema },
     responses: { ...commonErrors, 202: jsonResponse("Recrawl money site", queuedJobSchema) },
@@ -131,12 +122,9 @@ app.openapi(
   async (c) => {
     const id = c.req.valid("param").id;
 
-    const job = await enqueue({
-      kind: JobKind.CRAWL_MONEY_SITE,
-      payload: { moneySiteId: id },
-    });
+    const job = await requestCrawl(id);
 
-    await recordAudit(c, { action: "moneysite.recrawl", target: `moneysite:${id}` });
+    await audit(c, { action: "moneysite.recrawl", target: `moneysite:${id}` });
 
     return c.json({ jobId: job.id }, 202);
   },

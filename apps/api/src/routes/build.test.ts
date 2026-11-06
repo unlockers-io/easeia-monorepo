@@ -1,80 +1,41 @@
-import { PostStatus } from "@repo/db";
+import type { BuildPost } from "@easeia/astro-content";
+import { fakeSite } from "@repo/sites/fake";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-vi.hoisted(() => {
-  Object.assign(process.env, {
-    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
-    DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
-    FROM_EMAIL: "test@easeia.dev",
-    REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
-  });
-});
+import { createBuildRoutes, type BuildRouteDependencies } from "./build";
+import { openGuards } from "./test-harness";
 
-import {
-  createBuildRoutes,
-  type BuildPost,
-  type BuildRouteDependencies,
-  type BuildSite,
-} from "./build";
-import { allowAction, bypassMiddleware } from "./test-harness";
-
-const findImages = vi.fn<BuildRouteDependencies["findImages"]>();
-const findPosts = vi.fn<BuildRouteDependencies["findPosts"]>();
 const findSite = vi.fn<BuildRouteDependencies["findSite"]>();
+const listImages = vi.fn<BuildRouteDependencies["listImages"]>();
+const listPosts = vi.fn<BuildRouteDependencies["listPosts"]>();
 
-const buildRoutes = createBuildRoutes({
-  apiAuth: bypassMiddleware,
-  findImages,
-  findPosts,
-  findSite,
-  rateLimit: bypassMiddleware,
-  requirePermission: allowAction,
-});
-
-const makeSite = (overrides: Partial<BuildSite> = {}): BuildSite => ({
-  authorBio: null,
-  authorName: null,
-  authorPhotoUrl: null,
-  authorUrl: null,
-  domain: "d.com",
-  language: "PT_BR",
-  ...overrides,
-});
+const buildRoutes = createBuildRoutes({ ...openGuards, findSite, listImages, listPosts });
 
 const makePost = (overrides: Partial<BuildPost> = {}): BuildPost => ({
   body: "body-a",
-  categories: ["cat"],
-  createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  excerpt: null,
-  focusKeyword: null,
-  id: "post-a",
-  images: [
-    {
-      alt: null,
-      blobUrl: "https://cdn/a.jpg",
-      filename: "a.jpg",
-      height: 1,
-      id: "image-a",
-      isHero: true,
-      width: 1,
-    },
-  ],
-  publishedAt: new Date("2026-02-01T00:00:00.000Z"),
+  frontmatter: {
+    author: null,
+    categories: ["cat"],
+    description: "",
+    draft: false,
+    heroImage: null,
+    heroImageHeight: 1,
+    heroImageUrl: "https://cdn/a.jpg",
+    heroImageWidth: 1,
+    pubDate: "2026-02-01T00:00:00.000Z",
+    seo: { canonical_url: null, focus_keyword: null },
+    status: "PUBLISHED",
+    tags: [],
+    title: "A",
+    updatedDate: "2026-02-02T00:00:00.000Z",
+  },
+  images: [{ alt: null, filename: "a.jpg", height: 1, url: "https://cdn/a.jpg", width: 1 }],
   slug: "a",
-  status: PostStatus.PUBLISHED,
-  tags: [],
-  title: "A",
-  updatedAt: new Date("2026-02-02T00:00:00.000Z"),
   ...overrides,
 });
 
 const manifestBodySchema = z.object({ contentHash: z.string() });
-
-const frontmatterAuthorSchema = z.object({ author: z.unknown() });
-const postWithAuthorSchema = z.object({ frontmatter: frontmatterAuthorSchema });
-const authorPayloadSchema = z.object({ data: z.array(postWithAuthorSchema) });
 
 const manifest = async () => {
   const res = await buildRoutes.request("/sites/s1/manifest");
@@ -83,47 +44,24 @@ const manifest = async () => {
 };
 
 describe("build routes", () => {
-  it("orders posts and their images totally", async () => {
-    findSite.mockResolvedValue(makeSite());
-    findPosts.mockResolvedValue([makePost()]);
-
-    await manifest();
-
-    expect(findPosts).toHaveBeenCalledWith({
-      imageOrderBy: { id: "asc" },
-      postOrderBy: [{ publishedAt: "desc" }, { id: "asc" }],
-      siteId: "s1",
-      status: PostStatus.PUBLISHED,
-    });
-  });
-
   it("hashes identical content identically", async () => {
-    findSite.mockResolvedValue(makeSite());
-    findPosts.mockResolvedValue([makePost()]);
+    findSite.mockResolvedValue(fakeSite());
+    listPosts.mockResolvedValue([makePost()]);
     const first = await manifest();
-    findPosts.mockResolvedValue([makePost()]);
     const second = await manifest();
 
     expect(first.body.contentHash).toBe(second.body.contentHash);
   });
 
   it("changes the hash when an image filename changes", async () => {
-    findSite.mockResolvedValue(makeSite());
-    findPosts.mockResolvedValue([makePost()]);
+    findSite.mockResolvedValue(fakeSite());
+    listPosts.mockResolvedValue([makePost()]);
     const before = await manifest();
 
-    findPosts.mockResolvedValue([
+    listPosts.mockResolvedValue([
       makePost({
         images: [
-          {
-            alt: null,
-            blobUrl: "https://cdn/a.jpg",
-            filename: "renamed.jpg",
-            height: 1,
-            id: "image-a",
-            isHero: true,
-            width: 1,
-          },
+          { alt: null, filename: "renamed.jpg", height: 1, url: "https://cdn/a.jpg", width: 1 },
         ],
       }),
     ]);
@@ -135,43 +73,34 @@ describe("build routes", () => {
   it.each(["authorName", "authorBio", "authorPhotoUrl", "authorUrl"] as const)(
     "changes the hash when %s changes",
     async (field) => {
-      findSite.mockResolvedValue(makeSite({ authorName: "Author" }));
-      findPosts.mockResolvedValue([makePost()]);
+      listPosts.mockResolvedValue([makePost()]);
+      findSite.mockResolvedValue(fakeSite({ authorName: "Author" }));
       const before = await manifest();
 
-      findSite.mockResolvedValue(makeSite({ authorName: "Author", [field]: "Changed" }));
-      findPosts.mockResolvedValue([makePost()]);
+      findSite.mockResolvedValue(fakeSite({ authorName: "Author", [field]: "Changed" }));
       const after = await manifest();
 
       expect(after.body.contentHash).not.toBe(before.body.contentHash);
     },
   );
 
-  it("attaches the site author to every post's frontmatter", async () => {
+  it("builds the posts with the site's author, or none without an author name", async () => {
+    listPosts.mockResolvedValue([makePost()]);
     findSite.mockResolvedValue(
-      makeSite({ authorBio: "bio", authorName: "Marina Duarte", authorUrl: "https://m.example" }),
+      fakeSite({ authorBio: "bio", authorName: "Marina Duarte", authorUrl: "https://m.example" }),
     );
-    findPosts.mockResolvedValue([makePost()]);
 
-    const res = await buildRoutes.request("/sites/s1/posts");
-    const body = authorPayloadSchema.parse(await res.json());
-
-    expect(body.data[0]?.frontmatter.author).toEqual({
+    await buildRoutes.request("/sites/s1/posts");
+    expect(listPosts).toHaveBeenLastCalledWith("s1", {
       bio: "bio",
       name: "Marina Duarte",
       photoUrl: null,
       url: "https://m.example",
     });
-  });
 
-  it("emits author null when the site has no author name", async () => {
-    findSite.mockResolvedValue(makeSite({ authorBio: "orphan bio" }));
-    findPosts.mockResolvedValue([makePost()]);
-
-    const res = await buildRoutes.request("/sites/s1/posts");
-    const body = authorPayloadSchema.parse(await res.json());
-
-    expect(body.data[0]?.frontmatter.author).toBeNull();
+    findSite.mockResolvedValue(fakeSite({ authorBio: "orphan bio" }));
+    await buildRoutes.request("/sites/s1/posts");
+    expect(listPosts).toHaveBeenLastCalledWith("s1", null);
   });
 
   it.each(["manifest", "posts", "images"])("returns NOT_FOUND on /%s", async (route) => {
@@ -185,22 +114,10 @@ describe("build routes", () => {
     });
   });
 
-  it("gives the images route a total order", async () => {
-    findSite.mockResolvedValue(makeSite());
-    findImages.mockResolvedValue([]);
-
-    await buildRoutes.request("/sites/s1/images");
-
-    expect(findImages).toHaveBeenCalledWith({
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      siteId: "s1",
-    });
-  });
-
   it("looks the site up once per request", async () => {
     findSite.mockClear();
-    findSite.mockResolvedValue(makeSite());
-    findPosts.mockResolvedValue([makePost()]);
+    findSite.mockResolvedValue(fakeSite());
+    listPosts.mockResolvedValue([makePost()]);
 
     await manifest();
 

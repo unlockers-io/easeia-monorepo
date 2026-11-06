@@ -30,15 +30,6 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   reactCompiler: true,
   reactStrictMode: true,
-  redirects: () =>
-    Promise.resolve([
-      {
-        destination: "/dashboard/money-sites/:path*",
-        permanent: true,
-        source: "/money-sites/:path*",
-      },
-      { destination: "/dashboard/network/:path*", permanent: true, source: "/network/:path*" },
-    ]),
   serverExternalPackages: [
     "@prisma/client",
     "@repo/auto-publish",
@@ -47,8 +38,6 @@ const nextConfig: NextConfig = {
     "@repo/jobs",
     "@repo/posts",
     "@repo/sites",
-    "bullmq",
-    "ioredis",
   ],
   transpilePackages: ["@repo/ui", "@repo/api-types", "@repo/observability"],
   turbopack: {

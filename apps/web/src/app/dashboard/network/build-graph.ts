@@ -1,11 +1,12 @@
+import type { MoneyEdge, PbnEdge } from "@repo/links";
 import type { Edge, Node } from "@xyflow/react";
 
-import type { MoneyEdge, MoneySiteSummary, PbnEdge, PbnSiteSummary } from "./data";
+import type { MoneySiteSummary, PbnSiteSummary } from "./data";
 
 type PbnSiteNodeData = {
   domain: string;
-  hasMoneyEdge: boolean;
   id: string;
+  moneyLinks: number;
   moneySiteId: string | null;
   niches: Array<string>;
   postCount: number;
@@ -50,13 +51,16 @@ const pbnNodeId = (siteId: string): string => `${PBN_NODE_PREFIX}${siteId}`;
 const moneyNodeId = (siteId: string): string => `${MONEY_NODE_PREFIX}${siteId}`;
 
 const buildGraph = (input: BuildGraphInput): BuildGraphResult => {
-  const moneyEdgeSources = new Set(input.moneyEdges.map((e) => e.fromSiteId));
+  const moneyLinksOf = (site: PbnSiteSummary): number =>
+    input.moneyEdges
+      .filter((e) => e.fromSiteId === site.id && e.moneySiteId === site.moneySiteId)
+      .reduce((sum, e) => sum + e.count, 0);
 
   const pbnNodes: Array<PbnSiteNode> = input.pbnSites.map((s) => ({
     data: {
       domain: s.domain,
-      hasMoneyEdge: moneyEdgeSources.has(s.id),
       id: s.id,
+      moneyLinks: moneyLinksOf(s),
       moneySiteId: s.moneySiteId,
       niches: s.niches,
       postCount: s.postCount,

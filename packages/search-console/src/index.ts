@@ -1,6 +1,8 @@
 export { GoogleAuthError, GoogleNotConfiguredError } from "./errors";
 
-export { isGoogleConfigured, buildAuthUrl, exchangeCode } from "./oauth";
+export { encryptionKeySchema } from "./crypto";
+
+export { GOOGLE_ENV_VARS, isGoogleConfigured, buildAuthUrl, exchangeCode } from "./oauth";
 
 export { disconnect, loadConnection, storeConnection, type GoogleConnectionPublic } from "./tokens";
 

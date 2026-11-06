@@ -1,4 +1,10 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, prisma, type Site } from "@repo/db";
+import {
+  SEO_DESCRIPTION_MAX,
+  SEO_DESCRIPTION_MIN,
+  SEO_TITLE_MAX,
+  SEO_TITLE_MIN,
+} from "@repo/health";
 import { countJobs } from "@repo/jobs";
 import { hasDeployHook } from "@repo/sites";
 import * as Sites from "@repo/sites";
@@ -25,7 +31,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { MoneySiteDropdown } from "@/components/money-site-dropdown";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
 import { readIntegrations } from "@/lib/integrations";
 
@@ -33,13 +38,8 @@ import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
 
 import { AuthorCard } from "./author-form";
 import { AutoPublishForm } from "./auto-publish-form";
-import {
-  BacklinksCard,
-  DomainRankCard,
-  OnPageAuditCard,
-  SeoPanel,
-  TopKeywordsCard,
-} from "./dataforseo-cards";
+import { BacklinksCard } from "./backlinks-card";
+import { DomainRankCard, OnPageAuditCard, SeoPanel, TopKeywordsCard } from "./dataforseo-cards";
 import { InboundLinksCard } from "./inbound-links";
 import {
   type HealthCheck,
@@ -48,6 +48,7 @@ import {
   fetchRecentPosts,
   fetchSiteStats,
 } from "./insights";
+import { MoneySiteDropdown } from "./money-site-dropdown";
 import { NicheCard } from "./niche-card";
 import { PublishFrequencyCard } from "./publish-frequency-card";
 import { PublishingForm } from "./publishing-form";
@@ -104,14 +105,20 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
             <h1 className="text-2xl font-semibold tracking-tight">{site.domain}</h1>
           </div>
           <div className="flex flex-row items-center gap-2">
-            <label className="flex flex-col gap-1 text-sm" htmlFor={`money-site-${site.id}`}>
-              <span className="text-xs font-medium text-muted-foreground">Money site</span>
+            <div className="flex flex-col gap-1 text-sm">
+              <label
+                className="text-xs font-medium text-muted-foreground"
+                htmlFor={`money-site-${site.id}`}
+              >
+                Money site
+              </label>
               <MoneySiteDropdown
                 currentMoneySiteId={site.moneySiteId}
+                id={`money-site-${site.id}`}
                 options={moneySiteOptions}
                 siteId={site.id}
               />
-            </label>
+            </div>
             <a
               aria-label={`Visit ${site.domain}`}
               className={cn(buttonVariants({ variant: "outline" }))}
@@ -132,7 +139,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
 
       <section className="grid gap-4 md:grid-cols-2">
         <Suspense fallback={<CardSkeleton title="Health checks" />}>
-          <HealthChecksCard siteId={id} />
+          <HealthChecksCard site={site} />
         </Suspense>
         <Suspense fallback={<CardSkeleton title="Niche distribution" />}>
           <NicheCard siteId={id} />
@@ -144,7 +151,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
       </Suspense>
 
       <Suspense fallback={<CardSkeleton title="Latest posts" />}>
-        <RecentWpCard siteId={id} />
+        <RecentPostsCard siteId={id} />
       </Suspense>
 
       <section className="grid gap-4 md:grid-cols-2">
@@ -181,6 +188,9 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
       </Card>
 
       <PublishingForm site={{ ...site, hasDeployHook: hasDeployHook(site) }} />
+      <Suspense fallback={<CardSkeleton title="Backlinks" />}>
+        <BacklinksCard siteId={site.id} />
+      </Suspense>
       <AuthorCard
         defaultBio={site.authorBio}
         defaultName={site.authorName}
@@ -199,19 +209,16 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
           </div>
 
           <div className="deferred-site-panel">
-            {/* Nested rather than sibling boundaries: the four DataForSEO sections stack
+            {/* Nested rather than sibling boundaries: the three DataForSEO sections stack
             vertically with unknown heights, so independent reveals shove each other down
             the panel. Nesting keeps the fetches parallel but settles the panel top-down. */}
             <SeoPanel>
               <Suspense fallback={<SectionSkeleton title="Domain rank" />}>
                 <DomainRankCard domain={site.domain} language={site.language} />
-                <Suspense fallback={<SectionSkeleton title="Backlinks" />}>
-                  <BacklinksCard siteId={site.id} />
-                  <Suspense fallback={<SectionSkeleton title="Homepage audit" />}>
-                    <OnPageAuditCard siteId={site.id} url={`https://${site.domain}`} />
-                    <Suspense fallback={<SectionSkeleton title="Top organic keywords" />}>
-                      <TopKeywordsCard domain={site.domain} language={site.language} />
-                    </Suspense>
+                <Suspense fallback={<SectionSkeleton title="Homepage audit" />}>
+                  <OnPageAuditCard siteId={site.id} url={`https://${site.domain}`} />
+                  <Suspense fallback={<SectionSkeleton title="Top organic keywords" />}>
+                    <TopKeywordsCard domain={site.domain} language={site.language} />
                   </Suspense>
                 </Suspense>
               </Suspense>
@@ -254,8 +261,8 @@ const SiteStatGrid = async ({ siteId }: { siteId: string }) => {
   return <StatGrid columns={3} items={items} />;
 };
 
-const HealthChecksCard = async ({ siteId }: { siteId: string }) => {
-  const health = await fetchHealth(siteId);
+const HealthChecksCard = async ({ site }: { site: Pick<Site, "domain" | "isEnabled"> }) => {
+  const health = await fetchHealth(site);
 
   return (
     <Card>
@@ -296,9 +303,10 @@ const OnPageSeoCard = async ({ siteId }: { siteId: string }) => {
           )}
         </CardTitle>
         <CardDescription>
-          {report.published} published post{report.published === 1 ? "" : "s"}. Title 30–60
-          characters, meta description 70–160, and at least one in-content inbound link. These are
-          the thresholds Ahrefs Site Audit uses.
+          {report.published} published post{report.published === 1 ? "" : "s"}. Title{" "}
+          {SEO_TITLE_MIN}–{SEO_TITLE_MAX} characters, meta description {SEO_DESCRIPTION_MIN}–
+          {SEO_DESCRIPTION_MAX}, and at least one in-content inbound link. These are the thresholds
+          Ahrefs Site Audit uses.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -328,7 +336,7 @@ const HealthRow = ({ check }: { check: HealthCheck }) => (
   </li>
 );
 
-const RecentWpCard = async ({ siteId }: { siteId: string }) => {
+const RecentPostsCard = async ({ siteId }: { siteId: string }) => {
   const posts = await fetchRecentPosts(siteId, 5);
 
   return (

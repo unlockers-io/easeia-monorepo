@@ -1,9 +1,14 @@
-export { extractLocs, filterContentPaths } from "./sitemap";
+export { crawlPage, crawlSitemap } from "./crawl";
 
-export { extractVisibleText } from "./extract";
+export { findRelevantPages } from "./find-relevant";
 
-export { crawlSitemap, crawlPage } from "./crawl";
+export { MoneySiteDomainTakenError, MoneySiteNotFoundError } from "./errors";
 
-export { findRelevantPages, type RelevantPage } from "./find-relevant";
-
-export { listMoneySites, createMoneySite, updateMoneySite, deleteMoneySite } from "./registry";
+export {
+  createMoneySite,
+  deleteMoneySite,
+  detail,
+  listMoneySites,
+  requestCrawl,
+  updateMoneySite,
+} from "./registry";

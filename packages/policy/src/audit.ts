@@ -1,25 +1,40 @@
 import { type Prisma, prisma } from "@repo/db";
-import { log } from "@repo/observability";
 
 import type { Actor } from "./authorize";
 
-export type AuditEntry = { action: string; meta?: Prisma.InputJsonValue; target: string };
+type AuditAction =
+  | "apikey.create"
+  | "apikey.revoke"
+  | "backfill.trigger"
+  | "backlinks.backfill"
+  | "backlinks.import"
+  | "bucket.refill"
+  | "link.approve"
+  | "link.reject"
+  | "link.update"
+  | "moneysite.create"
+  | "moneysite.delete"
+  | "moneysite.recrawl"
+  | "moneysite.update"
+  | "post.create"
+  | "post.delete"
+  | "post.publish"
+  | "post.unpublish"
+  | "post.update"
+  | "rewrite.trigger"
+  | "site.create"
+  | "site.update"
+  | "snapshot.refresh";
+
+export type AuditEntry = { action: AuditAction; meta?: Prisma.InputJsonValue; target: string };
 
 export const recordAudit = async (actor: Actor, entry: AuditEntry): Promise<void> => {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        action: entry.action,
-        actor: `${actor.kind}:${actor.id}`,
-        meta: entry.meta ?? {},
-        target: entry.target,
-      },
-    });
-  } catch (error) {
-    log.warn({
+  await prisma.auditLog.create({
+    data: {
       action: entry.action,
-      error: error instanceof Error ? error.message : String(error),
-      message: "failed to write AuditLog",
-    });
-  }
+      actor: `${actor.kind}:${actor.id}`,
+      meta: entry.meta ?? {},
+      target: entry.target,
+    },
+  });
 };

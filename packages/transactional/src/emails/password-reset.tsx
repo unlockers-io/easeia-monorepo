@@ -3,11 +3,13 @@ import { Heading, Link, Text } from "react-email";
 import { Button } from "../components/button";
 import { Card } from "../components/card";
 import { Divider } from "../components/divider";
+import { formatHours } from "../utils/format-hours";
 
 import { BaseLayout } from "./base-layout";
 
 type PasswordResetEmailProps = {
   browserInfo?: string;
+  expiresInHours: number;
   ipAddress?: string;
   resetUrl: string;
   userEmail: string;
@@ -16,6 +18,7 @@ type PasswordResetEmailProps = {
 
 const PasswordResetEmail = ({
   browserInfo,
+  expiresInHours,
   ipAddress,
   resetUrl,
   userEmail,
@@ -56,7 +59,7 @@ const PasswordResetEmail = ({
         </ul>
         <Text className="m-0 mt-3 mb-2 text-base font-semibold text-foreground">Important</Text>
         <ul className="m-0 list-inside list-disc text-base text-muted-foreground">
-          <li className="py-1">This link expires in 1 hour</li>
+          <li className="py-1">This link expires in {formatHours(expiresInHours)}</li>
           <li className="py-1">It can only be used once</li>
           <li className="py-1">If you didn&apos;t request this, secure your account</li>
         </ul>

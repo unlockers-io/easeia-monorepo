@@ -3,23 +3,16 @@ import "@hono/zod-openapi";
 import type { Post } from "@repo/db";
 import type { Actor } from "@repo/policy";
 import type * as Posts from "@repo/posts";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.hoisted(() => {
-  process.env.BETTER_AUTH_SECRET ??= "test-secret-that-is-at-least-32-characters";
-  process.env.DATABASE_URL ??= "postgresql://unused:unused@127.0.0.1:1/unused";
-  process.env.REDIS_URL ??= "redis://127.0.0.1:1";
-  process.env.WP_ENCRYPTION_KEY ??= "test-encryption-key";
-  process.env.FROM_EMAIL ??= "test@easeia.test";
-});
-
+import { fakeSite } from "@repo/sites/fake";
 import type { MiddlewareHandler } from "hono";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { requireAction } from "@/middleware/api-auth";
 import type { AuthVariables } from "@/middleware/api-auth";
 
 import { createApiKeyRoutes } from "./api-keys";
 import { createPostRoutes } from "./posts";
+import { createSiteRoutes } from "./sites";
 import { bypassMiddleware, mountForTest } from "./test-harness";
 
 let actor: Actor = { id: "admin", kind: "user" };
@@ -36,7 +29,6 @@ const post: Post = {
   createdAt: new Date(),
   excerpt: null,
   featuredImage: null,
-  featuredImagePrompt: null,
   focusKeyword: null,
   id: "p1",
   niches: [],
@@ -87,6 +79,16 @@ const common = {
 const posts = mountForTest(createPostRoutes({ ...common, posts: writers }));
 const keys = mountForTest(createApiKeyRoutes({ ...common, createKey, listKeys, revokeKey }));
 
+const sites = mountForTest(
+  createSiteRoutes({
+    ...common,
+    createSite: vi.fn(),
+    listSites: vi.fn().mockResolvedValue([]),
+    loadSite: vi.fn((id: string) => Promise.resolve(fakeSite({ id }))),
+    updateSite: vi.fn((id: string) => Promise.resolve(fakeSite({ id }))),
+  }),
+);
+
 const postCases = [
   ["GET", "/", undefined, 200, writers.list],
   ["GET", "/p1", undefined, 200, writers.get],
@@ -107,7 +109,7 @@ const request = (
   app: typeof posts,
   method: string,
   path: string,
-  body: Record<string, string | ReadonlyArray<string>> | undefined,
+  body: Record<string, string | ReadonlyArray<string> | null> | undefined,
 ) => {
   const init: RequestInit = { method };
 
@@ -164,4 +166,19 @@ describe("mounted route authorization", () => {
       expect(handler).toHaveBeenCalledTimes(Number(access.admin));
     }
   });
+});
+
+it("keeps a Site-bound key on the Site named in the path", async () => {
+  actor = { id: "bound", kind: "apikey", scopes: ["sites:read", "sites:write"], siteId: "s1" };
+  const patch = { vercelProjectName: "photos" };
+
+  const responses = await Promise.all([
+    request(sites, "GET", "/s1", undefined),
+    request(sites, "PATCH", "/s1", patch),
+    request(sites, "GET", "/s2", undefined),
+    request(sites, "PATCH", "/s2", patch),
+    request(sites, "PATCH", "/s2/money-site", { moneySiteId: null }),
+  ]);
+
+  expect(responses.map((response) => response.status)).toEqual([200, 200, 403, 403, 403]);
 });

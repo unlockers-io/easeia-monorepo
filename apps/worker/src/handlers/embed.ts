@@ -1,11 +1,8 @@
-import { embedText } from "@repo/ai";
+import { embedDocument } from "@repo/ai";
 import { prisma } from "@repo/db";
 import type { ConsumerContext } from "@repo/jobs";
+import { createJobLogger } from "@repo/observability/worker";
 import * as Posts from "@repo/posts";
-
-import { createJobLogger } from "../lib/logger";
-
-const MAX_INPUT_CHARS = 6000 * 4;
 
 export const handleEmbed = async (ctx: ConsumerContext<"EMBED">): Promise<void> => {
   const { jobId, payload } = ctx;
@@ -25,9 +22,7 @@ export const handleEmbed = async (ctx: ConsumerContext<"EMBED">): Promise<void> 
     return;
   }
 
-  const raw = `${post.title}\n\n${Posts.stripHtml(post.body)}`;
-  const vector = await embedText(raw.slice(0, MAX_INPUT_CHARS));
-  await Posts.recordEmbedding(postId, vector);
+  await Posts.recordEmbedding(postId, await embedDocument(post.title, Posts.stripHtml(post.body)));
 
   log.info("embed: done");
   log.emit();

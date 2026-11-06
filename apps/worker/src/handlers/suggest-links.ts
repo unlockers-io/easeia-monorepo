@@ -1,7 +1,6 @@
 import type { ConsumerContext } from "@repo/jobs";
 import { suggestForPost } from "@repo/links";
-
-import { createJobLogger } from "../lib/logger";
+import { createJobLogger } from "@repo/observability/worker";
 
 export const handleSuggestLinks = async (ctx: ConsumerContext<"SUGGEST_LINKS">): Promise<void> => {
   const { jobId, payload } = ctx;

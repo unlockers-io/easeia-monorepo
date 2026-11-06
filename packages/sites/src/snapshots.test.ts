@@ -1,5 +1,6 @@
 import { JobKind, prisma } from "@repo/db";
-import { closeJobs, countJobs } from "@repo/jobs";
+import { countJobs } from "@repo/jobs";
+import { closeJobs } from "@repo/jobs/worker";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { requestSnapshots } from "./index";

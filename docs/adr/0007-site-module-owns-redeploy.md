@@ -1,7 +1,7 @@
 # ADR-0007: Site module owns redeploy
 
 **Status:** accepted (2026-10-07); supersedes ADR-0001; `dedupe-suffixed-posts` redeploy amended
-by [ADR-0009](./0012-post-intake-owns-storing-a-body.md)
+by [ADR-0009](./0009-post-intake-owns-storing-a-body.md)
 
 ## Context
 
@@ -65,3 +65,15 @@ deploy(siteId, postHook); // "posted" | "disabled" | "no-deploy-hook"; throws on
   and tools would keep their own POST.
 - **Keep skipping while RUNNING and rely on later publishes.** Rejected: a quiet Site never
   receives a later deploy.
+
+## Amendment (2026-11-06)
+
+- Writes are `create`, `ensure`, `update`, `updateSchedule` and `updateEnabledSchedules`. `update`
+  parses every patch with `siteUpdatePatchSchema`, which lists every editable field. `ensure`
+  creates a missing Site and never re-enables one or wipes its niches.
+- `upsert`, `applyNetworkDefaults` and `aggregateSiteNiches` are gone: network defaults moved to
+  `@repo/auto-publish`, which writes schedule columns only through the two schedule writers, and
+  niche aggregation moved into its tool, which calls `update`.
+- `isDeployable` is the one deployable predicate. The gates (`load`, `requireEnabled`,
+  `requirePublishable`) take an optional transaction.
+- External backlinks and their CSV parser moved to `@repo/links`.

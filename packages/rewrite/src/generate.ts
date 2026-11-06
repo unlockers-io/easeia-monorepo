@@ -6,20 +6,13 @@ import {
   SEO_TITLE_MIN,
 } from "@repo/health";
 import { stripHtml } from "@repo/posts";
+import { slugify } from "@repo/sites";
 import { franc } from "franc";
 import { z } from "zod";
 
 import { generateWithAnchors } from "./anchored-generation";
 import type { AnchorSpec } from "./prompt";
 import { REWRITER_SYSTEM_PROMPT, SITE_LANGUAGE_HUMAN } from "./prompt-constants";
-
-const kebabCase = (raw: string): string =>
-  raw
-    .normalize("NFD")
-    .replaceAll(/\p{M}/gv, "")
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/gv, "-")
-    .replaceAll(/^-+|-+$/gv, "");
 
 type FrancToSiteLanguageContract = Record<string, SiteLanguage>;
 
@@ -130,7 +123,7 @@ const buildGeneratePrompt = (input: GeneratePostInput): string => {
   const lines = [
     REWRITER_SYSTEM_PROMPT,
     "",
-    `Task: write a brand-new blog post for the WordPress site ${input.site.domain}.`,
+    `Task: write a brand-new blog post for the site ${input.site.domain}.`,
     `Site niches: ${niches}.`,
     input.topicHints !== null && input.topicHints !== ""
       ? `Topic guidance: ${input.topicHints}`
@@ -140,9 +133,7 @@ const buildGeneratePrompt = (input: GeneratePostInput): string => {
       : "",
     "",
     serpSection,
-    serpSection === "" ? "" : "",
     anchorsSection,
-    anchorsSection === "" ? "" : "",
     `LANGUAGE: write everything (title, body, excerpt, focusKeyword, tags) in ${languageName}. Do not output any other language. Do not translate to English.`,
     "Apply ALL of the rules above (voice, anti-AI, SEO, copywriting, copy-editing).",
     "",
@@ -188,7 +179,7 @@ export const generateNewPost = async (input: GeneratePostInput): Promise<Generat
     category,
     excerpt,
     focusKeyword,
-    slug: kebabCase(title),
+    slug: slugify(title),
     tags,
     title,
   };

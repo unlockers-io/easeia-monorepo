@@ -1,24 +1,16 @@
-import { type BackfillPhase, type Job, type JobKind, JobStatus, prisma } from "@repo/db";
+import { type Job, type JobKind, JobStatus, type Prisma, prisma } from "@repo/db";
 import { UnrecoverableError, Worker, type Job as BullJob } from "bullmq";
 
-import type { JobPayloads } from "./payloads";
-import { describeError, QUEUE_NAMES, redisConnection } from "./queue";
-
-export class JobSkippedError extends Error {}
-
-export type ConsumerContext<K extends JobKind> = {
-  attemptsMade: number;
-  finalAttempt: boolean;
-  jobId: string;
-  payload: JobPayloads[K];
-  run?: { id: string; phase: BackfillPhase };
-};
+import { type ConsumerContext, JobSkippedError } from "./context";
+import { parsePayload } from "./payloads";
+import { describeError, queueName, redisConnection } from "./transport";
 
 type ConsumeOptions<K extends JobKind> = {
   concurrency?: number;
   handler: (ctx: ConsumerContext<K>) => Promise<void>;
   isRetryable?: (cause: unknown) => boolean;
   kind: K;
+  onFailure?: (ctx: ConsumerContext<K>) => Promise<void>;
 };
 
 const runFor = (row: Pick<Job, "runId" | "phase">): ConsumerContext<JobKind>["run"] => {
@@ -57,17 +49,15 @@ const recordFailure = async (jobId: string, error: unknown, retry: boolean): Pro
 
 export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =>
   new Worker(
-    QUEUE_NAMES[options.kind],
-    async (bull: BullJob<JobPayloads[K]>) => {
+    queueName(options.kind),
+    async (bull: BullJob<Prisma.InputJsonObject>) => {
       const jobId = bull.id;
 
       if (jobId === undefined || jobId === "") {
         throw new UnrecoverableError(`BullMQ job has no id (kind=${options.kind})`);
       }
 
-      const attemptsMade = bull.attemptsMade;
-      const finalAttempt = attemptsMade + 1 >= (bull.opts.attempts ?? 1);
-
+      const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts ?? 1);
       const startedAt = new Date();
 
       const row = await prisma.job.upsert({
@@ -84,23 +74,33 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
         where: { id: jobId },
       });
 
-      try {
-        const context: ConsumerContext<K> = {
-          attemptsMade,
-          finalAttempt,
-          jobId,
-          payload: bull.data,
-        };
+      let context: ConsumerContext<K>;
 
+      try {
         const run = runFor(row);
+        context = { jobId, payload: parsePayload(options.kind, bull.data) };
 
         if (run !== undefined) {
           context.run = run;
         }
+      } catch (error) {
+        await recordFailure(jobId, error, false);
 
+        return;
+      }
+
+      try {
         await options.handler(context);
       } catch (error) {
-        await recordFailure(jobId, error, !finalAttempt && (options.isRetryable?.(error) ?? true));
+        const retry = !finalAttempt && (options.isRetryable?.(error) ?? true);
+
+        try {
+          if (!retry && !(error instanceof JobSkippedError)) {
+            await options.onFailure?.(context);
+          }
+        } finally {
+          await recordFailure(jobId, error, retry);
+        }
 
         return;
       }

@@ -1,23 +1,15 @@
 import { createRoute } from "@hono/zod-openapi";
-import type { networkBackfill } from "@repo/backfill";
-import type { Action } from "@repo/policy";
-import type { MiddlewareHandler } from "hono";
+import type { backfills } from "@repo/backfill";
 
-import { createRouter } from "@/lib/openapi";
 import { commonErrors, jsonResponse, orchestratorStatusSchema } from "@/lib/openapi-schemas";
-import type { AuthVariables } from "@/middleware/api-auth";
+import { createProtectedRouter, type Guards } from "@/lib/protected-router";
 
-export type RunRouteDependencies = {
-  apiAuth: MiddlewareHandler;
-  rateLimit: MiddlewareHandler;
-  readStatus: typeof networkBackfill.readStatus;
-  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
+export type RunRouteDependencies = Guards & {
+  readStatus: (typeof backfills)[keyof typeof backfills]["readStatus"];
 };
 
 export const createRunRouter = (deps: RunRouteDependencies) => {
-  const app = createRouter<{ Variables: AuthVariables }>();
-  app.use("*", deps.apiAuth);
-  app.use("*", deps.rateLimit);
+  const app = createProtectedRouter(deps);
   app.openapi(
     createRoute({
       method: "get",

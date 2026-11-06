@@ -1,8 +1,7 @@
+import { Logo } from "@repo/ui/compositions/logo";
 import Link from "next/link";
 
 import { apiUrl, DOCS_URL, GITHUB_URL, webAppUrl } from "@/lib/urls";
-
-import { Logo } from "./logo";
 
 const LINKS = [
   { href: GITHUB_URL, label: "GitHub" },

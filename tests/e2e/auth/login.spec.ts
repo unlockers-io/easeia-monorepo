@@ -1,10 +1,6 @@
 import { test, expect } from "../fixtures/auth.fixture";
 import { holdScripts } from "../helpers/hold-scripts";
-
-const TEST_USER = {
-  email: "e2e-test@easeia.localhost",
-  password: "TestPassword123!",
-};
+import { TEST_USER } from "../helpers/test-user";
 
 test.describe("Login", () => {
   test.use({ storageState: { cookies: [], origins: [] } });

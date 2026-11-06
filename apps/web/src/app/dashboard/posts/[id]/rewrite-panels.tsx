@@ -18,7 +18,7 @@ export const RewrittenBadge = ({ rewrittenAt }: { rewrittenAt: Date | null }) =>
   return <Badge variant="secondary">Rewritten {new Date(rewrittenAt).toLocaleString()}</Badge>;
 };
 
-export type MoneySiteLink = { anchorText: string; id: string; toUrl: string };
+type MoneySiteLink = { anchorText: string; id: string; toUrl: string };
 
 export const MoneySiteLinksPanel = ({
   links,

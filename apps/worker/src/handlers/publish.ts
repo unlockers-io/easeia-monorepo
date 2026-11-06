@@ -1,10 +1,10 @@
 import type { ConsumerContext } from "@repo/jobs";
 import { pruneFabricatedLinks } from "@repo/links";
+import { createJobLogger } from "@repo/observability/worker";
 import * as Posts from "@repo/posts";
 
 import { ensureHero } from "../lib/ensure-hero";
 import { env } from "../lib/env";
-import { createJobLogger } from "../lib/logger";
 
 export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<void> => {
   const { jobId, payload } = ctx;
@@ -31,23 +31,16 @@ export const handlePublish = async (ctx: ConsumerContext<"PUBLISH">): Promise<vo
     }
 
     await ensureHero({ autogenEnabled: env.HERO_AUTOGEN_ENABLED, ...target });
-    await Posts.completePublish(postId, { bodyImages: env.BODY_IMAGES_ENABLED });
+    await Posts.completePublish(postId);
 
     log.info("publish: done");
     log.emit();
   } catch (error) {
-    if (ctx.finalAttempt) {
-      try {
-        await Posts.failPublish(postId);
-      } catch (failError) {
-        log.error(failError instanceof Error ? failError : String(failError), {
-          failPublishFailed: true,
-        });
-      }
-    }
-
     log.error(error instanceof Error ? error : "publish: failed");
     log.emit();
     throw error;
   }
 };
+
+export const failPublish = ({ payload }: ConsumerContext<"PUBLISH">): Promise<void> =>
+  Posts.failPublish(payload.postId);

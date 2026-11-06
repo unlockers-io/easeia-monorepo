@@ -9,7 +9,7 @@ test.describe("network rewrite", () => {
   });
 
   test("money-sites admin page renders", async ({ page }) => {
-    await page.goto("/money-sites");
+    await page.goto("/dashboard/money-sites");
     await expect(page.getByRole("heading", { name: /Money sites/i })).toBeVisible();
     await expect(page.getByPlaceholder(/Sitemap URL/i)).toBeVisible();
   });

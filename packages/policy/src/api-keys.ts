@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { apiKeyCreateSchema, isApiKeyScope, type ApiKeyCreate } from "@repo/api-types";
+import { apiKeyCreateSchema, type ApiKeyCreate } from "@repo/api-types";
 import { prisma } from "@repo/db";
 
+import { apiKeySummarySchema, type ApiKeySummary } from "./api-key-summary";
 import type { Actor } from "./authorize";
 import { InvalidApiKeyError } from "./errors";
 
@@ -20,14 +21,9 @@ const summaryFields = {
   revokedAt: true,
   scopes: true,
   siteId: true,
-} as const;
+} as const satisfies Record<keyof ApiKeySummary, true>;
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-
-const withKnownScopes = <Key extends { scopes: Array<string> }>(key: Key) => ({
-  ...key,
-  scopes: key.scopes.filter(isApiKeyScope),
-});
 
 const bearerToken = (authorization: string | undefined) => {
   if (authorization === undefined || !authorization.startsWith(BEARER_PREFIX)) {
@@ -56,10 +52,12 @@ export const authenticate = async (authorization: string | undefined): Promise<A
     throw new InvalidApiKeyError();
   }
 
-  return { kind: "apikey", ...withKnownScopes(key) };
+  return { ...key, kind: "apikey", scopes: apiKeySummarySchema.shape.scopes.parse(key.scopes) };
 };
 
-export const createApiKey = async (input: ApiKeyCreate) => {
+export const createApiKey = async (
+  input: ApiKeyCreate,
+): Promise<ApiKeySummary & { token: string }> => {
   const { name, scopes, siteId } = apiKeyCreateSchema.parse(input);
   const token = `${TOKEN_NAMESPACE}${randomBytes(TOKEN_ENTROPY_BYTES).toString("base64url")}`;
 
@@ -74,16 +72,16 @@ export const createApiKey = async (input: ApiKeyCreate) => {
     select: summaryFields,
   });
 
-  return { ...withKnownScopes(key), token };
+  return { ...key, scopes, token };
 };
 
-export const listApiKeys = async () => {
+export const listApiKeys = async (): Promise<Array<ApiKeySummary>> => {
   const keys = await prisma.apiKey.findMany({
     orderBy: { createdAt: "desc" },
     select: summaryFields,
   });
 
-  return keys.map(withKnownScopes);
+  return apiKeySummarySchema.array().parse(keys);
 };
 
 export const revokeApiKey = async (id: string): Promise<void> => {

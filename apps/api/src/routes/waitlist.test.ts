@@ -1,14 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.hoisted(() => {
-  Object.assign(process.env, {
-    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
-    DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
-    REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
-  });
-});
-
 import { createWaitlistRateLimit } from "@/middleware/security";
 
 import { bypassMiddleware, mountForTest } from "./test-harness";

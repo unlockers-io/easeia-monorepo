@@ -1,4 +1,4 @@
-import { DomainError } from "@repo/sites";
+import { DomainError } from "@repo/errors";
 
 export type ValidationIssue = { message: string; path: string };
 
@@ -13,6 +13,13 @@ export class PostStateError extends DomainError {
   constructor(message: string) {
     super(message, "POST_STATE_ERROR", 409);
     this.name = "PostStateError";
+  }
+}
+
+export class PostSlugTakenError extends DomainError {
+  constructor() {
+    super("This site already has a post with that slug.", "POST_SLUG_TAKEN", 409);
+    this.name = "PostSlugTakenError";
   }
 }
 

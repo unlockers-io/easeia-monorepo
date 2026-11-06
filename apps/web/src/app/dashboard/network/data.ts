@@ -1,5 +1,5 @@
 import { prisma, type Niche } from "@repo/db";
-import { networkLinkEdges } from "@repo/links";
+import { type MoneyEdge, networkLinkEdges, type PbnEdge } from "@repo/links";
 
 type PbnSiteSummary = {
   domain: string;
@@ -14,18 +14,6 @@ type MoneySiteSummary = {
   id: string;
   name: string;
   pageCount: number;
-};
-
-type PbnEdge = {
-  count: number;
-  fromSiteId: string;
-  toSiteId: string;
-};
-
-type MoneyEdge = {
-  count: number;
-  fromSiteId: string;
-  moneySiteId: string;
 };
 
 type NetworkGraphData = {
@@ -76,14 +64,18 @@ const loadNetworkGraphData = async (): Promise<NetworkGraphData> => {
     postCount: s._count.posts,
   }));
 
+  const shown = new Set(sites.map((site) => site.id));
+
   return {
-    moneyEdges: edges.moneyEdges.filter((e) => moneySites.has(e.moneySiteId)),
+    moneyEdges: edges.moneyEdges.filter(
+      (e) => shown.has(e.fromSiteId) && moneySites.has(e.moneySiteId),
+    ),
     moneySites: [...moneySites.values()],
-    pbnEdges: edges.pbnEdges,
+    pbnEdges: edges.pbnEdges.filter((e) => shown.has(e.fromSiteId) && shown.has(e.toSiteId)),
     pbnSites,
   };
 };
 
 export { loadNetworkGraphData };
 
-export type { MoneyEdge, MoneySiteSummary, NetworkGraphData, PbnEdge, PbnSiteSummary };
+export type { MoneySiteSummary, NetworkGraphData, PbnSiteSummary };

@@ -31,20 +31,14 @@
         "GOOGLE_OAUTH_CLIENT_SECRET",
         "NEXT_PUBLIC_WEB_APP_URL",
         "OPENAI_API_KEY",
-        "REDIS_URL",
         "RESEND_API_KEY",
         "SIGNUP_MODE",
         "TRUSTED_ORIGINS",
         "VERCEL",
         "WEB_APP_URL",
-        "WP_ENCRYPTION_KEY",
         "NEXT_PUBLIC_API_URL",
         "NEXT_PUBLIC_ENABLE_ANALYTICS"
       ]
-    },
-    "lint": {
-      "dependsOn": ["^build", "db:generate"],
-      "outputs": []
     },
     "typecheck": {
       "dependsOn": ["^build", "db:generate"]

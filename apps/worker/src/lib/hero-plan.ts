@@ -13,7 +13,7 @@ export type PlanHeroInput = {
   autogenEnabled: boolean;
   featuredImage: string | null;
   hero: HeroRow | null;
-  r2PublicBaseUrl: string | undefined;
+  isBlobUrl: (url: string) => boolean;
 };
 
 const filenameFromUrl = (url: string): string => {
@@ -23,17 +23,14 @@ const filenameFromUrl = (url: string): string => {
   return tail || "image";
 };
 
-const isR2Hosted = (url: string, r2Base: string | undefined): boolean =>
-  r2Base !== undefined && r2Base !== "" && url.startsWith(r2Base);
-
 export const planHero = ({
   autogenEnabled,
   featuredImage,
   hero,
-  r2PublicBaseUrl,
+  isBlobUrl,
 }: PlanHeroInput): HeroPlan => {
   const foreignSource =
-    featuredImage !== null && featuredImage !== "" && !isR2Hosted(featuredImage, r2PublicBaseUrl)
+    featuredImage !== null && featuredImage !== "" && !isBlobUrl(featuredImage)
       ? featuredImage
       : null;
 
@@ -42,7 +39,7 @@ export const planHero = ({
   // the source image changed and must be re-imported.
   if (foreignSource !== null) {
     const filename = filenameFromUrl(foreignSource);
-    const upToDate = hero?.filename === filename && isR2Hosted(hero.blobUrl, r2PublicBaseUrl);
+    const upToDate = hero?.filename === filename && isBlobUrl(hero.blobUrl);
 
     return upToDate ? { kind: "ready" } : { filename, kind: "import", sourceUrl: foreignSource };
   }
@@ -50,7 +47,7 @@ export const planHero = ({
   // No usable import source, so the hero row is the whole truth, which is also
   // what the build feed reads.
   if (hero !== null) {
-    return isR2Hosted(hero.blobUrl, r2PublicBaseUrl)
+    return isBlobUrl(hero.blobUrl)
       ? { kind: "ready" }
       : { filename: hero.filename, kind: "import", sourceUrl: hero.blobUrl };
   }

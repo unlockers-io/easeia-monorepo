@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 
+import { BRAND_INK } from "@repo/ui/lib/brand";
 import { cn } from "@repo/ui/lib/utils";
 import type { Metadata, Viewport } from "next";
 import { Schibsted_Grotesk } from "next/font/google";
@@ -7,11 +8,10 @@ import { Schibsted_Grotesk } from "next/font/google";
 import { Analytics } from "@/components/analytics";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { GITHUB_URL, SITE_URL } from "@/lib/urls";
 
-const SITE_NAME = "Easeia";
 const TAGLINE = "Open-source dashboard for private blog networks";
-const SHORT_DESCRIPTION = "An open-source dashboard for private blog networks.";
 
 const LONG_DESCRIPTION =
   "Run a private blog network from one dashboard. AI drafts, scheduled Astro publishing, money-site links, and search reports. Free MIT self-hosting; Cloud waitlist.";
@@ -21,7 +21,7 @@ const metadata = {
   description: LONG_DESCRIPTION,
   metadataBase: new URL(SITE_URL),
   openGraph: {
-    description: SHORT_DESCRIPTION,
+    description: DESCRIPTION,
     locale: "en-US",
     siteName: SITE_NAME,
     title: SITE_NAME,
@@ -33,13 +33,13 @@ const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    description: SHORT_DESCRIPTION,
+    description: DESCRIPTION,
     title: `${SITE_NAME} · ${TAGLINE}`,
   },
 } satisfies Metadata;
 
 const viewport = {
-  themeColor: "#1a1a1a",
+  themeColor: BRAND_INK,
 } satisfies Viewport;
 
 const schibsted = Schibsted_Grotesk({

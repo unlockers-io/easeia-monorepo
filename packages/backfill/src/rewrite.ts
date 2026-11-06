@@ -1,5 +1,5 @@
 import { assertAiConfigured } from "@repo/ai";
-import { JobKind, PostStatus, prisma } from "@repo/db";
+import { BackfillKind, JobKind, PostStatus, prisma } from "@repo/db";
 import { enqueue } from "@repo/jobs";
 import * as Sites from "@repo/sites";
 
@@ -13,7 +13,7 @@ export const rewriteBackfill = createBackfill({
     postsEligible: run.postIds.length,
     postsRewritten: completed(jobs, JobKind.REWRITE_POST),
   }),
-  kind: JobKind.BACKFILL_REWRITE,
+  kind: BackfillKind.REWRITE,
   label: "network rewrite",
   members: async ({ force }: { force: boolean }) => {
     assertAiConfigured();
@@ -24,9 +24,7 @@ export const rewriteBackfill = createBackfill({
         select: { id: true },
         where: {
           siteId: {
-            in: sites
-              .filter((site) => site.isEnabled && Sites.hasDeployHook(site))
-              .map((site) => site.id),
+            in: sites.filter(Sites.isDeployable).map((site) => site.id),
           },
           status: PostStatus.PUBLISHED,
           ...(force ? {} : { rewrittenAt: null }),

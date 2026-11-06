@@ -10,8 +10,10 @@ import {
 } from "@repo/ui/components/dropdown-menu";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-import { deletePostAction } from "../../actions";
+import { deletePostAction } from "../actions";
 
 type Props = {
   domain: string;
@@ -21,6 +23,19 @@ type Props = {
 
 const PostActionsMenu = ({ domain, postId, publicPageUrl }: Props) => {
   const ready = useClientReady();
+  const { push } = useRouter();
+
+  const handleDelete = async () => {
+    const result = await deletePostAction(postId);
+
+    if (!result.ok) {
+      toast.error(result.error);
+
+      return;
+    }
+
+    push("/dashboard/posts");
+  };
 
   return (
     <DropdownMenu>
@@ -42,18 +57,15 @@ const PostActionsMenu = ({ domain, postId, publicPageUrl }: Props) => {
           }
         />
         <DropdownMenuSeparator />
-        <form action={deletePostAction}>
-          <input name="id" type="hidden" value={postId} />
-          <DropdownMenuItem
-            render={
-              <button className="w-full" type="submit">
-                <Trash2 className="size-4" />
-                Delete post
-              </button>
-            }
-            variant="destructive"
-          />
-        </form>
+        <DropdownMenuItem
+          onClick={() => {
+            void handleDelete();
+          }}
+          variant="destructive"
+        >
+          <Trash2 className="size-4" />
+          Delete post
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

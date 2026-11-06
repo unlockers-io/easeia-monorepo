@@ -1,6 +1,8 @@
 import { dataForSeo } from "@repo/dataforseo";
 import { JobKind, type Prisma, prisma, type SiteLanguage } from "@repo/db";
 import { type ConsumerContext, enqueue } from "@repo/jobs";
+import { log as workerLog } from "@repo/observability";
+import { createJobLogger } from "@repo/observability/worker";
 import * as Posts from "@repo/posts";
 import {
   generateNewPost,
@@ -9,9 +11,7 @@ import {
   type SerpCompetitor,
 } from "@repo/rewrite";
 
-import { env } from "../lib/env";
 import { fetchTopSearchQueries } from "../lib/gsc-queries";
-import { createJobLogger, log as workerLog } from "../lib/logger";
 
 type SiteForGeneration = Pick<
   Prisma.SiteGetPayload<{
@@ -29,7 +29,6 @@ type SerpLookup = {
 };
 
 type GeneratePostDependencies = {
-  bodyImagesEnabled: boolean;
   createLogger: (context: Parameters<typeof createJobLogger>[0]) => GeneratePostLog;
   createPost: typeof Posts.create;
   enqueueJob: typeof enqueue;
@@ -127,17 +126,15 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
       title: generated.title,
     });
 
-    if (dependencies.bodyImagesEnabled) {
-      // Retrying GENERATE_POST would create a second draft; publish retries this fanout.
-      try {
-        await dependencies.enqueueJob({
-          kind: JobKind.GENERATE_BODY_IMAGES,
-          payload: { postId: post.id },
-          postId: post.id,
-        });
-      } catch (error) {
-        workerLog.warn({ err: error, message: "body-image enqueue failed", postId: post.id });
-      }
+    // Retrying GENERATE_POST would create a second draft; publish records this intent again.
+    try {
+      await dependencies.enqueueJob({
+        kind: JobKind.GENERATE_BODY_IMAGES,
+        payload: { postId: post.id },
+        postId: post.id,
+      });
+    } catch (error) {
+      workerLog.warn({ err: error, message: "body-image enqueue failed", postId: post.id });
     }
 
     log.set({ postSlug: generated.slug, postTitle: generated.title });
@@ -146,7 +143,6 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
   };
 
 const handleGeneratePost = createHandleGeneratePost({
-  bodyImagesEnabled: env.BODY_IMAGES_ENABLED,
   createLogger: createJobLogger,
   createPost: Posts.create,
   enqueueJob: enqueue,

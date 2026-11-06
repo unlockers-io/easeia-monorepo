@@ -15,7 +15,6 @@ const baseSnapshot: SiteSnapshot = {
   gscImpressions: 1000,
   healthScore: 75,
   id: "snap_1",
-  onPageScore: 85,
   postsLast30d: 12,
   postsLast7d: 3,
   reachable: true,
@@ -83,16 +82,6 @@ describe("buildRecommendations", () => {
     });
 
     expect(recs.map((r) => r.id)).toContain("gscClicksDropped");
-  });
-
-  it("flags low on-page audit scores", () => {
-    const recs = buildRecommendations({
-      latest: { ...baseSnapshot, onPageScore: 50 },
-      prior: null,
-      siteId: "site_1",
-    });
-
-    expect(recs.map((r) => r.id)).toContain("lowOnPageScore");
   });
 
   it("suggests connecting GSC when explicitly not connected", () => {
@@ -165,7 +154,6 @@ describe("buildRecommendations", () => {
         ...baseSnapshot,
         daysSinceLastPublish: 60,
         healthScore: null,
-        onPageScore: 30,
         postsLast30d: 1,
         reachable: false,
         referringDomains: 1,

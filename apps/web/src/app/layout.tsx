@@ -4,6 +4,7 @@ import { webAppUrl } from "@repo/auth/env-config";
 import { canonicalUrl } from "@repo/portless-env/apps";
 import { Toaster } from "@repo/ui/components/sonner";
 import { ThemeProvider } from "@repo/ui/compositions/theme-provider";
+import { BRAND_INK } from "@repo/ui/lib/brand";
 import type { Metadata, Viewport } from "next";
 import { Schibsted_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#1a1a1a",
+  themeColor: BRAND_INK,
   userScalable: true,
   width: "device-width",
 };
@@ -62,7 +63,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => {
     <html className={schibsted.variable} lang="en" suppressHydrationWarning>
       <head>
         <meta content="telephone=no" name="format-detection" />
-        <meta content="#1a1a1a" name="msapplication-TileColor" />
+        <meta content={BRAND_INK} name="msapplication-TileColor" />
       </head>
       <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">

@@ -1,4 +1,4 @@
-<p align="center"><img src="apps/landing/src/app/icon.svg" width="80" height="80" alt="Easeia" /></p>
+<p align="center"><img src="apps/web/src/app/icon.svg" width="80" height="80" alt="Easeia" /></p>
 
 # Easeia
 
@@ -41,7 +41,7 @@ In the editor, set separate `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` values 
 
 Open <http://localhost:3000/register> to create your administrator. Add a site, configure its deploy hook, and save your first draft. Publishing writes the content and requests a build; your Astro consumer must be configured for that build to produce pages.
 
-The [self-hosting guide](docs/self-hosting.md) covers HTTPS, upgrades, backups, and existing databases. Keep exactly one worker replica because its scheduler runs inside the process. The API reference is at <http://localhost:4000/docs>.
+The [self-hosting guide](docs/self-hosting.md) covers HTTPS, upgrades, backups, and existing databases. The API reference is at <http://localhost:4000/docs>.
 
 ## Development
 
@@ -50,7 +50,7 @@ Use **Node 24** and **pnpm 11** (the exact pnpm version is pinned in `package.js
 ```sh
 pnpm install
 cp .env.example .env
-# Set the four required values and the plain-localhost URL settings in .env.
+# Set DATABASE_URL, REDIS_URL, BETTER_AUTH_SECRET, WP_ENCRYPTION_KEY and the plain-localhost URL settings in .env.
 docker compose up -d
 pnpm db:push
 pnpm dev:plain
@@ -80,8 +80,8 @@ flowchart LR
   Tools[Scripts / N8N] --> API[Hono REST API]
   API --> Posts
   Posts --> DB[(Postgres + pgvector)]
-  Posts --> Queue[(Redis / BullMQ)]
-  Queue --> Worker[One worker]
+  DB --> Worker[Worker]
+  Worker --> Queue[(Redis / BullMQ)]
   Worker --> DB
   Worker --> R2[Optional R2 images]
   Worker --> Hook[Astro deploy hook]
@@ -104,7 +104,7 @@ flowchart LR
 | `@repo/links`, `@repo/money-sites`                                     | Link lifecycle and commercial targets                       |
 | `@repo/dataforseo`, `@repo/search-console`, `@repo/health`             | Provider clients and on-page SEO checks                     |
 | `@repo/blob`, `@repo/transactional`                                    | R2 storage and optional Resend mail                         |
-| `@repo/api-types`, `@repo/ui`, `@repo/observability`                   | Shared schemas, React components, and structured logging    |
+| `@repo/api-types`, `@repo/errors`, `@repo/ui`, `@repo/observability`   | Shared schemas, domain errors, components, and logging      |
 | `@repo/typescript-config`, `@repo/config-vitest`, `@repo/portless-env` | Shared development configuration                            |
 | `@easeia/astro-content`                                                | Published Astro loader and image-prefetch CLI               |
 
@@ -112,7 +112,7 @@ TypeScript is strict. Next.js builds the browser apps; tsdown bundles API and wo
 
 ## Configuration
 
-The four required application values are `DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_SECRET`, and `WP_ENCRYPTION_KEY`. The latter encrypts OAuth tokens at rest and retains its historical variable name. Public URLs, CORS, and trusted hosts must match your deployment.
+Every app needs `DATABASE_URL`; web and the API also need `BETTER_AUTH_SECRET`. Only the worker talks to Redis, so `REDIS_URL` is a worker setting. `WP_ENCRYPTION_KEY` (web and worker) encrypts OAuth tokens at rest and keeps its historical variable name. Public URLs, CORS, and trusted hosts must match your deployment.
 
 | Feature                            | Environment                                                                                  |
 | ---------------------------------- | -------------------------------------------------------------------------------------------- |

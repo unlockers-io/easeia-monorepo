@@ -1,8 +1,7 @@
 "use client";
 
-import { Niche, type PostStatus } from "@repo/db/browser";
-import { Button, buttonVariants } from "@repo/ui/components/button";
-import { Input } from "@repo/ui/components/input";
+import type { Niche, PostStatus } from "@repo/db/browser";
+import { buttonVariants } from "@repo/ui/components/button";
 import {
   Select,
   SelectContent,
@@ -10,24 +9,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
-import {
-  type ColumnDef,
-  DataTable,
-  DataTableColumnHeader,
-  DataTableFacetedFilter,
-  DataTableViewOptions,
-} from "@repo/ui/compositions/data-table";
+import { type ColumnDef, DataTable, DataTableColumnHeader } from "@repo/ui/compositions/data-table";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowUpRight, SearchIcon, XIcon } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { formatRelativeTime, type StatusJob } from "./post-state";
+import { FilterToolbar, useUrlFilters } from "@/components/filter-toolbar";
+import { formatRelativeTime } from "@/lib/relative-time";
+
+import type { StatusJob } from "./post-state";
 import { PostStatusBadge } from "./post-status-badge";
 
-const NICHE_OPTIONS = Object.values(Niche).map((value) => ({ label: value, value }));
 const ALL_SITES = "__all__";
 
 export type PostRow = {
@@ -57,96 +50,10 @@ type PostsTableProps = {
   sites: Array<SiteOption>;
 };
 
-const SEARCH_DEBOUNCE_MS = 250;
-
-const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTableProps) => {
-  const nowMsRef = useRef(nowMsProp);
-  useEffect(() => {
-    nowMsRef.current = nowMsProp;
-  }, [nowMsProp]);
-  const { replace } = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [searchInput, setSearchInput] = useState(initialFilters.q);
+const PostsTable = ({ initialFilters, nowMs, rows, sites }: PostsTableProps) => {
   const ready = useClientReady();
-  const lastPushedQ = useRef(initialFilters.q);
-
-  useEffect(() => {
-    if (initialFilters.q !== lastPushedQ.current) {
-      setSearchInput(initialFilters.q);
-      lastPushedQ.current = initialFilters.q;
-    }
-  }, [initialFilters.q]);
-
-  const updateParams = (mutate: (params: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParams.toString());
-    mutate(next);
-    const qs = next.toString();
-    replace(qs ? `${pathname}?${qs}` : pathname);
-  };
-
-  const pushSearch = useEffectEvent((trimmed: string) => {
-    lastPushedQ.current = trimmed;
-    updateParams((params) => {
-      if (trimmed) {
-        params.set("q", trimmed);
-      } else {
-        params.delete("q");
-      }
-    });
-  });
-
-  useEffect(() => {
-    const trimmed = searchInput.trim();
-
-    if (trimmed === lastPushedQ.current) {
-      return undefined;
-    }
-
-    const handle = setTimeout(() => {
-      pushSearch(trimmed);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(handle);
-    };
-  }, [searchInput]);
-
-  const selectedNiches = initialFilters.niches;
+  const filters = useUrlFilters({ keys: ["siteId"], q: initialFilters.q });
   const selectedSite = initialFilters.siteId || ALL_SITES;
-
-  const handleNichesChange = (next: Array<string>) => {
-    updateParams((params) => {
-      params.delete("niche");
-
-      for (const n of next) {
-        params.append("niche", n);
-      }
-    });
-  };
-
-  const handleSiteChange = (value: string | null) => {
-    updateParams((params) => {
-      if (value === null || value === "" || value === ALL_SITES) {
-        params.delete("siteId");
-      } else {
-        params.set("siteId", value);
-      }
-    });
-  };
-
-  const nicheCounts = (() => {
-    const map = new Map<string, number>();
-
-    for (const row of rows) {
-      for (const n of row.niches) {
-        map.set(n, (map.get(n) ?? 0) + 1);
-      }
-    }
-
-    return map;
-  })();
 
   const columns: Array<ColumnDef<PostRow>> = [
     {
@@ -182,7 +89,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
       cell: ({ row }) => (
         <PostStatusBadge
           job={row.original.job}
-          nowMs={nowMsRef.current}
+          nowMs={nowMs}
           publishedAt={
             row.original.publishedAt !== null && row.original.publishedAt !== ""
               ? new Date(row.original.publishedAt)
@@ -203,7 +110,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
       accessorKey: "activityAt",
       cell: ({ row }) => (
         <div className="text-right text-xs text-muted-foreground tabular-nums">
-          {formatRelativeTime(new Date(row.original.activityAt), nowMsRef.current)}
+          {formatRelativeTime(new Date(row.original.activityAt), nowMs)}
         </div>
       ),
       header: ({ column }) => (
@@ -236,17 +143,9 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
   ];
 
   const hasFilters =
-    searchInput.length > 0 || selectedNiches.length > 0 || selectedSite !== ALL_SITES;
-
-  const handleReset = () => {
-    setSearchInput("");
-    lastPushedQ.current = "";
-    updateParams((params) => {
-      params.delete("q");
-      params.delete("niche");
-      params.delete("siteId");
-    });
-  };
+    filters.searchInput.length > 0 ||
+    initialFilters.niches.length > 0 ||
+    selectedSite !== ALL_SITES;
 
   return (
     <DataTable
@@ -255,26 +154,21 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
       data={rows}
       emptyState={hasFilters ? "No posts match those filters." : "No posts in this view yet."}
       toolbar={(table) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className={cn("flex items-center gap-2", "h-8 w-full sm:max-w-xs")}>
-            <SearchIcon />
-            <Input
-              disabled={!ready}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-              }}
-              placeholder="Search by title…"
-              value={searchInput}
-            />
-          </div>
-          <DataTableFacetedFilter
-            counts={nicheCounts}
-            onChange={handleNichesChange}
-            options={NICHE_OPTIONS}
-            title="Niche"
-            value={selectedNiches}
-          />
-          <Select disabled={!ready} onValueChange={handleSiteChange} value={selectedSite}>
+        <FilterToolbar
+          filters={filters}
+          hasFilters={hasFilters}
+          niches={initialFilters.niches}
+          placeholder="Search by title…"
+          rows={rows}
+          table={table}
+        >
+          <Select
+            disabled={!ready}
+            onValueChange={(value) => {
+              filters.setParam("siteId", value === ALL_SITES ? null : value);
+            }}
+            value={selectedSite}
+          >
             <SelectTrigger size="default">
               <SelectValue>
                 {(value: string) => {
@@ -295,14 +189,7 @@ const PostsTable = ({ initialFilters, nowMs: nowMsProp, rows, sites }: PostsTabl
               ))}
             </SelectContent>
           </Select>
-          {hasFilters && (
-            <Button disabled={!ready} onClick={handleReset} size="default" variant="ghost">
-              Reset
-              <XIcon className="ml-1 size-4" />
-            </Button>
-          )}
-          <DataTableViewOptions table={table} />
-        </div>
+        </FilterToolbar>
       )}
     />
   );

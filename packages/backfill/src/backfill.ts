@@ -1,4 +1,5 @@
 import {
+  type BackfillKind,
   type BackfillPhase,
   type BackfillRun,
   type Job,
@@ -16,17 +17,24 @@ type Phase = {
   name: BackfillPhase;
 };
 
-type Spec<Args extends ReadonlyArray<unknown>> = {
-  counts: (run: BackfillRun, jobs: ReadonlyArray<Job>) => Record<string, number>;
-  kind: JobKind;
+type Members = Pick<Prisma.BackfillRunCreateInput, "force" | "moneySiteIds"> & {
+  postIds: Array<string>;
+};
+
+type Spec<Args extends ReadonlyArray<unknown>, Counts extends Record<string, number>> = {
+  counts: (run: BackfillRun, jobs: ReadonlyArray<Job>) => Counts;
+  kind: BackfillKind;
   label: string;
-  members: (
-    ...args: Args
-  ) => Promise<{ force?: boolean; moneySiteIds: Array<string>; postIds: Array<string> }>;
+  members: (...args: Args) => Promise<Members>;
   phases: readonly [Phase, ...Array<Phase>];
 };
 
-export const createBackfill = <Args extends ReadonlyArray<unknown>>(spec: Spec<Args>) => {
+export const createBackfill = <
+  Args extends ReadonlyArray<unknown>,
+  Counts extends Record<string, number>,
+>(
+  spec: Spec<Args, Counts>,
+) => {
   const start = async (...args: Args) => {
     const members = await spec.members(...args);
     const first = spec.phases[0];

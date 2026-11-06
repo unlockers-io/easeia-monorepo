@@ -5,17 +5,20 @@ const nicheSchema = z.enum(Niche);
 const nicheFilterSchema = z.union([nicheSchema, z.array(nicheSchema)]);
 
 export const POST_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/v;
+export const POST_TITLE_MAX_LENGTH = 160;
+export const POST_EXCERPT_MAX_LENGTH = 300;
+export const POST_FOCUS_KEYWORD_MAX_LENGTH = 80;
 
 const postFields = {
   body: z.string().min(1),
   categories: z.array(z.string()),
-  excerpt: z.string().max(300).nullable().optional(),
-  focusKeyword: z.string().max(80).nullable().optional(),
+  excerpt: z.string().max(POST_EXCERPT_MAX_LENGTH).nullable().optional(),
+  focusKeyword: z.string().max(POST_FOCUS_KEYWORD_MAX_LENGTH).nullable().optional(),
   niches: z.array(nicheSchema),
   scheduledAt: z.coerce.date().optional(),
   slug: z.string().min(1).regex(POST_SLUG_PATTERN, "kebab-case lowercase only"),
   tags: z.array(z.string()),
-  title: z.string().min(1).max(160),
+  title: z.string().min(1).max(POST_TITLE_MAX_LENGTH),
 };
 
 export const postCreateSchema = z.object({

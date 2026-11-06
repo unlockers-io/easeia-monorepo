@@ -69,29 +69,31 @@ tests/          # cross-app Playwright e2e specs
 | `@repo/auth`                                                   | Better Auth config. Exports `./server` (web and tools) and `./client` (web).                        |
 | `@repo/db`                                                     | Prisma client singleton + schema.                                                                   |
 | `@repo/blob`                                                   | Cloudflare R2 helpers (S3-compatible): upload, delete, URL resolution.                              |
-| `@repo/sites`                                                  | Site aggregate: sole writer, enabled/publishable gates, public projection, redeploy, snapshots.     |
-| `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; BullMQ queues and job schedulers on `REDIS_URL`. |
-| `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks, status.                               |
-| `@repo/posts`                                                  | Post intake: transitions and what each sets off, the only body write (normalized), reads.           |
-| `@repo/auto-publish`                                           | Auto-publish schedule: cadence and bucket config, due rule, bucket refill, draft claim, tick.       |
+| `@repo/errors`                                                 | `DomainError`, the base of every error a Channel maps to a response.                                |
+| `@repo/sites`                                                  | Site aggregate: sole writer (every patch validated), gates, `ensure`, public projection, redeploy.  |
+| `@repo/jobs`                                                   | Durable Job: sole reader and writer of `Job` rows; `./worker` runs BullMQ: consume, dispatch, tick. |
+| `@repo/backfill`                                               | Network and rewrite backfills: single-run start, phase ticks (`backfills`), status.                 |
+| `@repo/posts`                                                  | Post intake: transitions, the only body and `PostImage` writes (normalized), build feed, reads.     |
+| `@repo/auto-publish`                                           | Auto-publish schedule: rules (`./rules`, browser-safe), config, due rule, bucket refill, tick.      |
 | `@repo/policy`                                                 | Access: API-key authentication and lifecycle, `can` authorization with Site binding, AuditLog.      |
 | `@repo/api-types`                                              | Shared zod schemas between admin and public REST API.                                               |
 | `@repo/ai` / `@repo/hero` / `@repo/classify` / `@repo/rewrite` | AI interface (structured text, image, embedding; owns models + budget) and pipelines on it.         |
 | `@repo/dataforseo`                                             | DataForSEO client: Site market per language, request timeout, on-page check meanings.               |
-| `@repo/links`                                                  | Link lifecycle: crawl, suggest, approve-and-apply, prune; the live-link rule and its reads.         |
-| `@repo/money-sites`                                            | Money-site registry (host, niche, deploy hook).                                                     |
+| `@repo/links`                                                  | Link lifecycle: crawl, suggest, approve-and-apply, prune, live-link reads; external backlinks.      |
+| `@repo/money-sites`                                            | Money-site registry and crawl: `requestCrawl`, sitemap crawl that enqueues its page crawls.         |
 | `@repo/search-console`                                         | Search Console per Site (`forSite(domain)`): connection, property, token refresh, OAuth connect.    |
 | `@repo/transactional`                                          | Resend email templates + sender.                                                                    |
 | `@repo/health`                                                 | On-page SEO scoring and health checks.                                                              |
+| `@repo/social-image`                                           | Text as SVG paths for `next/og`; `./brand` renders the Open Graph card, Apple icon and favicon.     |
 | `@easeia/astro-content`                                        | Build-time content adapter: fetches posts from `/api/build/*` and surfaces them as Astro content.   |
-| `@repo/config-vitest`                                          | Shared Vitest config. Exports `react.ts` and `node.ts`.                                             |
+| `@repo/config-vitest`                                          | Shared Vitest config: `react.ts`, `node.ts` (`createNodeConfig` passes zod-compiler options).       |
 | `@repo/typescript-config`                                      | Shared tsconfig bases.                                                                              |
 | `@repo/observability`                                          | `evlog` wrapper: shared log fields plus Next.js, Hono, worker and Better Auth adapters.             |
 | `@repo/portless-env`                                           | App registry (`./apps`: names, ports, URL defaults) + `portless get` lookup (`applyPortlessUrls`).  |
 
 ### Tools (root `tools/`)
 
-One-shot scripts run via `pnpm <script>` (see `package.json`) or `tsx tools/<name>/index.ts`. Notable: `seed/`, `seed-money-site/`, `backfill-permalinks/`, `recrawl-rewritten/`, `rewrite-eval/`, plus standalone `.ts` files for link audits and orphan-hero generation.
+One-shot scripts run via `pnpm <script>` (see `package.json`) or `tsx tools/<name>/index.ts`. Notable: `seed/`, `seed-money-site/`, `normalize-posts/`, `rewrite-eval/`, plus `maintenance/regenerate-heroes.ts` and `maintenance/rewrite-candidates.ts`.
 
 ## Dev workflow
 
@@ -112,7 +114,7 @@ pnpm format:check
 # Tests
 pnpm test                  # vitest unit tests (turbo run test)
 # Postgres- and Redis-backed suites: point at a disposable database with the schema pushed
-DATABASE_URL=... REDIS_URL=... TEST_DATABASE=true TEST_REDIS=true pnpm exec turbo run test --concurrency=1
+DATABASE_URL=... REDIS_URL=... TEST_DATABASE=true TEST_REDIS=true TURBO_CONCURRENCY=1 pnpm test
 pnpm test:e2e              # playwright (requires web + api running)
 pnpm test:e2e:ui
 
@@ -120,11 +122,11 @@ pnpm test:e2e:ui
 pnpm db:generate
 pnpm db:push
 pnpm db:seed               # SEED_ADMIN_*; development defaults outside production
-pnpm db:seed <sites.json>  # admin user + Site upserts from domain list
+pnpm db:seed <sites.json>  # admin user + missing Sites from a domain list
 pnpm seed:money-site
 
-# Backfills + evals (rare)
-pnpm backfill:permalinks
+# Maintenance + evals (rare)
+pnpm normalize:posts
 pnpm rewrite:eval
 
 # Dead code / dupes / health
@@ -194,10 +196,15 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **Auth flow:** `web` uses `@repo/auth/client` → calls its own `/api/auth/*` route (`apps/web/src/app/api/auth/[...all]/route.ts`) → `@repo/auth/server` uses the Prisma adapter from `@repo/db`.
 - **API structure:** Hono app, routes under `/api/*` (sites, posts, api-keys), health at `/healthz` and `/readyz`.
 - **Access:** `@repo/policy` owns both Channels' access rules. `authenticate` turns `Authorization: Bearer <key>` into an Actor (sha256 lookup, revoked keys rejected); `can(actor, action, siteId?)` is the only authorization verb, and the api guard passes a route's `:siteId` so Site-bound keys stay on their Site; `createApiKey` returns the plaintext once, `listApiKeys`/`revokeApiKey` serve the api routes and the admin page; `recordAudit` writes AuditLog rows for API actors and for admin actions (session user as actor) through `apps/web/src/lib/access.ts`.
-- **Publish pipeline:** `Posts.publish` (or `create` with `publish`) claims the Post as SCHEDULED and enqueues `Job(kind=PUBLISH)` → the worker's handler calls `Posts.startPublish` (Site gate, fallback category), prunes fabricated links, ensures the hero image in R2 (`@repo/blob`), then `Posts.completePublish` atomically marks it PUBLISHED and records the redeploy, EMBED, CRAWL_LINKS and GENERATE_BODY_IMAGES intents. The coalesced `TRIGGER_DEPLOY` Job POSTs the deploy hook through `Sites.deploy`. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`. The worker dispatches committed Job intents every second and reconciles missing queue entries. ADR-0008 and ADR-0011 define transition consequences and recovery.
-- **Ticks and auto-publish:** the worker registers its periodic work as BullMQ job schedulers through `Jobs.schedule` (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`); each run is one Job row and runs once whatever the replica count. `AUTO_PUBLISH` calls `AutoPublish.tick`: it claims the oldest bucket draft (DRAFT without `scheduledAt`) of each due Site through `Posts.publishBucketDraft`, stamps `lastAutoPublishedAt` through `Sites.update`, then refills buckets with GENERATE_POST Jobs. Web actions call `@repo/auto-publish` for schedule config and manual refills. ADR-0010.
-- **Post body:** every body write goes through `@repo/posts` (`create`, `update`, `reviseBody`), which stores `normalizeBody(raw, site.language)`: control characters stripped, HTML to Markdown, repeated versions collapsed, em-dash rules by language. `reviseBody` is a compare-and-set on the body the writer read. ADR-0009.
-- **AI:** `@repo/ai` is the only module that calls OpenAI: `generateStructured` (one retry on a schema failure), `generateImage`, `embedText`, all through the budgeted transport priced from `packages/ai/src/models.ts`. `AiNotConfiguredError` and `AiBudgetExceededError` (both `AiUnavailableError`) end a Job FAILED without retry; when AI is unconfigured, CLASSIFY, EMBED, GENERATE_IMAGE and GENERATE_BODY_IMAGES complete instead (`apps/worker/src/lib/ai-unavailable.ts`). Tests drive the real interface through `createFakeOpenAi` from `@repo/ai/testing`.
+- **Publish pipeline:** `Posts.publish` (or `create` with `publish`) claims the Post as SCHEDULED and enqueues `Job(kind=PUBLISH)` → the worker's handler calls `Posts.startPublish` (Site gate, fallback category), prunes fabricated links, ensures the hero image in R2 (`@repo/blob`) and stores it through `Posts.setHero`, then `Posts.completePublish` atomically marks it PUBLISHED and records the redeploy, EMBED, CRAWL_LINKS and GENERATE_BODY_IMAGES intents (the GENERATE_BODY_IMAGES handler alone reads `BODY_IMAGES_ENABLED`). The coalesced `TRIGGER_DEPLOY` Job POSTs the deploy hook through `Sites.deploy`. Each Astro site's CI then fetches its posts from `/api/build/sites/:siteId/posts` via `@easeia/astro-content`, whose exported schemas define the build contract. The worker dispatches committed Job intents every second and reconciles missing queue entries. ADR-0008 and ADR-0011 define transition consequences and recovery.
+- **Jobs:** `@repo/jobs` is Postgres-only for producers and reads (`enqueue`, `enqueueUnless*`, `listJobs`, `findLatestJobByPost`, `listRunJobs`), so web, api and tools never open Redis. `@repo/jobs/worker` holds the BullMQ side: `consume` (payloads parsed with zod, `onFailure` once the Job fails for good), `dispatchPendingJobs`, `reapStuckJobs`, `schedule(kind, everyMs)`, `unschedule`, `closeJobs`. Queue names derive from the kind. A fan-out enqueues all its Jobs in one transaction.
+- **Worker registry:** `apps/worker/src/jobs.ts` is the one Job registry: per kind its handler, `serial`, `aiOptional`, `onFailure` and `tick`. Every handler, ticks included, lives in `apps/worker/src/handlers`. The worker's one-second loop runs `dispatchPendingJobs` and each backfill's `tick` from `backfills` in `@repo/backfill`.
+- **Ticks and auto-publish:** the worker registers each `tick` in the registry as a BullMQ job scheduler (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`); each run is one Job row and runs once whatever the replica count. `AUTO_PUBLISH` calls `AutoPublish.tick`: it claims the oldest bucket draft (`Posts.bucketDraftWhere`: DRAFT without `scheduledAt`) of each due Site through `Posts.publishBucketDraft`, which stamps `lastAutoPublishedAt` in the claim transaction, then refills buckets with GENERATE_POST Jobs, one refill per Site at a time. Schedule columns are written only through `Sites.updateSchedule` and `Sites.updateEnabledSchedules`. Web actions call `@repo/auto-publish` for schedule config and manual refills; forms validate with `@repo/auto-publish/rules`. ADR-0010.
+- **Backfills:** a `BackfillRun` (`kind` NETWORK or REWRITE) freezes its members and advances phase by phase once the phase's child Jobs are terminal. There is no backfill Job kind. ADR-0011.
+- **Post body:** every body write goes through `@repo/posts` (`create`, `update`, `reviseBody`), which stores `normalizeBody(raw, site.language)`: control characters stripped, HTML to Markdown, repeated versions collapsed, em-dash rules by language. Titles, excerpts and focus keywords get the em-dash rules on every write too. `reviseBody` is a compare-and-set on the body the writer read. ADR-0009.
+- **Post images and build feed:** `@repo/posts` is the only `PostImage` writer: `setHero` replaces the previous hero, `illustrate` stores body images and the body in one transaction. The build routes serve `Posts.listForBuild` and `listBuildImages`. A Post is in its Site's build when it is PUBLISHED, or was published and is not ARCHIVED (`deployedWhere`), so a live post being republished stays in builds; the redeploy projection derives from the same build mapping.
+- **Backlinks:** `@repo/links` owns `ExternalBacklink` and `GscReferringUrl`: `importCsvBacklinks`, `recordGscBacklinks`, `requestGscBacklinkBackfill` (one chain per Site) and `externalBacklinkSummary`. Approve-and-apply writes the body and approves the Link in one transaction.
+- **AI:** `@repo/ai` is the only module that calls OpenAI: `generateStructured` (one retry on a schema failure), `generateImage`, `embedText`, all through the budgeted transport priced from `packages/ai/src/models.ts`. `AiNotConfiguredError` and `AiBudgetExceededError` (both `AiUnavailableError`, a `DomainError` mapped to 503) end a Job FAILED without retry; when AI is unconfigured, the kinds marked `aiOptional` in `apps/worker/src/jobs.ts` (CLASSIFY, EMBED, GENERATE_IMAGE, GENERATE_BODY_IMAGES) complete instead. Tests drive the real interface through `createFakeOpenAi` from `@repo/ai/testing`.
 - **Build order:** Turbo `^build` and `build.dependsOn` includes `db:generate` so Prisma client is generated before dependents build.
 
 ## Conventions & gotchas
@@ -218,16 +225,18 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **Bundler:** `tsdown` for `api` and `worker` (outputs `dist/`). Turbopack for Next.js dev (web + landing).
 - **`pnpm-workspace.yaml`** uses `nodeLinker: hoisted`: needed by Prisma + sharp + msgpackr (`allowBuilds` list).
 - **Volume names:** both volumes are project-scoped (`easeia_postgres_data`, `easeia_redis_data`).
-- **Root `scripts/`** dir is itself a pnpm workspace member (see `pnpm-workspace.yaml`).
+- **Root `scripts/`** holds `check-shadcn.mjs` and `docker-schema.sh`; it is not a workspace.
+- **Error pages:** each Next app's `error.tsx` and `global-error.tsx` wrap `RouteError` and `GlobalErrorContent` from `@repo/ui/compositions`, passing the app's client logger.
 
 ## CI (GitHub Actions)
 
-Four workflows are checked in:
+Five workflows are checked in:
 
 - `check.yml`: one job running the gitleaks secret scan, formatting, dead-code analysis, the shadcn component check, lint, typecheck, the test suite against Postgres and Redis service containers (`TEST_DATABASE` and `TEST_REDIS` enable the database-backed suites) and `pnpm audit --audit-level=high`.
-- `e2e.yml`: builds `web`, `api` and `landing`, then runs the Playwright suite in Chromium against Postgres and Redis service containers.
+- `e2e.yml`: builds `web`, `api` and `landing`, then runs the Playwright suite in Chromium against a Postgres service container.
 - `react-doctor.yml`: React Doctor on pull requests only.
-- `release.yml`: runs on pushes to `main`. The Changesets action opens the "chore: version packages" PR or, once that PR merges, publishes `@easeia/astro-content` through npm trusted publishing and confirms the version reached the registry. It dispatches every workflow that declares both `pull_request` and `workflow_dispatch` (`check.yml` and `e2e.yml`) onto the version PR, whose own `pull_request` runs never execute.
+- `release.yml`: runs on pushes to `main`. The Changesets action opens the "chore: version packages" PR with the release GitHub App token, so the PR's own `pull_request` checks run, or, once that PR merges, publishes `@easeia/astro-content` through npm trusted publishing and confirms the version reached the registry.
+- `friction-log.yml`: reports `.agents/friction-log/` entries as issues and removes an entry once its issue closes.
 
 `check.yml` and `e2e.yml` run on pull requests, a weekly schedule and manual dispatch, never on pushes to `main`. `standy standards --for .github/workflows/check.yml` prints the rules they follow.
 

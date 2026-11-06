@@ -9,11 +9,15 @@ import { bearer } from "better-auth/plugins/bearer";
 import { username } from "better-auth/plugins/username";
 import type { BetterAuthPlugin } from "better-auth/types";
 
-import { createSignupGuard, type SignupMode } from "./signup";
-
-export { isSignupOpen } from "./signup";
+import { isMailConfigured } from "./env";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits";
+import { createSignupGuard, DEFAULT_SIGNUP_MODE, type SignupMode } from "./signup";
 
 export const COOKIE_PREFIX = "easeia";
+
+const HOUR_SECONDS = 60 * 60;
+const VERIFICATION_LINK_HOURS = 24;
+const RESET_LINK_HOURS = 1;
 
 type AuthConfig = {
   allowedHosts: Array<string>;
@@ -37,25 +41,22 @@ export const createAuth = (config: AuthConfig) => {
     rateLimitEnabled = false,
     resendApiKey,
     secret,
-    signupMode = "first-user",
+    signupMode = DEFAULT_SIGNUP_MODE,
     trustedOrigins = [],
     useSecureCookies = false,
   } = config;
 
-  const mailer: MailerConfig | null =
-    resendApiKey !== undefined &&
-    resendApiKey !== "" &&
-    fromEmail !== undefined &&
-    fromEmail.trim() !== ""
-      ? { apiKey: resendApiKey, from: fromEmail }
-      : null;
+  const mailEnv = { FROM_EMAIL: fromEmail, RESEND_API_KEY: resendApiKey };
 
-  const guardSignup = createSignupGuard(signupMode, () => prisma.user.count());
+  const mailer: MailerConfig | null = isMailConfigured(mailEnv)
+    ? { apiKey: mailEnv.RESEND_API_KEY, from: mailEnv.FROM_EMAIL }
+    : null;
 
   // Keep the count and insert under one database lock across web replicas.
   const guardedPrisma =
-    signupMode === "first-user"
-      ? prisma.$extends({
+    signupMode === "open"
+      ? prisma
+      : prisma.$extends({
           query: {
             user: {
               create: ({ args }) =>
@@ -67,8 +68,7 @@ export const createAuth = (config: AuthConfig) => {
                 }),
             },
           },
-        })
-      : prisma;
+        });
 
   return betterAuth({
     account: {
@@ -103,13 +103,11 @@ export const createAuth = (config: AuthConfig) => {
       provider: "postgresql",
     }),
 
-    databaseHooks: { user: { create: { before: guardSignup } } },
-
     emailAndPassword: {
       disableSignUp: signupMode === "closed",
       enabled: true,
-      maxPasswordLength: 128,
-      minPasswordLength: 12,
+      maxPasswordLength: PASSWORD_MAX_LENGTH,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
       onExistingUserSignUp: mailer
         ? async ({ user }, request) => {
             const origin = request?.headers.get("origin") ?? "";
@@ -135,44 +133,44 @@ export const createAuth = (config: AuthConfig) => {
           }
         : undefined,
       requireEmailVerification: Boolean(mailer),
-      sendResetPassword: async ({ url, user }) => {
-        if (!mailer) {
-          return;
-        }
-
-        await sendTransactionalEmail(
-          {
-            resetUrl: url,
-            type: "password-reset",
-            userEmail: user.email,
-            userId: user.id,
-            username: user.name,
-          },
-          mailer,
-        );
-      },
+      resetPasswordTokenExpiresIn: RESET_LINK_HOURS * HOUR_SECONDS,
+      sendResetPassword: mailer
+        ? async ({ url, user }) => {
+            await sendTransactionalEmail(
+              {
+                expiresInHours: RESET_LINK_HOURS,
+                resetUrl: url,
+                type: "password-reset",
+                userEmail: user.email,
+                userId: user.id,
+                username: user.name,
+              },
+              mailer,
+            );
+          }
+        : undefined,
     },
 
     emailVerification: {
       autoSignInAfterVerification: true,
       callbackURL: "/",
+      expiresIn: VERIFICATION_LINK_HOURS * HOUR_SECONDS,
       sendOnSignIn: true,
-      sendVerificationEmail: async ({ url, user }) => {
-        if (!mailer) {
-          return;
-        }
-
-        await sendTransactionalEmail(
-          {
-            type: "welcome",
-            userEmail: user.email,
-            userId: user.id,
-            username: user.name,
-            verificationUrl: url,
-          },
-          mailer,
-        );
-      },
+      sendVerificationEmail: mailer
+        ? async ({ url, user }) => {
+            await sendTransactionalEmail(
+              {
+                expiresInHours: VERIFICATION_LINK_HOURS,
+                type: "welcome",
+                userEmail: user.email,
+                userId: user.id,
+                username: user.name,
+                verificationUrl: url,
+              },
+              mailer,
+            );
+          }
+        : undefined,
     },
 
     plugins: [username(), bearer(), ...extraPlugins],
@@ -206,23 +204,22 @@ export const createAuth = (config: AuthConfig) => {
       },
       changeEmail: {
         enabled: true,
-        sendChangeEmailConfirmation: async ({ newEmail, url, user }) => {
-          if (!mailer) {
-            return;
-          }
-
-          await sendTransactionalEmail(
-            {
-              changeUrl: url,
-              currentEmail: user.email,
-              newEmail,
-              type: "change-email-confirmation",
-              userId: user.id,
-              username: user.name,
-            },
-            mailer,
-          );
-        },
+        sendChangeEmailConfirmation: mailer
+          ? async ({ newEmail, url, user }) => {
+              await sendTransactionalEmail(
+                {
+                  changeUrl: url,
+                  currentEmail: user.email,
+                  expiresInHours: VERIFICATION_LINK_HOURS,
+                  newEmail,
+                  type: "change-email-confirmation",
+                  userId: user.id,
+                  username: user.name,
+                },
+                mailer,
+              );
+            }
+          : undefined,
       },
     },
   });

@@ -1,11 +1,13 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { queueFor } from "./queue";
+import { queueFor } from "./transport";
 
 const retry = (id: string) => prisma.job.update({ data: { dispatchedAt: null }, where: { id } });
 
-import { closeJobs, dispatchPendingJobs, enqueue, enqueueUnlessQueued } from "./index";
+import { closeJobs, dispatchPendingJobs } from "./worker";
+
+import { enqueue, enqueueUnlessQueued } from "./index";
 
 describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
   "durable dispatch",

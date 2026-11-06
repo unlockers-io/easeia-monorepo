@@ -2,17 +2,25 @@ import { Heading, Link, Text } from "react-email";
 
 import { Button } from "../components/button";
 import { Divider } from "../components/divider";
+import { formatHours } from "../utils/format-hours";
 
 import { BaseLayout } from "./base-layout";
 
 type ChangeEmailProps = {
   changeUrl: string;
   currentEmail: string;
+  expiresInHours: number;
   newEmail: string;
   username?: string;
 };
 
-const ChangeEmail = ({ changeUrl, currentEmail, newEmail, username }: ChangeEmailProps) => {
+const ChangeEmail = ({
+  changeUrl,
+  currentEmail,
+  expiresInHours,
+  newEmail,
+  username,
+}: ChangeEmailProps) => {
   return (
     <BaseLayout preview="Confirm your new Easeia account email address.">
       <Heading className="mt-0 mb-4 text-2xl font-semibold tracking-tight text-balance break-words text-foreground">
@@ -36,7 +44,8 @@ const ChangeEmail = ({ changeUrl, currentEmail, newEmail, username }: ChangeEmai
 
       <Text className="m-0 mb-4 text-sm text-muted-foreground">
         If you didn&apos;t request this change, ignore this email; the change won&apos;t happen and
-        your account email stays as {currentEmail}. The confirmation link expires in 24 hours.
+        your account email stays as {currentEmail}. The confirmation link expires in{" "}
+        {formatHours(expiresInHours)}.
       </Text>
 
       <Divider spacing="sm" />

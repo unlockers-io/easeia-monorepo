@@ -1,4 +1,4 @@
-export type BodyImage = {
+type PlacedImage = {
   alt: string;
   /** 1-based line of the body the image is inserted after. */
   line: number;
@@ -14,7 +14,7 @@ const sanitizeAlt = (alt: string): string => alt.replaceAll(/[\[\]]/gv, "").trim
  * *original* line numbering: insertions run bottom-up so an earlier image never
  * shifts a later target.
  */
-export const applyBodyImages = (body: string, images: ReadonlyArray<BodyImage>): string => {
+export const applyBodyImages = (body: string, images: ReadonlyArray<PlacedImage>): string => {
   const lines = body.split("\n");
   const inRange = images.filter((image) => image.line >= 1 && image.line <= lines.length);
 

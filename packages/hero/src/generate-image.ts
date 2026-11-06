@@ -17,9 +17,12 @@ export type GeneratePostImageInput = {
 export type GeneratePostImageResult = {
   height: number;
   key: string;
+  mime: string;
   url: string;
   width: number;
 };
+
+const MIME = "image/jpeg";
 
 const defaultToJpeg = async (
   png: Uint8Array,
@@ -48,10 +51,10 @@ export const generatePostImage = async (
   const result = await blob.upload({
     bytes: jpeg.bytes,
     filename: input.filename,
-    mime: "image/jpeg",
+    mime: MIME,
     postId: input.post.id,
     siteId: input.post.siteId,
   });
 
-  return { height: jpeg.height, key: result.key, url: result.url, width: jpeg.width };
+  return { height: jpeg.height, key: result.key, mime: MIME, url: result.url, width: jpeg.width };
 };

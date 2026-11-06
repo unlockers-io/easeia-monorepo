@@ -1,7 +1,7 @@
 import { JobKind, JobStatus, prisma } from "@repo/db";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { reapStuckJobs } from "./index";
+import { reapStuckJobs } from "./worker";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -37,11 +37,11 @@ describe.runIf(process.env.TEST_DATABASE === "true")("reapStuckJobs", () => {
     const delayed = await seed({ attempts: 0, startedAt: null, status: JobStatus.QUEUED });
     const finished = await seed({ attempts: 1, startedAt: stale, status: JobStatus.DONE });
 
-    const { reaped } = await reapStuckJobs(HOUR_MS);
+    const reaped = await reapStuckJobs(HOUR_MS);
     const rows = await prisma.job.findMany({ where: { id: { in: createdIds } } });
     const statusOf = new Map(rows.map((row) => [row.id, row.status]));
 
-    expect(reaped).toBeGreaterThanOrEqual(1);
+    expect(reaped.map((job) => job.id)).toContain(staleRunning);
     expect(statusOf.get(staleRunning)).toBe(JobStatus.FAILED);
     expect(statusOf.get(staleRetry)).toBe(JobStatus.QUEUED);
     expect(statusOf.get(freshRunning)).toBe(JobStatus.RUNNING);

@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_BUCKET_SIZE, MAX_CADENCE_DAYS } from "@repo/auto-publish/rules";
 import { Button } from "@repo/ui/components/button";
 import { Checkbox } from "@repo/ui/components/checkbox";
 import {
@@ -20,7 +21,7 @@ import { Loader2, Settings2, Sparkles } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 
 import { CountField } from "@/components/count-field";
-import { networkDefaultsSchema } from "@/lib/form-schemas";
+import { networkDefaultsSchema, toSchedule } from "@/lib/form-schemas";
 
 import { applyNetworkDefaultsAction, refillAllNeedyBucketsAction } from "./actions";
 
@@ -31,8 +32,6 @@ type RefillState =
   | { kind: "error"; message: string };
 
 type AppliedCounts = { bucketSites: number; cadenceSites: number };
-
-const toNumberOrNull = (value: string): number | null => (value === "" ? null : Number(value));
 
 const NetworkDefaultsDialog = () => {
   const cadenceId = useId();
@@ -57,27 +56,21 @@ const NetworkDefaultsDialog = () => {
       setError(null);
       setApplied(null);
 
-      try {
-        const result = await applyNetworkDefaultsAction({
-          bucketRefillAt: toNumberOrNull(value.bucketRefillAt),
-          bucketTarget: toNumberOrNull(value.bucketTarget),
-          cadenceDays: toNumberOrNull(value.cadenceDays),
-          scope: value.overwrite ? "overwrite" : "unconfigured",
-        });
+      const result = await applyNetworkDefaultsAction({
+        ...toSchedule(value),
+        overwrite: value.overwrite,
+      });
 
-        if (result.errors.length > 0) {
-          setError(result.errors.join(" "));
+      if (!result.ok) {
+        setError(result.error);
 
-          return;
-        }
-
-        setApplied({
-          bucketSites: result.bucketSitesUpdated,
-          cadenceSites: result.cadenceSitesUpdated,
-        });
-      } catch {
-        setError("Failed to apply defaults");
+        return;
       }
+
+      setApplied({
+        bucketSites: result.data.bucketSitesUpdated,
+        cadenceSites: result.data.cadenceSitesUpdated,
+      });
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -132,7 +125,8 @@ const NetworkDefaultsDialog = () => {
               )}
             </form.Field>
             <p className="text-xs text-muted-foreground" id={`${cadenceId}-help`}>
-              1 to 365 days. Setting cadence enables auto-publish on each matched site.
+              1 to {MAX_CADENCE_DAYS} days. Setting cadence enables auto-publish on each matched
+              site.
             </p>
           </fieldset>
 
@@ -165,7 +159,7 @@ const NetworkDefaultsDialog = () => {
               </form.Field>
             </div>
             <p className="text-xs text-muted-foreground" id={`${targetId}-help`}>
-              Both take 1 to 100, with refill at most the target.
+              Both take 1 to {MAX_BUCKET_SIZE}, with refill at most the target.
             </p>
           </fieldset>
 
@@ -236,24 +230,17 @@ const RefillAllButton = ({ aiConfigured }: { aiConfigured: boolean }) => {
   const handleClick = () => {
     setState({ kind: "running" });
     startTransition(async () => {
-      try {
-        const result = await refillAllNeedyBucketsAction();
+      const result = await refillAllNeedyBucketsAction();
 
-        if (!result.ok) {
-          setState({ kind: "error", message: result.error });
+      if (!result.ok) {
+        setState({ kind: "error", message: result.error });
 
-          return;
-        }
-
-        const { queuedPerSite, sitesTouched } = result.data;
-        const total = Object.values(queuedPerSite).reduce((sum, n) => sum + n, 0);
-        setState({ kind: "done", sitesTouched, total });
-      } catch (error) {
-        setState({
-          kind: "error",
-          message: error instanceof Error ? error.message : "Failed",
-        });
+        return;
       }
+
+      const { queuedPerSite, sitesTouched } = result.data;
+      const total = Object.values(queuedPerSite).reduce((sum, n) => sum + n, 0);
+      setState({ kind: "done", sitesTouched, total });
     });
   };
 

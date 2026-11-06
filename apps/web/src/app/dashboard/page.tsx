@@ -1,8 +1,7 @@
-import { JobKind, JobStatus, prisma, type MoneySite, type Site, type SiteSnapshot } from "@repo/db";
+import { JobKind, JobStatus, prisma, type Site, type SiteSnapshot } from "@repo/db";
 import { buildRecommendations } from "@repo/health";
 import { countJobs, listJobs } from "@repo/jobs";
 import { countPbnBacklinks } from "@repo/links";
-import { Button } from "@repo/ui/components/button";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import {
   Table,
@@ -15,19 +14,18 @@ import {
 } from "@repo/ui/components/table";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { SectionHead } from "@/components/section-head";
+import { ActionButton } from "@/components/action-button";
+import { JobStatusBadge } from "@/components/job-status-badge";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
-import { getSession } from "@/lib/auth-helpers";
 
 import { refreshSnapshotsAction } from "./actions";
 import { ScheduleTable } from "./schedule-table";
+import { SectionHead } from "./section-head";
 import { AttentionRow } from "./site-card";
-import type { SiteCardModel } from "./site-card-model";
-
-type MoneySiteSummary = Pick<MoneySite, "id" | "name" | "domain">;
+import { type MoneySiteSummary, needsAttention, type SiteCardModel } from "./site-card-model";
 
 type SiteWithSnapshots = Site & {
   moneySite: MoneySiteSummary | null;
@@ -42,15 +40,8 @@ const avgTone = (avg: number | null): StatItem["tone"] => {
   return avg < 60 ? "destructive" : "default";
 };
 
-const needsAttention = (c: SiteCardModel): boolean =>
-  c.latest !== null && (!c.latest.reachable || (c.latest.healthScore ?? 100) < 60);
-
 const DashboardContent = async () => {
-  const session = await getSession();
-
-  if (!session) {
-    redirect("/login");
-  }
+  await connection();
 
   const [sites, { data: recentJobs }, moneySiteCount, rewriteCount, pbnBacklinksTotal] =
     await Promise.all([
@@ -125,12 +116,10 @@ const DashboardContent = async () => {
               {` · ${rollup.totalSites} ${rollup.totalSites === 1 ? "site" : "sites"} · ${moneySiteCount} money ${moneySiteCount === 1 ? "site" : "sites"}`}
             </p>
           </div>
-          <form action={refreshSnapshotsAction}>
-            <Button type="submit" variant="outline">
-              <RefreshCw className="size-4" />
-              Refresh all
-            </Button>
-          </form>
+          <ActionButton action={refreshSnapshotsAction} variant="outline">
+            <RefreshCw className="size-4" />
+            Refresh all
+          </ActionButton>
         </header>
 
         <StatGrid columns={6} items={rollupItems} rule={false} />
@@ -202,7 +191,7 @@ const DashboardContent = async () => {
                     )}
                   </TableCell>
                   <TableCell className="pr-0 text-right">
-                    <JobStatusMark status={job.status} />
+                    <JobStatusBadge status={job.status} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -334,26 +323,6 @@ const buildNetworkRollup = (cards: Array<SiteCardModel>, backlinksTotal: number)
     postsLast7d,
     totalSites,
   };
-};
-
-type StatusMark = { className: string; label: string };
-
-const jobStatusMarks: Record<JobStatus, StatusMark> = {
-  DONE: { className: "text-success", label: "Done" },
-  FAILED: { className: "text-destructive", label: "Failed" },
-  QUEUED: { className: "text-muted-foreground", label: "Queued" },
-  RUNNING: { className: "text-warning motion-safe:animate-pulse", label: "Running" },
-  SKIPPED: { className: "text-muted-foreground", label: "Skipped" },
-};
-
-const JobStatusMark = ({ status }: { status: JobStatus }) => {
-  const mark = jobStatusMarks[status];
-
-  return (
-    <span className={`text-xs font-extrabold tracking-wide uppercase ${mark.className}`}>
-      {mark.label}
-    </span>
-  );
 };
 
 const DashboardSkeleton = () => (

@@ -41,7 +41,7 @@ const PbnSiteNodeComponent = ({ data, selected }: NodeProps<PbnSiteNode>) => {
     <div
       className={`group min-w-55 rounded-xl border bg-card px-4 py-3 text-card-foreground motion-safe:transition ${
         selected ? "ring-2 ring-primary" : ""
-      } ${data.hasMoneyEdge ? "" : "border-dashed opacity-80"}`}
+      } ${data.moneyLinks > 0 ? "" : "border-dashed opacity-80"}`}
       data-testid={`pbn-node-${data.id}`}
     >
       <Handle className="!bg-muted-foreground" position={Position.Left} type="target" />
@@ -154,7 +154,7 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
 
   const { laidEdges, laidNodes } = ((): NetworkGraphResultContract => {
     const moneyNode = nodes.find(
-      (n) => n.type === "money-site" && n.data.id === selectedMoneySiteId,
+      (n): n is MoneySiteNode => n.type === "money-site" && n.data.id === selectedMoneySiteId,
     );
 
     if (!moneyNode) {
@@ -171,10 +171,8 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
       (e) => e.data?.kind === "pbn-to-money" && e.target === moneyNode.id && pbnIds.has(e.source),
     );
 
-    const sitesFeedingMoney = new Set(moneyEdges.map((e) => e.source));
-
     const visiblePbn = hideOrphans
-      ? pbnInNetwork.filter((n) => sitesFeedingMoney.has(n.id))
+      ? pbnInNetwork.filter((n) => n.data.moneyLinks > 0)
       : pbnInNetwork;
 
     const visiblePbnIds = new Set(visiblePbn.map((n) => n.id));
@@ -190,9 +188,8 @@ const NetworkGraph = ({ edges, moneySites, nodes }: Props) => {
         )
       : [];
 
-    const subEdges = [...moneyEdges.filter((e) => visiblePbnIds.has(e.source)), ...pbnEdges];
-
-    const { edges: outEdges, nodes: outNodes } = layoutFunnel([...visiblePbn, moneyNode], subEdges);
+    const outEdges = [...moneyEdges.filter((e) => visiblePbnIds.has(e.source)), ...pbnEdges];
+    const outNodes = layoutFunnel(visiblePbn, moneyNode);
 
     const maxPbn = outEdges.reduce(
       (m, e) => (e.data?.kind === "pbn-to-pbn" ? Math.max(m, e.data.count) : m),

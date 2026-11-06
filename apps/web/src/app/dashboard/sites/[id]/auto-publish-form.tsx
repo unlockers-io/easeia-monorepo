@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  MAX_BUCKET_SIZE,
+  MAX_CADENCE_DAYS,
+  nextDueAt,
+  TICK_EVERY_MS,
+} from "@repo/auto-publish/rules";
 import type { SiteLanguage } from "@repo/db/browser";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -19,9 +25,10 @@ import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { useState } from "react";
 
 import { CountField } from "@/components/count-field";
-import { autoPublishSchema } from "@/lib/form-schemas";
+import { autoPublishSchema, toSchedule } from "@/lib/form-schemas";
+import { formatDuration } from "@/lib/relative-time";
 
-import { updateAutoPublishAction } from "./actions";
+import { updateAutoPublishAction } from "../actions";
 
 const LANGUAGE_OPTIONS: ReadonlyArray<{ label: string; value: SiteLanguage }> = [
   { label: "Portuguese (Brazil)", value: "PT" },
@@ -38,6 +45,8 @@ const formatDateTime = (date: Date): string => date.toLocaleString("en-US", { ti
 
 const formatTime = (date: Date): string => date.toLocaleTimeString("en-US", { timeZone: "UTC" });
 
+const TICK = formatDuration(TICK_EVERY_MS);
+
 const describeStatus = ({
   cadenceDays,
   enabled,
@@ -47,25 +56,27 @@ const describeStatus = ({
   enabled: boolean;
   lastAutoPublishedAt: Date | null;
 }): string => {
-  if (!enabled || cadenceDays === null || Number.isNaN(cadenceDays)) {
+  const dueAt = nextDueAt({ autoPublishEnabled: enabled, cadenceDays, lastAutoPublishedAt });
+
+  if (dueAt === null) {
     return lastAutoPublishedAt
       ? `Paused. Last auto-published ${formatDate(lastAutoPublishedAt)}.`
       : "Paused. Toggle on + set cadence to start.";
   }
 
   if (!lastAutoPublishedAt) {
-    return "Running. First post lands within the next hour (assuming the bucket has a draft).";
+    return `Running. First post lands within ${TICK} (assuming the bucket has a draft).`;
   }
 
-  const nextDue = new Date(lastAutoPublishedAt.getTime() + cadenceDays * 24 * 60 * 60 * 1000);
-  const now = Date.now();
-
-  if (nextDue.getTime() <= now) {
-    return `Running. Next post lands within the next hour (last: ${formatDate(lastAutoPublishedAt)}).`;
+  if (dueAt.getTime() <= Date.now()) {
+    return `Running. Next post lands within ${TICK} (last: ${formatDate(lastAutoPublishedAt)}).`;
   }
 
-  return `Running. Next post: ${formatDateTime(nextDue)} (last: ${formatDate(lastAutoPublishedAt)}).`;
+  return `Running. Next post: ${formatDateTime(dueAt)} (last: ${formatDate(lastAutoPublishedAt)}).`;
 };
+
+const toCadence = (value: string): number | null =>
+  value === "" || !Number.isInteger(Number(value)) ? null : Number(value);
 
 export type AutoPublishFormProps = {
   defaultBucketRefillAt: number | null;
@@ -79,8 +90,6 @@ export type AutoPublishFormProps = {
 };
 
 const toStringField = (value: number | null): string => (value === null ? "" : String(value));
-
-const toNumberOrNull = (value: string): number | null => (value === "" ? null : Number(value));
 
 export const AutoPublishForm = (props: AutoPublishFormProps) => {
   const { lastAutoPublishedAt, siteId } = props;
@@ -106,16 +115,14 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
       setError(null);
 
       const result = await updateAutoPublishAction(siteId, {
+        ...toSchedule(value),
         autoPublishEnabled: value.enabled,
-        bucketRefillAt: toNumberOrNull(value.bucketRefillAt),
-        bucketTarget: toNumberOrNull(value.bucketTarget),
-        cadenceDays: toNumberOrNull(value.cadenceDays),
         language: value.language,
         topicHints: value.topicHints,
       });
 
-      if (result.errors.length > 0) {
-        setError(result.errors.join(" "));
+      if (!result.ok) {
+        setError(result.error);
 
         return;
       }
@@ -150,7 +157,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
             Auto-publish enabled
           </label>
           <p className="text-xs text-muted-foreground">
-            Set it once. The worker checks every hour and publishes the next pre-generated draft
+            Set it once. The worker checks every {TICK} and publishes the next pre-generated draft
             from the bucket every {cadenceDays || "N"} day{cadenceDays === "1" ? "" : "s"}.
           </p>
         </div>
@@ -213,7 +220,7 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
             )}
           </form.Field>
           <p className="text-xs text-muted-foreground" id={`cadence-help-${siteId}`}>
-            1 to 365 days.
+            1 to {MAX_CADENCE_DAYS} days.
           </p>
         </div>
         <div className="flex flex-col gap-1">
@@ -263,14 +270,15 @@ export const AutoPublishForm = (props: AutoPublishFormProps) => {
         <p className="self-end text-xs text-muted-foreground" id={bucketHelpId}>
           Pre-generated drafts queue up to <strong>target</strong>. When live drafts + in-flight
           generations drop below <strong>refill</strong>, the worker tops back up to target. Both
-          take 1 to 100, with refill at most the target. Leave both blank for manual-only refill.
+          take 1 to {MAX_BUCKET_SIZE}, with refill at most the target. Leave both blank for
+          manual-only refill.
         </p>
       </div>
 
       <div className="flex items-center justify-between gap-3">
         <p aria-live="polite" className="text-xs text-muted-foreground">
           {describeStatus({
-            cadenceDays: cadenceDays === "" ? null : Number(cadenceDays),
+            cadenceDays: toCadence(cadenceDays),
             enabled,
             lastAutoPublishedAt,
           })}

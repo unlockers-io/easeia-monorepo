@@ -35,7 +35,6 @@ const createdPost = { post: { id: "post_1" } } as Awaited<
 const enqueuedJob = { id: "job_bi" } as Awaited<ReturnType<GeneratePostDependencies["enqueueJob"]>>;
 
 const dependencies: GeneratePostDependencies = {
-  bodyImagesEnabled: true,
   createLogger: () => log,
   createPost,
   enqueueJob,
@@ -90,17 +89,12 @@ describe("handleGeneratePost", () => {
       title: "Title",
     });
 
-    await handleGeneratePost({
-      attemptsMade: 0,
-      finalAttempt: false,
-      jobId: "job_1",
-      payload: { siteId: "site_a" },
-    });
+    await handleGeneratePost({ jobId: "job_1", payload: { siteId: "site_a" } });
 
     expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ publish: false }));
   });
 
-  it.each([true, false])("only chains body images when enabled: %s", async (bodyImagesEnabled) => {
+  it("chains body images for the new draft", async () => {
     findSite.mockResolvedValue({
       domain: "a.test",
       id: "site_a",
@@ -120,23 +114,13 @@ describe("handleGeneratePost", () => {
       title: "Title",
     });
 
-    const handle = createHandleGeneratePost({ ...dependencies, bodyImagesEnabled });
-    await handle({
-      attemptsMade: 0,
-      finalAttempt: false,
-      jobId: "job_1",
-      payload: { siteId: "site_a" },
-    });
+    await handleGeneratePost({ jobId: "job_1", payload: { siteId: "site_a" } });
 
-    if (bodyImagesEnabled) {
-      expect(enqueueJob).toHaveBeenCalledExactlyOnceWith({
-        kind: "GENERATE_BODY_IMAGES",
-        payload: { postId: "post_1" },
-        postId: "post_1",
-      });
-    } else {
-      expect(enqueueJob).not.toHaveBeenCalled();
-    }
+    expect(enqueueJob).toHaveBeenCalledExactlyOnceWith({
+      kind: "GENERATE_BODY_IMAGES",
+      payload: { postId: "post_1" },
+      postId: "post_1",
+    });
 
     expect(createPost).toHaveBeenCalledOnce();
   });
@@ -163,12 +147,7 @@ describe("handleGeneratePost", () => {
     enqueueJob.mockRejectedValue(new Error("redis down"));
 
     await expect(
-      handleGeneratePost({
-        attemptsMade: 0,
-        finalAttempt: false,
-        jobId: "job_1",
-        payload: { siteId: "site_a" },
-      }),
+      handleGeneratePost({ jobId: "job_1", payload: { siteId: "site_a" } }),
     ).resolves.toBeUndefined();
     expect(createPost).toHaveBeenCalledOnce();
   });
@@ -200,12 +179,7 @@ describe("handleGeneratePost", () => {
       title: "Title",
     });
 
-    await handleGeneratePost({
-      attemptsMade: 0,
-      finalAttempt: false,
-      jobId: "job_3",
-      payload: { siteId: "site_a" },
-    });
+    await handleGeneratePost({ jobId: "job_3", payload: { siteId: "site_a" } });
 
     expect(proposeTopic).toHaveBeenCalledWith({
       language: "PT",
@@ -233,12 +207,7 @@ describe("handleGeneratePost", () => {
   it("returns early when the site is missing or disabled", async () => {
     findSite.mockResolvedValue(null);
 
-    await handleGeneratePost({
-      attemptsMade: 0,
-      finalAttempt: false,
-      jobId: "job_2",
-      payload: { siteId: "ghost" },
-    });
+    await handleGeneratePost({ jobId: "job_2", payload: { siteId: "ghost" } });
 
     expect(generatePost).not.toHaveBeenCalled();
     expect(createPost).not.toHaveBeenCalled();

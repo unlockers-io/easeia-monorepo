@@ -1,7 +1,6 @@
 import type { ConsumerContext } from "@repo/jobs";
 import { crawlPost } from "@repo/links";
-
-import { createJobLogger } from "../lib/logger";
+import { createJobLogger } from "@repo/observability/worker";
 
 export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Promise<void> => {
   const { jobId, payload } = ctx;

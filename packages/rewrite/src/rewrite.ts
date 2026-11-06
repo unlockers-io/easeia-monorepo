@@ -19,7 +19,7 @@ const SUGGESTION_OVERFETCH = 10;
 const TOP_INTERNAL_PBN = 3;
 const TOP_MONEY_SITE = 2;
 
-const rewriteOutputSchema = z.object({
+export const rewriteOutputSchema = z.object({
   body: z.string().min(50),
   excerpt: z.string().min(SEO_DESCRIPTION_MIN).max(SEO_DESCRIPTION_MAX),
   focusKeyword: z.string().min(2).max(80),
@@ -56,7 +56,7 @@ export const rewritePost = async (
     return { outcome: "skipped", reason: "already_rewritten" };
   }
 
-  const candidateLinks = await listSuggestions({
+  const { data: candidateLinks } = await listSuggestions({
     fromPostId: postId,
     limit: SUGGESTION_OVERFETCH,
   });
@@ -112,18 +112,18 @@ export const rewritePost = async (
 
   assertRewriteIsSane({ after: body, before: post.body, postId });
 
-  await reviseBody(postId, {
-    body,
-    excerpt,
-    focusKeyword,
-    from: post.body,
-    rewrittenAt: new Date(),
-    title,
+  await prisma.$transaction(async (tx) => {
+    await reviseBody(
+      postId,
+      { body, excerpt, focusKeyword, from: post.body, rewrittenAt: new Date(), title },
+      tx,
+    );
+    await approveSuggestions(
+      postId,
+      topInternalPbn.map((l) => l.id),
+      tx,
+    );
   });
-  await approveSuggestions(
-    postId,
-    topInternalPbn.map((l) => l.id),
-  );
 
   return {
     anchorsForcedByFallback: missing.length,

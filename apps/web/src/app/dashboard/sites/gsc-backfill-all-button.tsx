@@ -10,7 +10,7 @@ import { startGscBacklinkBackfillAllAction } from "./actions";
 type State =
   | { kind: "idle" }
   | { kind: "running" }
-  | { kind: "done"; queued: number; skipped: number }
+  | { alreadyRunning: number; kind: "done"; queued: number }
   | { kind: "error"; message: string };
 
 export const GscBackfillAllButton = () => {
@@ -29,7 +29,7 @@ export const GscBackfillAllButton = () => {
         return;
       }
 
-      setState({ kind: "done", queued: result.queued, skipped: result.skipped });
+      setState({ kind: "done", ...result.data });
     });
   };
 
@@ -52,7 +52,8 @@ export const GscBackfillAllButton = () => {
       {state.kind === "done" ? (
         <p aria-live="polite" className="text-xs text-muted-foreground">
           {state.queued} site{state.queued === 1 ? "" : "s"} queued
-          {state.skipped > 0 ? ` · ${state.skipped} failed` : ""}. Crawls drip-feed over hours.
+          {state.alreadyRunning > 0 ? ` · ${state.alreadyRunning} already importing` : ""}. Crawls
+          drip-feed over hours.
         </p>
       ) : null}
       {state.kind === "error" ? (

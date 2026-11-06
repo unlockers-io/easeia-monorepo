@@ -1,3 +1,5 @@
+import { COOKIE_PREFIX } from "@repo/auth/server";
+
 import { test, expect } from "../fixtures/auth.fixture";
 import { webUrl } from "../urls";
 
@@ -22,7 +24,7 @@ test.describe("Root redirect", () => {
     await page.context().clearCookies();
     await page.context().addCookies([
       {
-        name: "easeia.session_token",
+        name: `${COOKIE_PREFIX}.session_token`,
         url: webUrl,
         value: "stale-session-token-that-matches-no-session",
       },

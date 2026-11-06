@@ -1,134 +1,133 @@
-import { POST_SLUG_PATTERN } from "@repo/api-types";
+import {
+  POST_EXCERPT_MAX_LENGTH,
+  POST_FOCUS_KEYWORD_MAX_LENGTH,
+  POST_SLUG_PATTERN,
+  POST_TITLE_MAX_LENGTH,
+} from "@repo/api-types";
+import {
+  NAME_MAX_LENGTH,
+  NAME_MIN_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@repo/auth/limits";
+import {
+  configIssues,
+  networkDefaultsIssues,
+  type Schedule,
+  type ScheduleIssue,
+} from "@repo/auto-publish/rules";
 import { Niche, SiteLanguage } from "@repo/db/browser";
 import { z } from "zod";
 
-export const loginSchema = z.object({
-  email: z.email("Invalid email address"),
-  password: z.string().min(12, "Password must be at least 12 characters"),
-});
+export const matching = (schema: z.ZodType, message: string) =>
+  z.string().refine((value) => schema.safeParse(value).success, message);
+
+const emailSchema = z.email("Invalid email address");
+
+const passwordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+  .max(PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} characters`);
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(NAME_MIN_LENGTH, `Name must be at least ${NAME_MIN_LENGTH} characters`)
+  .max(NAME_MAX_LENGTH, `Name must be at most ${NAME_MAX_LENGTH} characters`);
 
 const passwordsMatch = {
   message: "Passwords do not match",
   path: ["confirmPassword"],
 };
 
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+});
+
 export const registerSchema = z
   .object({
-    confirmPassword: z.string().min(12, "Password must be at least 12 characters"),
-    email: z.email("Invalid email address"),
-    name: z.string().min(3, "Name must be at least 3 characters").max(32),
-    password: z.string().min(12, "Password must be at least 12 characters"),
+    confirmPassword: passwordSchema,
+    email: emailSchema,
+    name: nameSchema,
+    password: passwordSchema,
   })
   .refine((value) => value.password === value.confirmPassword, passwordsMatch);
 
 export const recoverSchema = z.object({
-  email: z.email(),
+  email: emailSchema,
 });
 
 export const resetPasswordSchema = z
   .object({
-    confirmPassword: z.string().min(12, "Password must be at least 12 characters"),
-    password: z.string().min(12, "Password must be at least 12 characters"),
+    confirmPassword: passwordSchema,
+    password: passwordSchema,
   })
   .refine((value) => value.password === value.confirmPassword, passwordsMatch);
 
 export const profileSchema = z.object({
-  name: z.string().trim().min(3, "Name must be at least 3 characters").max(32),
+  name: nameSchema,
 });
 
 export const changePasswordSchema = z
   .object({
-    confirmPassword: z.string().min(12, "Confirm your new password"),
+    confirmPassword: z.string().min(PASSWORD_MIN_LENGTH, "Confirm your new password"),
     currentPassword: z.string().min(1, "Enter your current password"),
-    newPassword: z.string().min(12, "Password must be at least 12 characters"),
+    newPassword: passwordSchema,
   })
-  .refine((value) => value.newPassword === value.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+  .refine((value) => value.newPassword === value.confirmPassword, passwordsMatch);
 
-const isCount = (value: string, max: number) =>
-  /^\d+$/v.test(value) && Number(value) >= 1 && Number(value) <= max;
+type ScheduleFields = { bucketRefillAt: string; bucketTarget: string; cadenceDays: string };
 
-const countField = (max: number) =>
-  z
-    .string()
-    .refine(
-      (value) => value === "" || isCount(value, max),
-      `Enter a whole number from 1 to ${max}.`,
-    );
+const toCount = (value: string): number | null => (value === "" ? null : Number(value));
 
-const countFields = {
-  bucketRefillAt: countField(100),
-  bucketTarget: countField(100),
-  cadenceDays: countField(365),
+export const toSchedule = (value: ScheduleFields): Schedule => ({
+  bucketRefillAt: toCount(value.bucketRefillAt),
+  bucketTarget: toCount(value.bucketTarget),
+  cadenceDays: toCount(value.cadenceDays),
+});
+
+const scheduleFields = {
+  bucketRefillAt: z.string(),
+  bucketTarget: z.string(),
+  cadenceDays: z.string(),
 };
 
-const checkBucket = (
-  { bucketRefillAt, bucketTarget }: { bucketRefillAt: string; bucketTarget: string },
-  context: z.RefinementCtx,
-) => {
-  if ((bucketRefillAt === "") !== (bucketTarget === "")) {
-    context.addIssue({
-      code: "custom",
-      message: "Set both bucket target and refill threshold, or leave both blank.",
-      path: [bucketRefillAt === "" ? "bucketRefillAt" : "bucketTarget"],
-    });
-
-    return;
-  }
-
-  if (
-    isCount(bucketRefillAt, 100) &&
-    isCount(bucketTarget, 100) &&
-    Number(bucketRefillAt) > Number(bucketTarget)
-  ) {
-    context.addIssue({
-      code: "custom",
-      message: `Refill threshold (${bucketRefillAt}) must be ≤ bucket target (${bucketTarget}).`,
-      path: ["bucketRefillAt"],
-    });
+const addIssues = (issues: ReadonlyArray<ScheduleIssue>, context: z.RefinementCtx) => {
+  for (const { message, path } of issues) {
+    context.addIssue({ code: "custom", message, path: [path] });
   }
 };
 
 export const autoPublishSchema = z
   .object({
-    ...countFields,
+    ...scheduleFields,
     enabled: z.boolean(),
     language: z.enum(SiteLanguage),
     topicHints: z.string(),
   })
   .superRefine((value, context) => {
-    if (value.enabled && value.cadenceDays === "") {
-      context.addIssue({
-        code: "custom",
-        message: "Cadence is required when auto-publish is enabled.",
-        path: ["cadenceDays"],
-      });
-    }
-
-    checkBucket(value, context);
+    addIssues(configIssues({ ...toSchedule(value), autoPublishEnabled: value.enabled }), context);
   });
 
 export const networkDefaultsSchema = z
-  .object({ ...countFields, overwrite: z.boolean() })
+  .object({ ...scheduleFields, overwrite: z.boolean() })
   .superRefine((value, context) => {
-    if (value.cadenceDays === "" && value.bucketTarget === "" && value.bucketRefillAt === "") {
-      context.addIssue({
-        code: "custom",
-        message: "Fill in at least one section (cadence or bucket).",
-        path: ["cadenceDays"],
-      });
-    }
-
-    checkBucket(value, context);
+    addIssues(networkDefaultsIssues(toSchedule(value)), context);
   });
 
 export const newPostSchema = z.object({
   body: z.string().min(1, "Write the post body."),
   categories: z.string(),
-  excerpt: z.string().max(300, "Keep the excerpt to 300 characters."),
-  focusKeyword: z.string().max(80, "Keep the focus keyword to 80 characters."),
+  excerpt: z
+    .string()
+    .max(POST_EXCERPT_MAX_LENGTH, `Keep the excerpt to ${POST_EXCERPT_MAX_LENGTH} characters.`),
+  focusKeyword: z
+    .string()
+    .max(
+      POST_FOCUS_KEYWORD_MAX_LENGTH,
+      `Keep the focus keyword to ${POST_FOCUS_KEYWORD_MAX_LENGTH} characters.`,
+    ),
   niches: z.array(z.enum(Niche)),
   publish: z.boolean(),
   scheduledAt: z.string(),
@@ -138,5 +137,8 @@ export const newPostSchema = z.object({
     .min(1, "Enter a slug.")
     .regex(POST_SLUG_PATTERN, "Use lowercase letters and numbers, separated by single hyphens."),
   tags: z.string(),
-  title: z.string().min(1, "Enter a title.").max(160, "Keep the title to 160 characters."),
+  title: z
+    .string()
+    .min(1, "Enter a title.")
+    .max(POST_TITLE_MAX_LENGTH, `Keep the title to ${POST_TITLE_MAX_LENGTH} characters.`),
 });

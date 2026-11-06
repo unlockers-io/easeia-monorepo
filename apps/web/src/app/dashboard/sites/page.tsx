@@ -1,4 +1,4 @@
-import { Niche, prisma, type Prisma } from "@repo/db";
+import { prisma, type Prisma } from "@repo/db";
 import { toCategorySlugMap } from "@repo/sites";
 import {
   Card,
@@ -10,24 +10,16 @@ import {
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { Suspense } from "react";
 
+import { SiteCreateDialog } from "@/components/site-create-dialog";
+import { parseNiches } from "@/lib/search-params";
+
 import { GscBackfillAllButton } from "./gsc-backfill-all-button";
-import { SiteCreateDialog } from "./site-create-dialog";
 import SitesTable, { type SiteRow } from "./sites-table";
 
 type SearchParams = {
   enabled?: string;
   niche?: string | Array<string>;
   q?: string;
-};
-
-const NICHE_VALUES = new Set<string>(Object.values(Niche));
-
-const toArray = (input: string | Array<string> | undefined): Array<string> => {
-  if (input === undefined) {
-    return [];
-  }
-
-  return Array.isArray(input) ? input : [input];
 };
 
 const SitesEmptyState = () => (
@@ -43,7 +35,7 @@ const SitesEmptyState = () => (
 const SitesContent = async ({ searchParams }: { searchParams: Promise<SearchParams> }) => {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
-  const niches = toArray(params.niche).filter((n): n is Niche => NICHE_VALUES.has(n));
+  const niches = parseNiches(params.niche);
 
   const enabled: "" | "true" | "false" = (() => {
     if (params.enabled === "true") {
@@ -83,11 +75,6 @@ const SitesContent = async ({ searchParams }: { searchParams: Promise<SearchPara
     return <SitesEmptyState />;
   }
 
-  // Captured once per request (Server Component) so every relative-time
-  // string in the table formats against a single instant.
-  // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
-  const nowMs = Date.now();
-
   const rows: Array<SiteRow> = sites.map((site) => ({
     autoPublishEnabled: site.autoPublishEnabled,
     cadenceDays: site.cadenceDays,
@@ -113,7 +100,7 @@ const SitesContent = async ({ searchParams }: { searchParams: Promise<SearchPara
       </div>
 
       <Suspense fallback={null}>
-        <SitesTable initialFilters={{ enabled, niches, q }} nowMs={nowMs} rows={rows} />
+        <SitesTable initialFilters={{ enabled, niches, q }} rows={rows} />
       </Suspense>
     </div>
   );

@@ -81,14 +81,12 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
     const queued = await jobs();
     expect(queued.data[0]?.availableAt).toEqual(scheduledAt);
     await failIntents(post.id);
-    await expect(completePublish(post.id, { bodyImages: true })).rejects.toThrow(
-      "injected intent insertion failure",
-    );
+    await expect(completePublish(post.id)).rejects.toThrow("injected intent insertion failure");
     const scheduled = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
     expect(scheduled.status).toBe("SCHEDULED");
     await dropFailure();
-    await completePublish(post.id, { bodyImages: true });
-    await completePublish(post.id, { bodyImages: true });
+    await completePublish(post.id);
+    await completePublish(post.id);
     const completed = await jobs();
     expect(completed.data.filter((job) => job.kind === JobKind.GENERATE_BODY_IMAGES)).toHaveLength(
       1,

@@ -8,7 +8,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -16,12 +15,12 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/blob": "workspace:*",
-    "@repo/db": "workspace:*",
-    "@repo/sites": "workspace:*",
+    "@repo/posts": "workspace:*",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
+    "@repo/db": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^26.2.0",

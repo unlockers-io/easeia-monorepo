@@ -1,111 +1,67 @@
-import type { Site } from "@repo/db";
+import { prisma, type Site } from "@repo/db";
+import { DomainError } from "@repo/errors";
 import * as Sites from "@repo/sites";
-import { DomainError } from "@repo/sites";
 
-const MAX_CADENCE_DAYS = 365;
-const MAX_BUCKET_SIZE = 100;
-
-type Issue = { message: string; path: string };
+import {
+  configIssues,
+  countIssue,
+  MAX_CADENCE_DAYS,
+  networkDefaultsIssues,
+  type AutoPublishInput,
+  type NetworkDefaultsInput,
+  type ScheduleIssue,
+} from "./rules";
 
 export class AutoPublishConfigError extends DomainError {
-  readonly messages: Array<string>;
-
-  constructor(issues: ReadonlyArray<Issue>) {
-    const messages = issues.map((issue) => issue.message);
-    super(messages.join(" "), "AUTO_PUBLISH_CONFIG", 400, issues);
-    this.messages = messages;
+  constructor(issues: ReadonlyArray<ScheduleIssue>) {
+    super(issues.map((issue) => issue.message).join(" "), "AUTO_PUBLISH_CONFIG", 400, issues);
     this.name = "AutoPublishConfigError";
   }
 }
 
-type BucketInput = { refillAt: number | null; target: number | null };
-
-export type AutoPublishInput = {
-  autoPublishEnabled: boolean;
-  bucket?: BucketInput;
-  cadenceDays: number | null;
-};
-
-export type NetworkDefaultsInput = {
-  bucket: BucketInput;
-  cadenceDays: number | null;
-  scope: "overwrite" | "unconfigured";
-};
-
-const toCount = (raw: number | null, max: number): number | null =>
-  raw === null || Number.isNaN(raw) ? null : Math.max(1, Math.min(max, Math.floor(raw)));
-
-const normalizeBucket = ({ refillAt, target }: BucketInput): BucketInput => ({
-  refillAt: toCount(refillAt, MAX_BUCKET_SIZE),
-  target: toCount(target, MAX_BUCKET_SIZE),
-});
-
-const bucketIssues = ({ refillAt, target }: BucketInput): Array<Issue> => {
-  if (refillAt === null && target === null) {
-    return [];
-  }
-
-  if (refillAt === null || target === null) {
-    return [
-      {
-        message: "Set both bucket target and refill threshold, or leave both blank.",
-        path: "bucket",
-      },
-    ];
-  }
-
-  return refillAt > target
-    ? [
-        {
-          message: `Refill threshold (${refillAt}) must be ≤ bucket target (${target}).`,
-          path: "bucket.refillAt",
-        },
-      ]
-    : [];
-};
-
-const throwIfAny = (issues: ReadonlyArray<Issue>): void => {
+const throwIfAny = (issues: ReadonlyArray<ScheduleIssue>): void => {
   if (issues.length > 0) {
     throw new AutoPublishConfigError(issues);
   }
 };
 
-export const configure = async (siteId: string, input: AutoPublishInput): Promise<Site> => {
-  const cadenceDays = toCount(input.cadenceDays, MAX_CADENCE_DAYS);
-  const bucket = input.bucket === undefined ? undefined : normalizeBucket(input.bucket);
-  throwIfAny([
-    ...(input.autoPublishEnabled && cadenceDays === null
-      ? [{ message: "Cadence is required when auto-publish is enabled.", path: "cadenceDays" }]
-      : []),
-    ...(bucket === undefined ? [] : bucketIssues(bucket)),
-  ]);
+export const configure = async (
+  siteId: string,
+  { autoPublishEnabled, bucketRefillAt, bucketTarget, cadenceDays }: AutoPublishInput,
+): Promise<Site> => {
+  const schedule = { autoPublishEnabled, bucketRefillAt, bucketTarget, cadenceDays };
+  throwIfAny(configIssues(schedule));
+  await Sites.load(siteId);
 
-  const patch: Sites.SiteUpdatePatch = {
-    autoPublishEnabled: input.autoPublishEnabled,
-    cadenceDays,
-  };
-
-  if (bucket !== undefined) {
-    patch.bucketRefillAt = bucket.refillAt;
-    patch.bucketTarget = bucket.target;
-  }
-
-  return Sites.update(siteId, patch);
+  return Sites.updateSchedule(siteId, schedule);
 };
 
-export const applyNetworkDefaults = async (input: NetworkDefaultsInput) => {
-  const cadenceDays = toCount(input.cadenceDays, MAX_CADENCE_DAYS);
-  const { refillAt, target } = normalizeBucket(input.bucket);
-  throwIfAny([
-    ...(cadenceDays === null && refillAt === null && target === null
-      ? [{ message: "Fill in at least one section (cadence or bucket).", path: "" }]
-      : []),
-    ...bucketIssues({ refillAt, target }),
-  ]);
+export const setCadence = (siteId: string, cadenceDays: number | null): Promise<Site> => {
+  throwIfAny(countIssue("cadenceDays", cadenceDays, MAX_CADENCE_DAYS));
 
-  return Sites.applyNetworkDefaults({
-    bucket: refillAt === null || target === null ? null : { refillAt, target },
-    cadenceDays,
-    scope: input.scope,
-  });
+  return Sites.updateSchedule(siteId, { autoPublishEnabled: cadenceDays !== null, cadenceDays });
+};
+
+export const applyNetworkDefaults = async ({ overwrite, ...schedule }: NetworkDefaultsInput) => {
+  throwIfAny(networkDefaultsIssues(schedule));
+  const { bucketRefillAt, bucketTarget, cadenceDays } = schedule;
+
+  return prisma.$transaction(async (tx) => ({
+    bucketSitesUpdated:
+      bucketRefillAt === null || bucketTarget === null
+        ? 0
+        : await Sites.updateEnabledSchedules(
+            { bucketRefillAt, bucketTarget },
+            overwrite ? {} : { bucketRefillAt: null, bucketTarget: null },
+            tx,
+          ),
+    cadenceSitesUpdated:
+      cadenceDays === null
+        ? 0
+        : await Sites.updateEnabledSchedules(
+            { autoPublishEnabled: true, cadenceDays },
+            overwrite ? {} : { cadenceDays: null },
+            tx,
+          ),
+  }));
 };

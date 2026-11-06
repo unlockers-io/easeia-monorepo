@@ -2,7 +2,7 @@ import { JobKind, prisma } from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { update } from "./index";
+import { update, updateSchedule } from "./index";
 
 describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", () => {
   let siteId = "";
@@ -42,7 +42,8 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", ()
   it("does not build for no-op, schedule, or hint patches", async () => {
     await fixture();
     await update(siteId, { authorName: "Author" });
-    await update(siteId, { cadenceDays: 3, lastAutoPublishedAt: new Date(), topicHints: "Topic" });
+    await update(siteId, { topicHints: "Topic" });
+    await updateSchedule(siteId, { cadenceDays: 3, lastAutoPublishedAt: new Date() });
     expect(await deploys()).toBe(0);
   });
   it.each([

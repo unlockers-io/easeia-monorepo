@@ -6,14 +6,18 @@ import { FormAlert } from "@repo/ui/compositions/form-alert";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { useId, useRef, useState, useTransition } from "react";
 
-import { startGscBacklinkBackfillAction, uploadExternalBacklinksAction } from "./actions";
+import { startGscBacklinkBackfillAction, uploadExternalBacklinksAction } from "../actions";
 
 type CsvFeedback =
   | { kind: "idle" }
   | { imported: number; kind: "success"; skipped: number }
   | { kind: "error"; message: string };
 
-type ApiFeedback = { kind: "idle" } | { kind: "queued" } | { kind: "error"; message: string };
+type ApiFeedback =
+  | { kind: "idle" }
+  | { kind: "queued" }
+  | { kind: "running" }
+  | { kind: "error"; message: string };
 
 export const ExternalBacklinksUpload = ({
   hasGoogleConnection,
@@ -40,26 +44,23 @@ export const ExternalBacklinksUpload = ({
     event.preventDefault();
 
     if (!file) {
-      setCsvFeedback({ kind: "error", message: "Choose a CSV file first." });
-
       return;
     }
 
     startCsvTransition(async () => {
-      try {
-        const text = await file.text();
-        const result = await uploadExternalBacklinksAction(siteId, text);
-        setCsvFeedback({ kind: "success", ...result });
-        setFile(null);
+      const result = await uploadExternalBacklinksAction(siteId, await file.text());
 
-        if (inputRef.current) {
-          inputRef.current.value = "";
-        }
-      } catch (error) {
-        setCsvFeedback({
-          kind: "error",
-          message: error instanceof Error ? error.message : "Upload failed.",
-        });
+      if (!result.ok) {
+        setCsvFeedback({ kind: "error", message: result.error });
+
+        return;
+      }
+
+      setCsvFeedback({ kind: "success", ...result.data });
+      setFile(null);
+
+      if (inputRef.current) {
+        inputRef.current.value = "";
       }
     });
   };
@@ -67,19 +68,12 @@ export const ExternalBacklinksUpload = ({
   const handleApiStart = () => {
     setApiFeedback({ kind: "idle" });
     startApiTransition(async () => {
-      try {
-        const result = await startGscBacklinkBackfillAction(siteId);
+      const result = await startGscBacklinkBackfillAction(siteId);
 
-        if (result.ok) {
-          setApiFeedback({ kind: "queued" });
-        } else {
-          setApiFeedback({ kind: "error", message: result.error });
-        }
-      } catch (error) {
-        setApiFeedback({
-          kind: "error",
-          message: error instanceof Error ? error.message : "Failed to start import.",
-        });
+      if (result.ok) {
+        setApiFeedback({ kind: result.data.queued > 0 ? "queued" : "running" });
+      } else {
+        setApiFeedback({ kind: "error", message: result.error });
       }
     });
   };
@@ -144,6 +138,11 @@ export const ExternalBacklinksUpload = ({
         {apiFeedback.kind === "queued" && (
           <output className="text-xs text-primary">
             Backfill queued. Referring URLs will populate as the worker processes posts.
+          </output>
+        )}
+        {apiFeedback.kind === "running" && (
+          <output className="text-xs text-primary">
+            An import is already running for this site.
           </output>
         )}
         {apiFeedback.kind === "error" && (

@@ -3,8 +3,7 @@ import "dotenv/config";
 
 import { generateStructured } from "@repo/ai";
 import { prisma } from "@repo/db";
-import { closeJobs } from "@repo/jobs";
-import { approveSuggestions, listSuggestions, suggestForPost } from "@repo/links";
+import { approveSuggestions, listSuggestions, suggestForPost, withoutSeeAlso } from "@repo/links";
 import { reviseBody } from "@repo/posts";
 import { z } from "zod";
 
@@ -36,8 +35,7 @@ type Anchor = { anchor: string; linkId: string; url: string };
 const bodySchema = z.object({ body: z.string() });
 
 const proseOf = (s: string): string =>
-  s
-    .replace(/\n+## Leia também\n[\s\S]*$/u, "")
+  withoutSeeAlso(s)
     .replaceAll(/\[(?<text>[^\]]+)\]\([^)]+\)/gu, "$<text>")
     .replaceAll(/\s+/gu, " ")
     .trim();
@@ -55,7 +53,11 @@ const selectPosts = (): Promise<Array<{ body: string; id: string; slug: string }
   });
 
 const fetchTopSuggestions = async (postId: string, body: string): Promise<Array<Anchor>> => {
-  const links = await listSuggestions({ fromPostId: postId, limit: SUGGESTIONS_PER_POST });
+  const { data: links } = await listSuggestions({
+    fromPostId: postId,
+    limit: SUGGESTIONS_PER_POST,
+  });
+
   const seen = new Set<string>();
   const out: Array<Anchor> = [];
 
@@ -221,7 +223,7 @@ const main = async (): Promise<number> => {
 };
 
 const cleanup = async (): Promise<void> => {
-  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
+  await prisma.$disconnect();
 };
 
 try {

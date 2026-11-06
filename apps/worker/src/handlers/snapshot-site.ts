@@ -2,10 +2,10 @@ import { dataForSeo } from "@repo/dataforseo";
 import { prisma, type Prisma } from "@repo/db";
 import { computeHealthScore } from "@repo/health";
 import type { ConsumerContext } from "@repo/jobs";
+import { log } from "@repo/observability";
+import { createJobLogger } from "@repo/observability/worker";
 import { forSite } from "@repo/search-console";
 import * as Sites from "@repo/sites";
-
-import { createJobLogger, log } from "../lib/logger";
 
 type Outcome<T> = { kind: "ok"; value: T } | { error: string; kind: "err" };
 
@@ -40,13 +40,6 @@ const synthesizeDomainRank = (
   }
 
   return Math.min(100, Math.round(Math.log10(weighted + 1) * 33));
-};
-
-const startOfUtcDay = (d: Date): Date => {
-  const out = new Date(d);
-  out.setUTCHours(0, 0, 0, 0);
-
-  return out;
 };
 
 const fetchPublishingStats = async (siteId: string) => {
@@ -194,7 +187,7 @@ const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promis
     referringDomains,
   });
 
-  const date = startOfUtcDay(new Date());
+  const date = Sites.snapshotDay(new Date());
   const errorsJson: Prisma.InputJsonValue = errors;
 
   await prisma.siteSnapshot.upsert({
@@ -208,7 +201,6 @@ const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promis
       gscClicks,
       gscImpressions,
       healthScore,
-      onPageScore: null,
       postsLast30d: publishing.postsLast30d,
       postsLast7d: publishing.postsLast7d,
       reachable,

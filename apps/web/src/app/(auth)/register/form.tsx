@@ -1,5 +1,6 @@
 "use client";
 
+import { NAME_MAX_LENGTH, NAME_MIN_LENGTH, PASSWORD_MIN_LENGTH } from "@repo/auth/limits";
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
@@ -9,37 +10,18 @@ import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useState } from "react";
+import { useState } from "react";
 
+import { AuthEmailField } from "@/components/auth-email-field";
 import { AuthPasswordField } from "@/components/auth-password-field";
-import { authClient, authFailureMessage } from "@/lib/auth-client";
+import { AuthSwitchLink } from "@/components/auth-switch-link";
+import { authClient, runAuth } from "@/lib/auth-client";
 import { registerSchema } from "@/lib/form-schemas";
 import { safeRedirectPath } from "@/lib/redirect-validation";
 
 type Props = {
   searchParams: Promise<{ from?: string }>;
-};
-
-const SignInLinkFallback = () => (
-  <Link className="text-foreground underline underline-offset-4" href="/login">
-    Sign in
-  </Link>
-);
-
-const SignInLink = ({ searchParams }: Props) => {
-  const { from } = use(searchParams);
-  const safeTo = safeRedirectPath(from);
-
-  return (
-    <Link
-      className="text-foreground underline underline-offset-4"
-      href={safeTo === "/dashboard" ? "/login" : `/login?from=${encodeURIComponent(safeTo)}`}
-    >
-      Sign in
-    </Link>
-  );
 };
 
 const RegisterForm = ({ searchParams }: Props) => {
@@ -58,23 +40,18 @@ const RegisterForm = ({ searchParams }: Props) => {
       const { from } = await searchParams;
       const safeTo = safeRedirectPath(from);
 
-      const result = await authClient.signUp
-        .email({
+      const result = await runAuth(
+        authClient.signUp.email({
           callbackURL: safeTo,
           email: value.email,
           name: value.name,
           password: value.password,
-        })
-        .catch(authFailureMessage);
+        }),
+        "Failed to register",
+      );
 
-      if (typeof result === "string") {
-        setError(result);
-
-        return;
-      }
-
-      if (result.error) {
-        setError(result.error.message ?? "Failed to register");
+      if (!result.ok) {
+        setError(result.error);
 
         return;
       }
@@ -142,7 +119,9 @@ const RegisterForm = ({ searchParams }: Props) => {
                   placeholder="John Doe"
                   value={field.state.value}
                 />
-                <FieldDescription id="name-description">3 to 32 characters.</FieldDescription>
+                <FieldDescription id="name-description">
+                  {NAME_MIN_LENGTH} to {NAME_MAX_LENGTH} characters.
+                </FieldDescription>
                 {isInvalid && <FormFieldError errors={field.state.meta.errors} id="name-error" />}
               </Field>
             );
@@ -150,38 +129,15 @@ const RegisterForm = ({ searchParams }: Props) => {
         </form.Field>
 
         <form.Field name="email">
-          {(field) => {
-            const isInvalid = !field.state.meta.isValid;
-
-            return (
-              <Field data-invalid={isInvalid || undefined}>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  aria-describedby={isInvalid ? "email-error" : undefined}
-                  aria-invalid={isInvalid}
-                  autoComplete="email"
-                  disabled={isLoading}
-                  id="email"
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => {
-                    field.handleChange(e.target.value);
-                  }}
-                  placeholder="you@example.com"
-                  type="email"
-                  value={field.state.value}
-                />
-                {isInvalid && <FormFieldError errors={field.state.meta.errors} id="email-error" />}
-              </Field>
-            );
-          }}
+          {(field) => <AuthEmailField disabled={isLoading} field={field} />}
         </form.Field>
 
         <div className="grid grid-cols-2 gap-4">
           <form.Field name="password">
             {(field) => (
               <AuthPasswordField
-                description="At least 12 characters."
+                autoComplete="new-password"
+                description={`At least ${PASSWORD_MIN_LENGTH} characters.`}
                 disabled={isLoading}
                 field={field}
                 label="Password"
@@ -191,7 +147,12 @@ const RegisterForm = ({ searchParams }: Props) => {
 
           <form.Field name="confirmPassword">
             {(field) => (
-              <AuthPasswordField disabled={isLoading} field={field} label="Confirm Password" />
+              <AuthPasswordField
+                autoComplete="new-password"
+                disabled={isLoading}
+                field={field}
+                label="Confirm Password"
+              />
             )}
           </form.Field>
         </div>
@@ -203,9 +164,9 @@ const RegisterForm = ({ searchParams }: Props) => {
           </Button>
           <FieldDescription className="text-center">
             Already have an account?{" "}
-            <Suspense fallback={<SignInLinkFallback />}>
-              <SignInLink searchParams={searchParams} />
-            </Suspense>
+            <AuthSwitchLink href="/login" searchParams={searchParams}>
+              Sign in
+            </AuthSwitchLink>
           </FieldDescription>
         </Field>
       </FieldGroup>

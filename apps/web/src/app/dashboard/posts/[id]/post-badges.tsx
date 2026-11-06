@@ -40,6 +40,4 @@ const PostTimingLabel = ({
   return `Created ${at(post.createdAt)}`;
 };
 
-export { JobStatusBadge } from "@/components/job-status-badge";
-
 export { PostTimingLabel };

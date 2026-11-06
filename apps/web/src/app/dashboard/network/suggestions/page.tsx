@@ -3,77 +3,60 @@
 import { Button } from "@repo/ui/components/button";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { unwrapAction } from "@/lib/action-result";
 
 import { listSuggestionsAction, decideSuggestionAction } from "../actions";
 
-const postRefSchema = z.object({
-  id: z.string(),
-  site: z.object({ domain: z.string() }),
-  slug: z.string(),
-  title: z.string(),
-});
-
-const suggestionSchema = z.object({
-  anchorText: z.string(),
-  fromPost: postRefSchema,
-  id: z.string(),
-  suggestedAt: z.coerce.date().nullable(),
-  toPost: postRefSchema.nullable(),
-  type: z.enum(["INTERNAL", "PBN", "EXTERNAL"]),
-});
-
-const suggestionPageSchema = z.object({
-  data: z.array(suggestionSchema),
-  meta: z.object({ nextCursor: z.string().nullable() }),
-});
-
-type SuggestionPage = z.infer<typeof suggestionPageSchema>;
-
 const QUERY_KEY = ["suggestions"] as const;
 const INITIAL_PAGE_PARAM: string | null = null;
 
-const fetchList = async (cursor: string | null): Promise<SuggestionPage> =>
-  suggestionPageSchema.parse(
-    unwrapAction(await listSuggestionsAction({ cursor: cursor ?? undefined, limit: 20 })),
-  );
+const fetchPage = async (cursor: string | null) =>
+  unwrapAction(await listSuggestionsAction({ cursor: cursor ?? undefined, limit: 20 }));
 
-const decide = async (id: string, action: "approve" | "reject"): Promise<void> => {
-  unwrapAction(await decideSuggestionAction(id, action));
-};
+type SuggestionPage = Awaited<ReturnType<typeof fetchPage>>;
 
 const SuggestionsPage = () => {
   const queryClient = useQueryClient();
 
-  const { data, fetchNextPage, hasNextPage, isError, isFetchingNextPage, isPending, refetch } =
-    useInfiniteQuery({
-      getNextPageParam: (last: SuggestionPage) => last.meta.nextCursor,
-      initialPageParam: INITIAL_PAGE_PARAM,
-      queryFn: ({ pageParam }) => fetchList(pageParam),
-      queryKey: QUERY_KEY,
-    });
+  const {
+    data,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isError,
+    isFetchingNextPage,
+    isPending,
+    refetch,
+  } = useInfiniteQuery({
+    getNextPageParam: (last: SuggestionPage) => last.meta.nextCursor,
+    initialPageParam: INITIAL_PAGE_PARAM,
+    queryFn: ({ pageParam }) => fetchPage(pageParam),
+    queryKey: QUERY_KEY,
+  });
 
   const rows = data?.pages.flatMap((page) => page.data) ?? [];
 
   const handleDecide = async (id: string, action: "approve" | "reject") => {
-    try {
-      await decide(id, action);
-      queryClient.setQueryData<InfiniteData<SuggestionPage, string | null>>(QUERY_KEY, (prev) =>
-        prev
-          ? {
-              ...prev,
-              pages: prev.pages.map((page) => ({
-                ...page,
-                data: page.data.filter((r) => r.id !== id),
-              })),
-            }
-          : prev,
-      );
-    } catch {
-      toast.error(`Failed to ${action} suggestion. Please try again.`);
+    const result = await decideSuggestionAction(id, action);
+
+    if (!result.ok) {
+      toast.error(result.error);
+
+      return;
     }
+
+    queryClient.setQueryData<InfiniteData<SuggestionPage, string | null>>(QUERY_KEY, (prev) =>
+      prev
+        ? {
+            ...prev,
+            pages: prev.pages.map((page) => ({
+              ...page,
+              data: page.data.filter((r) => r.id !== id),
+            })),
+          }
+        : prev,
+    );
   };
 
   return (
@@ -86,9 +69,7 @@ const SuggestionsPage = () => {
 
       {isError ? (
         <div className="mt-6 flex flex-col items-start gap-3">
-          <p className="text-sm text-destructive">
-            Failed to load suggestions. Check your connection and retry.
-          </p>
+          <p className="text-sm text-destructive">{error.message}</p>
           <Button
             onClick={() => {
               void refetch();

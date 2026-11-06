@@ -1,27 +1,12 @@
-/**
- * Post embeddings: pgvector reads/writes. Split from index.ts so the
- * intake/state-machine module stays under the 400-line ceiling; consumers
- * keep importing from `@repo/posts` via the index re-export.
- */
-import { prisma } from "@repo/db";
-
-const EMBEDDING_DIM = 1536;
-
-const toVectorLiteral = (v: ReadonlyArray<number>): string => `[${v.join(",")}]`;
+import { prisma, vectorLiteral } from "@repo/db";
 
 export const recordEmbedding = async (
   postId: string,
   vector: ReadonlyArray<number>,
 ): Promise<void> => {
-  if (vector.length !== EMBEDDING_DIM) {
-    throw new Error(
-      `Embedding dimension mismatch: expected ${EMBEDDING_DIM}, got ${vector.length}`,
-    );
-  }
-
   await prisma.$executeRawUnsafe(
     `UPDATE "Post" SET embedding = $1::vector WHERE id = $2`,
-    toVectorLiteral(vector),
+    vectorLiteral(vector),
     postId,
   );
 };

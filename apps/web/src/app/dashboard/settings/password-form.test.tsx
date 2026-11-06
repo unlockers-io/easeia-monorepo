@@ -81,7 +81,7 @@ describe("PasswordForm", () => {
     const input = screen.getByLabelText("New password");
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-describedby")).toBe(
-      "account-newPassword-description account-newPassword-error",
+      "newPassword-description newPassword-error",
     );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(submitButton().disabled).toBe(false);
@@ -126,10 +126,10 @@ describe("PasswordForm", () => {
     renderForm();
 
     expect(screen.getByText("At least 12 characters.").getAttribute("id")).toBe(
-      "account-newPassword-description",
+      "newPassword-description",
     );
     expect(screen.getByLabelText("New password").getAttribute("aria-describedby")).toBe(
-      "account-newPassword-description",
+      "newPassword-description",
     );
   });
 

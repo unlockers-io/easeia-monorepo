@@ -36,4 +36,12 @@ if (process.env.NODE_ENV !== "production") {
   globalThis.prisma = prisma;
 }
 
+export const pageOf = <Row extends { id: string }>(rows: ReadonlyArray<Row>, limit: number) => {
+  const data = rows.slice(0, limit);
+
+  return { data, nextCursor: rows.length > limit ? data.at(-1)?.id : undefined };
+};
+
+export const vectorLiteral = (vector: ReadonlyArray<number>): string => `[${vector.join(",")}]`;
+
 export * from "./generated/prisma/client";

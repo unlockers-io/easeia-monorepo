@@ -50,7 +50,7 @@ describe("describePostState", () => {
 
   it("carries the failing job's attempts and error", () => {
     const result = decode({
-      job: { attempts: 3, lastError: "boom", status: "FAILED" },
+      job: { attempts: 3, lastError: "boom" },
       status: PostStatus.FAILED,
     });
 

@@ -22,6 +22,6 @@ export default defineConfig({
     }),
   ],
   sourcemap: true,
-  target: "node22",
+  target: "node24",
   tsconfig: "tsconfig.json",
 });

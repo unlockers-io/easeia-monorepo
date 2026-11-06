@@ -1,46 +1,22 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { API_KEY_SCOPES, apiKeyCreateSchema } from "@repo/api-types";
-import { createApiKey, listApiKeys, revokeApiKey } from "@repo/policy";
-import type { Action } from "@repo/policy";
-import type { MiddlewareHandler } from "hono";
+import { apiKeyCreateSchema } from "@repo/api-types";
+import { apiKeySummarySchema, createApiKey, listApiKeys, revokeApiKey } from "@repo/policy";
 
-import { createRouter } from "@/lib/openapi";
-import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
-import type { AuthVariables } from "@/middleware/api-auth";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { recordAudit } from "@/middleware/audit";
-import { apiRateLimit } from "@/middleware/security";
+import { errorResponse, idParamSchema, jsonResponse, okSchema } from "@/lib/openapi-schemas";
+import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
-type RouteDependencies = {
-  apiAuth: MiddlewareHandler;
-  audit: typeof recordAudit;
+type RouteDependencies = Guards & {
   createKey: typeof createApiKey;
   listKeys: typeof listApiKeys;
-  rateLimit: MiddlewareHandler;
-  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
   revokeKey: typeof revokeApiKey;
 };
 
 const createApiKeyRoutes = (deps: RouteDependencies) => {
-  const apiKeyRoutes = createRouter<{ Variables: AuthVariables }>();
+  const apiKeyRoutes = createProtectedRouter(deps);
 
-  apiKeyRoutes.use("*", deps.apiAuth);
-  apiKeyRoutes.use("*", deps.rateLimit);
+  const apiKeySummary = apiKeySummarySchema.openapi("ApiKeySummary");
 
-  const apiKeySummarySchema = z
-    .object({
-      createdAt: z.date(),
-      id: z.string(),
-      lastUsed: z.date().nullable(),
-      name: z.string(),
-      prefix: z.string(),
-      revokedAt: z.date().nullable(),
-      scopes: z.array(z.enum(API_KEY_SCOPES)),
-      siteId: z.string().nullable(),
-    })
-    .openapi("ApiKeySummary");
-
-  const apiKeyMintedSchema = apiKeySummarySchema
+  const apiKeyMintedSchema = apiKeySummary
     .extend({
       token: z.string().openapi({
         description: "Plaintext token. Returned only at issue time; store it now.",
@@ -48,13 +24,9 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
     })
     .openapi("ApiKeyMinted");
 
-  const listResponse = z
-    .object({ data: z.array(apiKeySummarySchema) })
-    .openapi("ApiKeysListResponse");
+  const listResponse = z.object({ data: z.array(apiKeySummary) }).openapi("ApiKeysListResponse");
 
   const createResponse = z.object({ data: apiKeyMintedSchema }).openapi("ApiKeyCreateResponse");
-
-  const okResponse = z.object({ ok: z.literal(true) }).openapi("OkResponse");
 
   const listApiKeysRoute = createRoute({
     middleware: [deps.requirePermission("api-keys:read")],
@@ -122,10 +94,7 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
     path: "/{id}",
     request: { params: idParamSchema },
     responses: {
-      200: {
-        content: { "application/json": { schema: okResponse } },
-        description: "Key revoked",
-      },
+      200: jsonResponse("Key revoked", okSchema),
       401: errorResponse("Missing or invalid bearer token"),
       403: errorResponse("Admin-only: ApiKey actors cannot revoke keys"),
       404: errorResponse("Key not found"),
@@ -147,12 +116,9 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
 };
 
 const apiKeyRoutes = createApiKeyRoutes({
-  apiAuth: apiAuthMiddleware,
-  audit: recordAudit,
+  ...guards,
   createKey: createApiKey,
   listKeys: listApiKeys,
-  rateLimit: apiRateLimit,
-  requirePermission: requireAction,
   revokeKey: revokeApiKey,
 });
 

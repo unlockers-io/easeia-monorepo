@@ -1,3 +1,5 @@
+export { apiKeySummarySchema } from "./api-key-summary";
+
 export { authenticate, createApiKey, listApiKeys, revokeApiKey } from "./api-keys";
 
 export { recordAudit, type AuditEntry } from "./audit";

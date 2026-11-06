@@ -8,13 +8,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
+import { Field, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { Textarea } from "@repo/ui/components/textarea";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormAlert } from "@repo/ui/compositions/form-alert";
-import { type ChangeEvent, useState, useTransition } from "react";
+import { FormFieldError } from "@repo/ui/compositions/form-field-error";
+import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
+import { useState } from "react";
 
-import { updateSiteAuthorAction } from "./actions";
+import { updateSiteAuthorAction } from "../actions";
+
+import { authorFormSchema } from "./patches";
 
 export type AuthorFormProps = {
   defaultBio: string | null;
@@ -41,97 +47,153 @@ export const AuthorCard = (props: AuthorFormProps) => (
   </Card>
 );
 
-const AuthorForm = (props: AuthorFormProps) => {
-  const { siteId } = props;
-  const [name, setName] = useState(props.defaultName ?? "");
-  const [bio, setBio] = useState(props.defaultBio ?? "");
-  const [photoUrl, setPhotoUrl] = useState(props.defaultPhotoUrl ?? "");
-  const [url, setUrl] = useState(props.defaultUrl ?? "");
-  const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+type AuthorFieldApi = {
+  handleBlur: () => void;
+  handleChange: (value: string) => void;
+  name: string;
+  state: { meta: { errors: Array<unknown>; isValid: boolean }; value: string };
+};
 
-  const edit =
-    (set: (value: string) => void) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setError(null);
-      set(event.target.value);
-    };
+const AuthorField = ({
+  field,
+  label,
+  multiline = false,
+  placeholder,
+  siteId,
+}: {
+  field: AuthorFieldApi;
+  label: string;
+  multiline?: boolean;
+  placeholder: string;
+  siteId: string;
+}) => {
+  const isInvalid = !field.state.meta.isValid;
+  const id = `${field.name}-${siteId}`;
 
-  const handleSave = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      try {
-        await updateSiteAuthorAction(siteId, { bio, name, photoUrl, url });
-        setSavedAt(new Date());
-      } catch {
-        setError("Could not save the author. Try again.");
-      }
-    });
+  const props = {
+    "aria-describedby": isInvalid ? `${id}-error` : undefined,
+    "aria-invalid": isInvalid,
+    id,
+    onBlur: field.handleBlur,
+    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      field.handleChange(event.target.value);
+    },
+    placeholder,
+    value: field.state.value,
   };
 
   return (
-    <ClientReadyForm className="flex flex-col gap-3" noValidate onSubmit={handleSave}>
+    <Field data-invalid={isInvalid || undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      {multiline ? <Textarea {...props} rows={3} /> : <Input {...props} />}
+      {isInvalid && <FormFieldError errors={field.state.meta.errors} id={`${id}-error`} />}
+    </Field>
+  );
+};
+
+const AuthorForm = (props: AuthorFormProps) => {
+  const { siteId } = props;
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const form = useForm({
+    defaultValues: {
+      authorBio: props.defaultBio ?? "",
+      authorName: props.defaultName ?? "",
+      authorPhotoUrl: props.defaultPhotoUrl ?? "",
+      authorUrl: props.defaultUrl ?? "",
+    },
+    listeners: {
+      onChange: () => {
+        setError(null);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setError(null);
+      const result = await updateSiteAuthorAction(siteId, value);
+
+      if (!result.ok) {
+        setError(result.error);
+
+        return;
+      }
+
+      setSavedAt(new Date());
+    },
+    onSubmitInvalid: ({ formApi }) => {
+      focusFirstInvalidField(formApi.formId);
+    },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: authorFormSchema },
+  });
+
+  return (
+    <ClientReadyForm
+      className="flex flex-col gap-3"
+      id={form.formId}
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void form.handleSubmit();
+      }}
+    >
       <FormAlert message={error} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor={`author-name-${siteId}`}>
-            Name
-          </label>
-          <Input
-            id={`author-name-${siteId}`}
-            onChange={edit(setName)}
-            placeholder="e.g. Marina Duarte"
-            value={name}
+        <form.Field name="authorName">
+          {(field) => (
+            <AuthorField
+              field={field}
+              label="Name"
+              placeholder="e.g. Marina Duarte"
+              siteId={siteId}
+            />
+          )}
+        </form.Field>
+        <form.Field name="authorUrl">
+          {(field) => (
+            <AuthorField
+              field={field}
+              label="Profile URL"
+              placeholder="https://instagram.com/…"
+              siteId={siteId}
+            />
+          )}
+        </form.Field>
+      </div>
+      <form.Field name="authorPhotoUrl">
+        {(field) => (
+          <AuthorField
+            field={field}
+            label="Photo URL"
+            placeholder="https://img.easeia.com/…"
+            siteId={siteId}
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor={`author-url-${siteId}`}>
-            Profile URL
-          </label>
-          <Input
-            id={`author-url-${siteId}`}
-            onChange={edit(setUrl)}
-            placeholder="https://instagram.com/…"
-            type="url"
-            value={url}
+        )}
+      </form.Field>
+      <form.Field name="authorBio">
+        {(field) => (
+          <AuthorField
+            field={field}
+            label="Bio"
+            multiline
+            placeholder="One or two sentences of niche-relevant credentials."
+            siteId={siteId}
           />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium" htmlFor={`author-photo-${siteId}`}>
-          Photo URL
-        </label>
-        <Input
-          id={`author-photo-${siteId}`}
-          onChange={edit(setPhotoUrl)}
-          placeholder="https://img.easeia.com/…"
-          type="url"
-          value={photoUrl}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium" htmlFor={`author-bio-${siteId}`}>
-          Bio
-        </label>
-        <Textarea
-          id={`author-bio-${siteId}`}
-          onChange={edit(setBio)}
-          placeholder="One or two sentences of niche-relevant credentials."
-          rows={3}
-          value={bio}
-        />
-      </div>
+        )}
+      </form.Field>
       <div className="flex items-center justify-between gap-3">
         <p aria-live="polite" className="text-xs text-muted-foreground">
           {savedAt
             ? `Saved ${savedAt.toLocaleTimeString("en-US")}. Changes reach the live site on its next build.`
             : "Leave the name blank to publish posts without a byline."}
         </p>
-        <Button disabled={pending} size="sm" type="submit">
-          {pending ? "Saving…" : "Save"}
-        </Button>
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(pending) => (
+            <Button disabled={pending} size="sm" type="submit">
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          )}
+        </form.Subscribe>
       </div>
     </ClientReadyForm>
   );
