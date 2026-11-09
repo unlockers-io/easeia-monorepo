@@ -86,6 +86,10 @@ jobs:
       - name: Check shadcn components
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run lint -- pnpm check:shadcn
+      # @repo/posts, @repo/sites and the api import @easeia/astro-content, which exports only its build output.
+      - name: Build @easeia/astro-content for type-aware linting
+        if: ${{ !cancelled() }}
+        run: pnpm turbo build --filter=@easeia/astro-content
       - name: Lint
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run lint -- pnpm oxlint --format=github .
