@@ -1,82 +1,22 @@
-import { prisma } from "@repo/db";
+import * as MoneySites from "@repo/money-sites";
 import type { Metadata } from "next";
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SkeletonSuspense } from "skullet/react";
 
-import { RecrawlMoneySiteButton } from "@/components/recrawl-money-site-button";
-import { moneySitePagesTag } from "@/lib/cache-tags";
+import { formatRelativeTime } from "@/lib/relative-time";
 
-const fmtRelative = (date: Date | null, nowMs: number): string => {
-  if (!date) {
-    return "never";
-  }
+import { RecrawlMoneySiteButton } from "../recrawl-money-site-button";
 
-  const diffMs = nowMs - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-
-  if (diffSec < 60) {
-    return `${diffSec}s ago`;
-  }
-
-  const diffMin = Math.floor(diffSec / 60);
-
-  if (diffMin < 60) {
-    return `${diffMin}m ago`;
-  }
-
-  const diffH = Math.floor(diffMin / 60);
-
-  if (diffH < 24) {
-    return `${diffH}h ago`;
-  }
-
-  const diffD = Math.floor(diffH / 24);
-
-  return `${diffD}d ago`;
-};
-
-const countEmbeddedPages = (id: string) =>
-  prisma.$queryRaw<Array<{ c: bigint }>>`
-    SELECT COUNT(*)::bigint AS c
-    FROM "MoneySitePage"
-    WHERE "moneySiteId" = ${id}
-    AND embedding IS NOT NULL
-  `;
+const crawledLabel = (date: Date | null, nowMs: number): string =>
+  date === null ? "never" : formatRelativeTime(date, nowMs);
 
 const loadMoneySite = async (id: string) => {
   "use cache";
   cacheLife("minutes");
-  cacheTag(moneySitePagesTag(id));
 
-  const [moneySite, embeddedRows] = await Promise.allSettled([
-    prisma.moneySite.findUnique({
-      include: {
-        pages: {
-          orderBy: { lastCrawledAt: "desc" },
-          select: {
-            id: true,
-            lastCrawledAt: true,
-            niches: true,
-            title: true,
-            url: true,
-          },
-        },
-      },
-      where: { id },
-    }),
-    countEmbeddedPages(id),
-  ]);
-
-  if (moneySite.status === "rejected" || !moneySite.value) {
-    return null;
-  }
-
-  return {
-    embeddedCount: embeddedRows.status === "fulfilled" ? Number(embeddedRows.value[0]?.c ?? 0) : 0,
-    site: moneySite.value,
-  };
+  return MoneySites.detail(id);
 };
 
 /** @public Next.js app-router reads metadata via the module loader */
@@ -88,52 +28,52 @@ export const generateMetadata = async ({
   const { id } = await params;
   const loaded = await loadMoneySite(id);
 
-  return { title: loaded?.site.domain ?? "Money site" };
+  return { title: loaded?.moneySite.domain ?? "Money site" };
 };
 
 type MoneySiteDetailViewProps = {
-  embeddedCount: number;
+  embeddedPages: number;
+  lastCrawledAt: Date | null;
+  moneySite: { domain: string; id: string; name: string; sitemapUrl: string };
   nowMs: number;
-  site: {
-    domain: string;
+  pages: Array<{
     id: string;
-    name: string;
-    pages: Array<{
-      id: string;
-      lastCrawledAt: Date | null;
-      niches: Array<string>;
-      title: string;
-      url: string;
-    }>;
-    sitemapUrl: string;
-  };
+    lastCrawledAt: Date | null;
+    niches: Array<string>;
+    title: string;
+    url: string;
+  }>;
 };
 
 const SAMPLE_NOW_MS = Date.UTC(2026, 0, 1);
 
 const SAMPLE_MONEY_SITE: MoneySiteDetailViewProps = {
-  embeddedCount: 120,
-  nowMs: SAMPLE_NOW_MS,
-  site: {
+  embeddedPages: 120,
+  lastCrawledAt: new Date(SAMPLE_NOW_MS - 3_600_000),
+  moneySite: {
     domain: "acmestudios.example",
     id: "sample",
     name: "Acme Studios",
-    pages: ["a", "b", "c", "d"].map((id) => ({
-      id,
-      lastCrawledAt: new Date(SAMPLE_NOW_MS - 3_600_000),
-      niches: ["AUDIO", "FILM"],
-      title: "Recording studio rental in Lisbon",
-      url: "https://acmestudios.example/spaces/recording-studio-lisbon",
-    })),
     sitemapUrl: "https://acmestudios.example/sitemap.xml",
   },
+  nowMs: SAMPLE_NOW_MS,
+  pages: ["a", "b", "c", "d"].map((id) => ({
+    id,
+    lastCrawledAt: new Date(SAMPLE_NOW_MS - 3_600_000),
+    niches: ["AUDIO", "FILM"],
+    title: "Recording studio rental in Lisbon",
+    url: "https://acmestudios.example/spaces/recording-studio-lisbon",
+  })),
 };
 
-const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailViewProps) => {
-  const total = site.pages.length;
-  const classified = site.pages.filter((p) => p.niches.length > 0).length;
-
-  const lastCrawledAt = site.pages[0]?.lastCrawledAt ?? null;
+const MoneySiteDetailView = ({
+  embeddedPages,
+  lastCrawledAt,
+  moneySite: site,
+  nowMs,
+  pages,
+}: MoneySiteDetailViewProps) => {
+  const classified = pages.filter((p) => p.niches.length > 0).length;
 
   return (
     <>
@@ -159,10 +99,10 @@ const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailView
       <div className="mt-6 grid grid-cols-4 gap-3">
         {(
           [
-            ["Total pages", total],
+            ["Total pages", pages.length],
             ["Classified", classified],
-            ["Embedded", embeddedCount],
-            ["Last crawl", fmtRelative(lastCrawledAt, nowMs)],
+            ["Embedded", embeddedPages],
+            ["Last crawl", crawledLabel(lastCrawledAt, nowMs)],
           ] as const
         ).map(([label, value]) => (
           <div className="rounded border p-3 text-center" key={label}>
@@ -173,7 +113,7 @@ const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailView
       </div>
 
       <ul className="mt-6 space-y-2">
-        {site.pages.map((page) => (
+        {pages.map((page) => (
           <li className="rounded border p-3" key={page.id}>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -188,7 +128,7 @@ const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailView
                 </a>
               </div>
               <div className="shrink-0 text-xs text-muted-foreground">
-                {fmtRelative(page.lastCrawledAt, nowMs)}
+                {crawledLabel(page.lastCrawledAt, nowMs)}
               </div>
             </div>
             {page.niches.length > 0 && (
@@ -202,7 +142,7 @@ const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailView
             )}
           </li>
         ))}
-        {site.pages.length === 0 && (
+        {pages.length === 0 && (
           <li className="rounded border p-6 text-center text-sm text-muted-foreground">
             No pages crawled yet. Hit Re-crawl to start.
           </li>

@@ -1,4 +1,5 @@
-import { Niche, PostStatus, prisma } from "@repo/db";
+import { postListQuerySchema } from "@repo/api-types";
+import { JobKind, PostStatus, prisma } from "@repo/db";
 import { findLatestJobByPost } from "@repo/jobs";
 import * as Posts from "@repo/posts";
 import * as Sites from "@repo/sites";
@@ -12,6 +13,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
 import Link from "next/link";
 import { Suspense } from "react";
+
+import { parseNiches } from "@/lib/search-params";
 
 import PostsTable, { type PostRow } from "./posts-table";
 
@@ -31,21 +34,12 @@ type SearchParams = {
   status?: string;
 };
 
-const NICHE_VALUES = new Set<string>(Object.values(Niche));
-
-const toArray = (input: string | Array<string> | undefined): Array<string> => {
-  if (input === undefined || input === "") {
-    return [];
-  }
-
-  return Array.isArray(input) ? input : [input];
-};
-
 const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams> }) => {
   const params = await searchParams;
-  const filter = FILTERS.find((f) => f.status === params.status) ?? FILTERS[0];
+  const status = postListQuerySchema.shape.status.safeParse(params.status).data;
+  const filter = FILTERS.find((f) => f.status === status) ?? FILTERS[0];
   const q = params.q?.trim() ?? "";
-  const niches = toArray(params.niche).filter((n): n is Niche => NICHE_VALUES.has(n));
+  const niches = parseNiches(params.niche);
   const siteId = params.siteId?.trim() ?? "";
 
   const [{ data: posts }, total, sites] = await Promise.all([
@@ -54,18 +48,20 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
       niche: niches,
       q,
       siteId,
-      sort: params.sort === "oldest" ? "oldest" : "newest",
+      sort: postListQuerySchema.shape.sort.safeParse(params.sort).data ?? "newest",
       status: filter.status,
     }),
     prisma.post.count(),
     Sites.list(),
   ]);
 
-  const latestJobs = await findLatestJobByPost(posts.map((p) => p.id));
+  const latestJobs = await findLatestJobByPost(
+    JobKind.PUBLISH,
+    posts.map((p) => p.id),
+  );
+
   const domainOf = new Map(sites.map((site) => [site.id, site.domain]));
 
-  // Captured once per request so every relative-time string in the table
-  // formats against a single reference instant.
   // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
 
@@ -75,7 +71,7 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
     return {
       activityAt: (p.publishedAt ?? p.scheduledAt ?? p.updatedAt).toISOString(),
       id: p.id,
-      job: job ? { attempts: job.attempts, lastError: job.lastError, status: job.status } : null,
+      job: job ? { attempts: job.attempts, lastError: job.lastError } : null,
       niches: p.niches,
       publishedAt: p.publishedAt?.toISOString() ?? null,
       scheduledAt: p.scheduledAt?.toISOString() ?? null,

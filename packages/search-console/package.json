@@ -8,7 +8,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -16,7 +15,8 @@
   "dependencies": {
     "@googleapis/searchconsole": "^7.0.0",
     "@repo/db": "workspace:*",
-    "google-auth-library": "^10.9.0"
+    "google-auth-library": "^10.9.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",

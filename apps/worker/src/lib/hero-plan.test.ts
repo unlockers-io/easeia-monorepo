@@ -10,7 +10,7 @@ const plan = (over: Partial<PlanHeroInput> = {}) =>
     autogenEnabled: true,
     featuredImage: null,
     hero: null,
-    r2PublicBaseUrl: R2,
+    isBlobUrl: (url: string) => url.startsWith(R2),
     ...over,
   });
 
@@ -85,7 +85,7 @@ describe("planHero", () => {
       plan({
         featuredImage: "https://cdn.example/hero.jpg",
         hero: { blobUrl: "https://cdn.example/hero.jpg", filename: "hero.jpg" },
-        r2PublicBaseUrl: undefined,
+        isBlobUrl: () => false,
       }),
     ).toEqual({
       filename: "hero.jpg",

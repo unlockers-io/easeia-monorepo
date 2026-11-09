@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createFakeBlobStore } from "./fake";
 
 describe("createFakeBlobStore", () => {
-  it("uploads and lists for the same site", async () => {
+  it("keeps every upload under its derived key and URL", async () => {
     const store = createFakeBlobStore();
 
     const a = await store.upload({
@@ -22,21 +22,8 @@ describe("createFakeBlobStore", () => {
       siteId: "s1",
     });
 
-    const items = await store.listForSite("s1");
-    expect(items.map((i) => i.key).toSorted()).toEqual([a.key, b.key].toSorted());
-    expect(items.find((i) => i.key === a.key)?.url).toBe(a.url);
-  });
-
-  it("does not return items from a different site", async () => {
-    const store = createFakeBlobStore();
-    await store.upload({
-      bytes: new Uint8Array([1]),
-      filename: "a.jpg",
-      mime: "image/jpeg",
-      postId: "p1",
-      siteId: "s1",
-    });
-    expect(await store.listForSite("s2")).toEqual([]);
+    expect([...store.contents().keys()].toSorted()).toEqual([a.key, b.key].toSorted());
+    expect(store.contents().get(a.key)).toMatchObject({ mime: "image/jpeg", url: a.url });
   });
 
   it("remove deletes by key", async () => {
@@ -51,7 +38,7 @@ describe("createFakeBlobStore", () => {
     });
 
     await store.remove(key);
-    expect(await store.listForSite("s1")).toEqual([]);
+    expect(store.contents().has(key)).toBe(false);
   });
 
   it("reset clears everything", async () => {
@@ -64,7 +51,6 @@ describe("createFakeBlobStore", () => {
       siteId: "s1",
     });
     store.reset();
-    expect(await store.listForSite("s1")).toEqual([]);
     expect(store.contents().size).toBe(0);
   });
 

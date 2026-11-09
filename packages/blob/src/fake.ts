@@ -2,7 +2,6 @@ import { blobPublicUrl, buildBlobKey, type UploadInput, type UploadResult } from
 
 export type FakeBlobStore = {
   contents: () => ReadonlyMap<string, { bytes: Uint8Array; mime: string; url: string }>;
-  listForSite: (siteId: string) => Promise<Array<{ key: string; size: number; url: string }>>;
   remove: (key: string) => Promise<void>;
   reset: () => void;
   upload: (input: UploadInput) => Promise<UploadResult>;
@@ -13,15 +12,6 @@ export const createFakeBlobStore = (urlBase = "https://fake.blob"): FakeBlobStor
 
   return {
     contents: () => store,
-    listForSite: (siteId) => {
-      const prefix = `sites/${siteId}/`;
-
-      return Promise.resolve(
-        [...store.entries()].flatMap(([key, { bytes, url }]) =>
-          key.startsWith(prefix) ? [{ key, size: bytes.byteLength, url }] : [],
-        ),
-      );
-    },
     remove: (key) => {
       store.delete(key);
 

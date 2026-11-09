@@ -2,9 +2,12 @@ import { Field, FieldDescription, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 
+import { fieldAria } from "@/lib/field-aria";
+
 type Props = {
+  autoComplete: "current-password" | "new-password";
   description?: string;
-  disabled: boolean;
+  disabled?: boolean;
   field: {
     handleBlur: () => void;
     handleChange: (value: string) => void;
@@ -17,22 +20,28 @@ type Props = {
   label: string;
 };
 
-const AuthPasswordField = ({ description, disabled, field, label }: Props) => {
+const AuthPasswordField = ({
+  autoComplete,
+  description,
+  disabled = false,
+  field,
+  label,
+}: Props) => {
   const isInvalid = !field.state.meta.isValid;
-  const errorId = `${field.name}-error`;
-  const descriptionId = `${field.name}-description`;
 
-  const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
-    .filter((describer) => describer !== null)
-    .join(" ");
+  const { describedBy, descriptionId, errorId } = fieldAria(
+    field.name,
+    description !== undefined,
+    isInvalid,
+  );
 
   return (
     <Field data-invalid={isInvalid || undefined}>
       <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
       <Input
-        aria-describedby={describedBy === "" ? undefined : describedBy}
+        aria-describedby={describedBy}
         aria-invalid={isInvalid}
-        autoComplete="new-password"
+        autoComplete={autoComplete}
         disabled={disabled}
         id={field.name}
         name={field.name}

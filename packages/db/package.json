@@ -16,7 +16,6 @@
     "build": "prisma generate && tsdown",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
     "dev": "tsdown --watch",
-    "lint": "oxlint src",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -11,34 +11,16 @@ import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, use, useState } from "react";
+import { useState } from "react";
 
-import { authClient, authFailureMessage } from "@/lib/auth-client";
+import { AuthEmailField } from "@/components/auth-email-field";
+import { AuthSwitchLink } from "@/components/auth-switch-link";
+import { authClient, runAuth } from "@/lib/auth-client";
 import { loginSchema } from "@/lib/form-schemas";
 import { safeRedirectPath } from "@/lib/redirect-validation";
 
 type Props = {
   searchParams: Promise<{ from?: string }>;
-};
-
-const SignUpLinkFallback = () => (
-  <Link className="text-foreground underline underline-offset-4" href="/register">
-    Sign up
-  </Link>
-);
-
-const SignUpLink = ({ searchParams }: Props) => {
-  const { from } = use(searchParams);
-  const safeTo = safeRedirectPath(from);
-
-  return (
-    <Link
-      className="text-foreground underline underline-offset-4"
-      href={safeTo === "/dashboard" ? "/register" : `/register?from=${encodeURIComponent(safeTo)}`}
-    >
-      Sign up
-    </Link>
-  );
 };
 
 const LoginForm = ({
@@ -60,24 +42,19 @@ const LoginForm = ({
     onSubmit: async ({ value }) => {
       setShowUnverifiedNotice(false);
 
-      const result = await authClient.signIn
-        .email({ email: value.email, password: value.password })
-        .catch(authFailureMessage);
+      const result = await runAuth(
+        authClient.signIn.email({ email: value.email, password: value.password }),
+        "Invalid credentials",
+      );
 
-      if (typeof result === "string") {
-        setError(result);
-
-        return;
-      }
-
-      if (result.error) {
-        if (result.error.code === "EMAIL_NOT_VERIFIED") {
+      if (!result.ok) {
+        if (result.code === "EMAIL_NOT_VERIFIED") {
           setShowUnverifiedNotice(true);
 
           return;
         }
 
-        setError(result.error.message ?? "Invalid credentials");
+        setError(result.error);
 
         return;
       }
@@ -108,31 +85,7 @@ const LoginForm = ({
       <FieldGroup>
         <FormAlert message={error} />
         <form.Field name="email">
-          {(field) => {
-            const isInvalid = !field.state.meta.isValid;
-
-            return (
-              <Field data-invalid={isInvalid || undefined}>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  aria-describedby={isInvalid ? "email-error" : undefined}
-                  aria-invalid={isInvalid}
-                  autoComplete="email"
-                  disabled={isLoading}
-                  id="email"
-                  name={field.name}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => {
-                    field.handleChange(e.target.value);
-                  }}
-                  placeholder="you@example.com"
-                  type="email"
-                  value={field.state.value}
-                />
-                {isInvalid && <FormFieldError errors={field.state.meta.errors} id="email-error" />}
-              </Field>
-            );
-          }}
+          {(field) => <AuthEmailField disabled={isLoading} field={field} />}
         </form.Field>
 
         <form.Field name="password">
@@ -188,9 +141,9 @@ const LoginForm = ({
           {signupOpen && (
             <FieldDescription className="text-center">
               Don&apos;t have an account?{" "}
-              <Suspense fallback={<SignUpLinkFallback />}>
-                <SignUpLink searchParams={searchParams} />
-              </Suspense>
+              <AuthSwitchLink href="/register" searchParams={searchParams}>
+                Sign up
+              </AuthSwitchLink>
             </FieldDescription>
           )}
         </Field>

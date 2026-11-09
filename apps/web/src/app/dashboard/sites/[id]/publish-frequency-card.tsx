@@ -6,12 +6,12 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
-import { fetchLocalStats } from "./insights";
+import { fetchWeeklyPublishes } from "./insights";
 
 export const PublishFrequencyCard = async ({ siteId }: { siteId: string }) => {
-  const stats = await fetchLocalStats(siteId);
-  const max = Math.max(1, ...stats.publishesPerWeek.map((w) => w.count));
-  const total = stats.publishesPerWeek.reduce((s, w) => s + w.count, 0);
+  const publishesPerWeek = await fetchWeeklyPublishes(siteId);
+  const max = Math.max(1, ...publishesPerWeek.map((w) => w.count));
+  const total = publishesPerWeek.reduce((s, w) => s + w.count, 0);
 
   return (
     <Card>
@@ -25,7 +25,7 @@ export const PublishFrequencyCard = async ({ siteId }: { siteId: string }) => {
       </CardHeader>
       <CardContent>
         <div className="flex publish-frequency-min-height items-end gap-1.5">
-          {stats.publishesPerWeek.map((w) => (
+          {publishesPerWeek.map((w) => (
             <div className="flex flex-1 flex-col items-center gap-1" key={w.weekStart}>
               <div
                 className="publish-frequency-height w-full rounded-sm bg-primary/80"

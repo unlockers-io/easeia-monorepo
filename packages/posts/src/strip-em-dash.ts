@@ -416,6 +416,3 @@ export const stripEmDash = (
 
   return { changed: text !== input, counts, text };
 };
-
-export const hasEmDash = (input: string | null | undefined): input is string =>
-  typeof input === "string" && input.includes(EM_DASH);

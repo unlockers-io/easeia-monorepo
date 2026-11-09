@@ -9,7 +9,7 @@ type Props = {
   children: ReactNode;
   href: string;
   /** Two-digit section number, printed in the rail like a report's contents. */
-  index?: string;
+  index: string;
 };
 
 const BASE_CLASS =
@@ -22,23 +22,17 @@ const ACTIVE_CLASS = cn(
   "font-bold text-foreground max-md:shadow-(--shadow-nav-active)",
 );
 
-const Index = ({ active, value }: { active: boolean; value: string | undefined }) => {
-  if (value === undefined) {
-    return null;
-  }
-
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "w-5 text-xs tabular-nums max-md:hidden",
-        active ? "text-foreground" : "text-muted-foreground",
-      )}
-    >
-      {value}
-    </span>
-  );
-};
+const Index = ({ active, value }: { active: boolean; value: string }) => (
+  <span
+    aria-hidden="true"
+    className={cn(
+      "w-5 text-xs tabular-nums max-md:hidden",
+      active ? "text-foreground" : "text-muted-foreground",
+    )}
+  >
+    {value}
+  </span>
+);
 
 const ActiveAwareLink = ({ children, href, index }: Props) => {
   const pathname = usePathname();

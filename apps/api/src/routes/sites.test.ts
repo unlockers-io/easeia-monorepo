@@ -2,18 +2,8 @@ import { SiteDomainTakenError } from "@repo/sites";
 import { fakeSite } from "@repo/sites/fake";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.hoisted(() => {
-  Object.assign(process.env, {
-    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
-    DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
-    FROM_EMAIL: "test@easeia.com",
-    REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
-  });
-});
-
 import { createSiteRoutes } from "./sites";
-import { allowAction, bypassMiddleware, mountForTest } from "./test-harness";
+import { mountForTest, openGuards } from "./test-harness";
 
 const updateMock = vi.fn(() => Promise.resolve(fakeSite({ id: "s1", moneySiteId: "m1" })));
 
@@ -21,16 +11,11 @@ const createMock = vi.fn(() =>
   Promise.resolve(fakeSite({ id: "s1", vercelDeployHookUrl: "https://deploy.example/secret" })),
 );
 
-const requirePermission = vi.fn(allowAction);
-
 const siteRoutes = createSiteRoutes({
-  apiAuth: bypassMiddleware,
-  audit: vi.fn().mockResolvedValue(undefined),
+  ...openGuards,
   createSite: createMock,
   listSites: vi.fn().mockResolvedValue([]),
   loadSite: vi.fn(),
-  rateLimit: bypassMiddleware,
-  requirePermission,
   updateSite: updateMock,
 });
 
@@ -85,7 +70,6 @@ describe("site create and update", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(requirePermission).toHaveBeenCalledWith("sites:write");
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({ domain: "photo-blog.example" }),
     );

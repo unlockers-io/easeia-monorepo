@@ -8,7 +8,10 @@ import {
 } from "./build-graph";
 
 const sampleInput: BuildGraphInput = {
-  moneyEdges: [{ count: 5, fromSiteId: "s1", moneySiteId: "m1" }],
+  moneyEdges: [
+    { count: 5, fromSiteId: "s1", moneySiteId: "m1" },
+    { count: 2, fromSiteId: "s3", moneySiteId: "m1" },
+  ],
   moneySites: [{ domain: "money.com", id: "m1", name: "Money", pageCount: 30 }],
   pbnEdges: [
     { count: 7, fromSiteId: "s1", toSiteId: "s2" },
@@ -61,17 +64,19 @@ describe("buildGraph", () => {
     expect(s1ToS2?.data?.count).toBe(7);
   });
 
-  it("flags PBN sites that contribute to the money site so the UI can highlight them", () => {
+  it("counts only the links a PBN site sends to its own money site", () => {
     const { nodes } = buildGraph(sampleInput);
     const s1 = nodes.find((n) => n.id === `${PBN_NODE_PREFIX}s1`);
+    const s2 = nodes.find((n) => n.id === `${PBN_NODE_PREFIX}s2`);
     const s3 = nodes.find((n) => n.id === `${PBN_NODE_PREFIX}s3`);
 
-    if (s1?.type !== "pbn-site" || s3?.type !== "pbn-site") {
+    if (s1?.type !== "pbn-site" || s2?.type !== "pbn-site" || s3?.type !== "pbn-site") {
       throw new Error("expected pbn-site nodes");
     }
 
-    expect(s1.data.hasMoneyEdge).toBe(true);
-    expect(s3.data.hasMoneyEdge).toBe(false);
+    expect(s1.data.moneyLinks).toBe(5);
+    expect(s2.data.moneyLinks).toBe(0);
+    expect(s3.data.moneyLinks).toBe(0);
   });
 
   it("returns empty edges when no inputs are given but still emits nodes", () => {

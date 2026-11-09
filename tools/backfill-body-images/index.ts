@@ -3,7 +3,7 @@
 import "dotenv/config";
 
 import { JobKind, type Prisma, prisma } from "@repo/db";
-import { closeJobs, enqueue } from "@repo/jobs";
+import { enqueue } from "@repo/jobs";
 
 const COST_PER_POST_USD = 0.17;
 
@@ -108,7 +108,7 @@ const main = async (): Promise<number> => {
 };
 
 const cleanup = async (): Promise<void> => {
-  await Promise.allSettled([prisma.$disconnect(), closeJobs()]);
+  await prisma.$disconnect();
 };
 
 let exitCode = 0;

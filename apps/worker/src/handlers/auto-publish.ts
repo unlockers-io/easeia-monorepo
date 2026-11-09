@@ -1,7 +1,6 @@
 import * as AutoPublish from "@repo/auto-publish";
 import type { ConsumerContext } from "@repo/jobs";
-
-import { createJobLogger } from "../lib/logger";
+import { createJobLogger } from "@repo/observability/worker";
 
 export const handleAutoPublish = async ({ jobId }: ConsumerContext<"AUTO_PUBLISH">) => {
   const log = createJobLogger({ jobId, queue: "auto-publish" });

@@ -3,9 +3,8 @@ import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "../fixtures/auth.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
 import { extractLink, waitForEmail } from "../helpers/resend";
+import { TEST_USER } from "../helpers/test-user";
 import { webUrl } from "../urls";
-
-const PASSWORD = "TestPassword123!";
 
 const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
 
@@ -14,7 +13,7 @@ const createIsolatedUser = async (request: APIRequestContext): Promise<string> =
   const since = Date.now();
 
   const response = await request.post(`${webUrl}/api/auth/sign-up/email`, {
-    data: { email, name: "Logout Test User", password: PASSWORD },
+    data: { email, name: "Logout Test User", password: TEST_USER.password },
   });
 
   expect([200, 201]).toContain(response.status());
@@ -34,7 +33,7 @@ test.describe("Logout", () => {
   test("signs out and redirects to login", async ({ dashboardPage, loginPage, page, request }) => {
     const email = await createIsolatedUser(request);
     await loginPage.goto();
-    await loginPage.login(email, PASSWORD);
+    await loginPage.login(email, TEST_USER.password);
     await page.waitForURL("/dashboard");
     await dashboardPage.expectHeadingVisible();
 
@@ -52,7 +51,7 @@ test.describe("Logout", () => {
   }) => {
     const email = await createIsolatedUser(request);
     await loginPage.goto();
-    await loginPage.login(email, PASSWORD);
+    await loginPage.login(email, TEST_USER.password);
     await page.waitForURL("/dashboard");
 
     await dashboardPage.signOut();

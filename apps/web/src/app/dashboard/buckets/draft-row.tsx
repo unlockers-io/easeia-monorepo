@@ -5,7 +5,8 @@ import { Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
-import { unwrapAction } from "@/lib/action-result";
+import type { ActionResult } from "@/lib/action-result";
+import { formatRelativeTime } from "@/lib/relative-time";
 
 import { deleteDraftAction, publishDraftAction } from "./actions";
 
@@ -14,32 +15,6 @@ export type Draft = {
   id: string;
   slug: string;
   title: string;
-};
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-const relativeTime = (iso: string, nowMs: number): string => {
-  const diff = nowMs - new Date(iso).getTime();
-
-  if (diff < 0) {
-    return new Date(iso).toLocaleString("en-US", { timeZone: "UTC" });
-  }
-
-  const days = Math.floor(diff / MS_PER_DAY);
-
-  if (days >= 1) {
-    return `${days}d ago`;
-  }
-
-  const hours = Math.floor(diff / (60 * 60 * 1000));
-
-  if (hours >= 1) {
-    return `${hours}h ago`;
-  }
-
-  const minutes = Math.floor(diff / (60 * 1000));
-
-  return `${Math.max(1, minutes)}m ago`;
 };
 
 const ARM_WINDOW_MS = 4000;
@@ -63,21 +38,19 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
     };
   }, [armed]);
 
-  const runAction = (label: string, action: () => Promise<void>) => {
+  const runAction = (action: () => Promise<ActionResult<void>>) => {
     setFailure(null);
     startTransition(async () => {
-      try {
-        await action();
-      } catch (error) {
-        setFailure(error instanceof Error ? error.message : `${label} failed`);
+      const result = await action();
+
+      if (!result.ok) {
+        setFailure(result.error);
       }
     });
   };
 
   const handlePublish = () => {
-    runAction("Publish", async () => {
-      unwrapAction(await publishDraftAction(draft.id));
-    });
+    runAction(async () => publishDraftAction(draft.id));
   };
 
   const handleDelete = () => {
@@ -88,9 +61,7 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
     }
 
     setArmed(false);
-    runAction("Delete", async () => {
-      unwrapAction(await deleteDraftAction(draft.id));
-    });
+    runAction(async () => deleteDraftAction(draft.id));
   };
 
   return (
@@ -104,7 +75,7 @@ export const DraftRow = ({ draft, nowMs }: { draft: Draft; nowMs: number }) => {
             {draft.title}
           </Link>
           <span className="truncate text-xs text-muted-foreground">
-            {draft.slug} · created {relativeTime(draft.createdAt, nowMs)}
+            {draft.slug} · created {formatRelativeTime(new Date(draft.createdAt), nowMs)}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">

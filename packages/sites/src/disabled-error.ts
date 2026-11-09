@@ -1,4 +1,4 @@
-import { DomainError } from "./domain-error";
+import { DomainError } from "@repo/errors";
 
 export class SiteDisabledError extends DomainError {
   constructor(domain: string) {

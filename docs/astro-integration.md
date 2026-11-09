@@ -78,7 +78,7 @@ const posts = defineCollection({
 export const collections = { posts };
 ```
 
-Only `PUBLISHED` posts are returned. The collection entry ID is the post’s slug. API `null` values become `undefined` before schema validation.
+The build returns posts that are `PUBLISHED`, or were published before and are not `ARCHIVED`, so a live post being republished stays on the site. The collection entry ID is the post’s slug. API `null` values become `undefined` before schema validation.
 
 ## 3. Render posts and images
 
@@ -128,11 +128,11 @@ Create a Markdown draft, then click **Publish**. The worker stores the published
 
 The build reads:
 
-| Endpoint                            | Response                                                                      |
-| ----------------------------------- | ----------------------------------------------------------------------------- |
-| `/api/build/sites/:siteId/posts`    | `{ data: [...] }` with Markdown, frontmatter, and each post’s image manifest  |
-| `/api/build/sites/:siteId/manifest` | Site metadata, count, and content hash (no `data` envelope)                   |
-| `/api/build/sites/:siteId/images`   | `{ data: [...] }` with stored image filenames, URLs, dimensions, and alt text |
+| Endpoint                            | Response                                                                                |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `/api/build/sites/:siteId/posts`    | `{ data: [...] }` with Markdown, frontmatter, and each post’s image manifest            |
+| `/api/build/sites/:siteId/manifest` | Site metadata, count, and content hash (no `data` envelope)                             |
+| `/api/build/sites/:siteId/images`   | `{ data: [...] }` with filenames, URLs, dimensions, and alt text of those posts' images |
 
 A 401 usually means an invalid key. A 403 means missing `content:read` or a site mismatch. Empty content means there are no published posts for that site. Check the API URL is reachable from CI and that the hosting build has all three `EASEIA_*` credentials.
 

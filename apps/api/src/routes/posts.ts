@@ -1,43 +1,28 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { postCreateSchema, postListQuerySchema, postUpdateSchema } from "@repo/api-types";
 import { Niche, PostStatus } from "@repo/db";
-import type { Action } from "@repo/policy";
 import * as Posts from "@repo/posts";
-import type { MiddlewareHandler } from "hono";
 
-import { createRouter } from "@/lib/openapi";
-import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
-import type { AuthVariables } from "@/middleware/api-auth";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { recordAudit } from "@/middleware/audit";
-import { apiRateLimit } from "@/middleware/security";
+import { errorResponse, idParamSchema, jsonResponse, okSchema } from "@/lib/openapi-schemas";
+import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
-type RouteDependencies = {
-  apiAuth: MiddlewareHandler;
-  audit: typeof recordAudit;
+type RouteDependencies = Guards & {
   posts: Pick<
     typeof Posts,
     "list" | "get" | "create" | "update" | "remove" | "publish" | "unpublish"
   >;
-  rateLimit: MiddlewareHandler;
-  requirePermission: (action: Action) => MiddlewareHandler<{ Variables: AuthVariables }>;
 };
 
 const createPostRoutes = (deps: RouteDependencies) => {
-  const postRoutes = createRouter<{ Variables: AuthVariables }>();
-
-  postRoutes.use("*", deps.apiAuth);
-  postRoutes.use("*", deps.rateLimit);
+  const postRoutes = createProtectedRouter(deps);
 
   const postSchema = z
     .object({
       body: z.string(),
-      canonicalUrl: z.string().nullable().optional(),
       categories: z.array(z.string()),
       createdAt: z.date(),
       excerpt: z.string().nullable(),
       featuredImage: z.string().nullable(),
-      featuredImagePrompt: z.string().nullable(),
       focusKeyword: z.string().nullable(),
       id: z.string(),
       niches: z.array(z.enum(Niche)),
@@ -76,8 +61,6 @@ const createPostRoutes = (deps: RouteDependencies) => {
       }),
     })
     .openapi("PostLifecycleResponse");
-
-  const okResponseSchema = z.object({ ok: z.literal(true) }).openapi("OkResponse");
 
   const listPostsRoute = createRoute({
     middleware: [deps.requirePermission("posts:read")],
@@ -213,10 +196,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     path: "/{id}",
     request: { params: idParamSchema },
     responses: {
-      200: {
-        content: { "application/json": { schema: okResponseSchema } },
-        description: "Post deleted",
-      },
+      200: jsonResponse("Post deleted", okSchema),
       401: errorResponse("Missing or invalid bearer token"),
       403: errorResponse("Token lacks the posts:write scope"),
       404: errorResponse("Post not found"),
@@ -270,10 +250,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     path: "/{id}/unpublish",
     request: { params: idParamSchema },
     responses: {
-      200: {
-        content: { "application/json": { schema: okResponseSchema } },
-        description: "Post archived",
-      },
+      200: jsonResponse("Post archived", okSchema),
       401: errorResponse("Missing or invalid bearer token"),
       403: errorResponse("Token lacks the posts:write scope"),
       404: errorResponse("Post not found"),
@@ -294,12 +271,6 @@ const createPostRoutes = (deps: RouteDependencies) => {
   return postRoutes;
 };
 
-const postRoutes = createPostRoutes({
-  apiAuth: apiAuthMiddleware,
-  audit: recordAudit,
-  posts: Posts,
-  rateLimit: apiRateLimit,
-  requirePermission: requireAction,
-});
+const postRoutes = createPostRoutes({ ...guards, posts: Posts });
 
 export { postRoutes, createPostRoutes };

@@ -1,29 +1,64 @@
-import { describe, expect, it, vi } from "vitest";
+import { JobKind, prisma } from "@repo/db";
+import { countJobs } from "@repo/jobs";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
-import { createCrawlSitemap } from "./crawl";
+import { crawlSitemap, MoneySiteNotFoundError, requestCrawl } from "./index";
 
-describe("crawlSitemap fetch", () => {
-  it("issues the sitemap fetch with an abort signal (timeout)", async () => {
-    const findSite = vi.fn().mockResolvedValueOnce({
-      contentPathPrefix: null,
-      sitemapUrl: "https://money.test/sitemap.xml",
+describe.runIf(process.env.TEST_DATABASE === "true")("money-site crawls", () => {
+  const domain = `money-${crypto.randomUUID()}.test`;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  afterAll(async () => {
+    const pages = await prisma.moneySitePage.findMany({
+      select: { id: true },
+      where: { moneySite: { domain } },
+    });
+
+    for (const page of pages) {
+      await prisma.job.deleteMany({
+        where: { payload: { equals: { moneySitePageId: page.id } } },
+      });
+    }
+
+    await prisma.moneySite.deleteMany({ where: { domain } });
+  });
+
+  it("records the sitemap's content pages and queues a crawl for each, with a timeout", async () => {
+    const site = await prisma.moneySite.create({
+      data: {
+        contentPathPrefix: "/blog/",
+        domain,
+        name: "Money",
+        sitemapUrl: `https://${domain}/sitemap.xml`,
+      },
     });
 
     const fetchMock = vi.fn(() =>
-      Promise.resolve(new Response("<urlset></urlset>", { status: 200 })),
+      Promise.resolve(
+        new Response(
+          `<urlset><url><loc>https://${domain}/blog/a</loc></url><url><loc>https://${domain}/about</loc></url></urlset>`,
+        ),
+      ),
     );
 
-    const crawlSitemap = createCrawlSitemap({
-      createPages: vi.fn().mockResolvedValue(0),
-      fetchSitemap: fetchMock,
-      findSite,
-    });
+    vi.stubGlobal("fetch", fetchMock);
 
-    await crawlSitemap("ms1");
+    const result = await crawlSitemap(site.id);
+    const pages = await prisma.moneySitePage.findMany({ where: { moneySiteId: site.id } });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://money.test/sitemap.xml",
+      `https://${domain}/sitemap.xml`,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+    expect(result).toEqual({ discovered: 2, enqueued: 1, upserted: 1 });
+    expect(pages.map((page) => page.url)).toEqual([`https://${domain}/blog/a`]);
+    expect(await countJobs({ kinds: [JobKind.CRAWL_MONEY_SITE_PAGE] })).toBeGreaterThanOrEqual(1);
+  });
+
+  it("refuses to queue a crawl for a money site that does not exist", async () => {
+    await expect(requestCrawl("missing")).rejects.toBeInstanceOf(MoneySiteNotFoundError);
   });
 });

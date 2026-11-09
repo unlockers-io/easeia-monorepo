@@ -53,7 +53,6 @@ export const buildRewritePrompt = (input: RewritePromptInput): string => {
     `Tags: ${input.post.tags.slice(0, 8).join(", ")}`,
     "",
     `Output structured JSON with: title (50-${SEO_TITLE_MAX} chars, in ${languageName}), body (HTML in ${languageName}), excerpt (140-${SEO_DESCRIPTION_MAX} chars, in ${languageName}), focusKeyword (2-5 words, in ${languageName}).`,
-    "Preserve all WordPress Gutenberg block-comment markup (`<!-- wp:* -->` / `<!-- /wp:* -->`) if present in the original: output the new body in the same block structure.",
     "",
     "Original body:",
     input.post.body.slice(0, MAX_BODY_CHARS),

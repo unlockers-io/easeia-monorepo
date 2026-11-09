@@ -5,12 +5,13 @@ vi.hoisted(() => {
     DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://test:test@localhost:5440/easeia_test",
     HERO_AUTOGEN_ENABLED: "false",
     REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-key",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
 });
 
 import { JobKind, PostStatus, prisma } from "@repo/db";
-import { closeJobs, countJobs, listJobs } from "@repo/jobs";
+import { countJobs, listJobs } from "@repo/jobs";
+import { closeJobs } from "@repo/jobs/worker";
 import * as Posts from "@repo/posts";
 
 import { handlePublish } from "./publish";
@@ -45,12 +46,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         title: "First post",
       });
 
-      await handlePublish({
-        attemptsMade: 0,
-        finalAttempt: false,
-        jobId: job?.id ?? "",
-        payload: { postId: post.id },
-      });
+      await handlePublish({ jobId: job?.id ?? "", payload: { postId: post.id } });
 
       const published = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
 
@@ -67,6 +63,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       );
       expect(await countJobs({ kinds: [JobKind.EMBED], postId: post.id })).toBe(1);
       expect(await countJobs({ kinds: [JobKind.CRAWL_LINKS], postId: post.id })).toBe(1);
+      expect(await countJobs({ kinds: [JobKind.GENERATE_BODY_IMAGES], postId: post.id })).toBe(1);
     });
   },
 );

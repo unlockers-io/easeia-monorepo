@@ -4,8 +4,9 @@ import type { PostStatus } from "@repo/db/browser";
 import { Badge } from "@repo/ui/components/badge";
 import { CheckCircle2, Clock, FileArchive, PenLine, XCircle } from "lucide-react";
 
-import { describePostState, formatRelativeTime } from "./post-state";
-import type { StatusJob } from "./post-state";
+import { formatRelativeTime } from "@/lib/relative-time";
+
+import { describePostState, type StatusJob } from "./post-state";
 
 type PostStatusBadgeProps = {
   job: StatusJob | null;

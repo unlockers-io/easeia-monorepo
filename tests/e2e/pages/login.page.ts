@@ -1,6 +1,8 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
+import { formAlert } from "../helpers/form-alert";
+
 export class LoginPage {
   private readonly emailInput: Locator;
   private readonly passwordInput: Locator;
@@ -11,7 +13,7 @@ export class LoginPage {
     this.emailInput = page.getByLabel(/email/i);
     this.passwordInput = page.getByLabel(/password/i);
     this.submitButton = page.getByRole("button", { name: /sign in|log in/i });
-    this.rootError = page.locator('[data-slot="form-alert"]');
+    this.rootError = formAlert(page);
   }
 
   goto = async () => {

@@ -4,19 +4,12 @@ import { JobKind, JobStatus } from "@repo/db";
 import { getJob, listJobs } from "@repo/jobs";
 import { HTTPException } from "hono/http-exception";
 
-import { createRouter } from "@/lib/openapi";
 import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
-import type { AuthVariables } from "@/middleware/api-auth";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { apiRateLimit } from "@/middleware/security";
+import { createProtectedRouter, guards } from "@/lib/protected-router";
 
-const jobRoutes = createRouter<{ Variables: AuthVariables }>();
+const jobRoutes = createProtectedRouter(guards);
 
-jobRoutes.use("*", apiAuthMiddleware);
-
-jobRoutes.use("*", apiRateLimit);
-
-jobRoutes.use("*", requireAction("jobs:read"));
+jobRoutes.use("*", guards.requirePermission("jobs:read"));
 
 const jobSchema = z
   .object({

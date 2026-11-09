@@ -1,6 +1,10 @@
 "use client";
 
-import { Niche } from "@repo/db/browser";
+import {
+  POST_EXCERPT_MAX_LENGTH,
+  POST_FOCUS_KEYWORD_MAX_LENGTH,
+  POST_TITLE_MAX_LENGTH,
+} from "@repo/api-types";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -11,13 +15,6 @@ import {
 } from "@repo/ui/components/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
 import { Input } from "@repo/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/select";
 import { Switch } from "@repo/ui/components/switch";
 import { Textarea } from "@repo/ui/components/textarea";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
@@ -30,10 +27,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { z } from "zod";
 
+import { NicheToggleGroup } from "@/components/niche-toggle-group";
+import { SitePicker, type SiteOption } from "@/components/site-picker";
 import { newPostSchema } from "@/lib/form-schemas";
 
-import { createPostAction } from "../../actions";
-import { NicheToggleGroup } from "../../sites/niche-toggle-group";
+import { createPostAction } from "../actions";
 
 const emptyPost: z.input<typeof newPostSchema> = {
   body: "",
@@ -106,13 +104,7 @@ const TextField = ({
   );
 };
 
-const NICHE_OPTIONS = Object.values(Niche);
-
-export const NewPostForm = ({
-  sites,
-}: {
-  sites: ReadonlyArray<{ domain: string; id: string }>;
-}) => {
+export const NewPostForm = ({ sites }: { sites: ReadonlyArray<SiteOption> }) => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const ready = useClientReady();
@@ -127,31 +119,27 @@ export const NewPostForm = ({
     onSubmit: async ({ value }) => {
       setError(null);
 
-      try {
-        const result = await createPostAction({
-          body: value.body,
-          categories: splitCsv(value.categories),
-          excerpt: optional(value.excerpt),
-          focusKeyword: optional(value.focusKeyword),
-          niches: value.niches,
-          publish: value.publish,
-          scheduledAt: value.scheduledAt === "" ? undefined : new Date(value.scheduledAt),
-          siteId: value.siteId,
-          slug: value.slug,
-          tags: splitCsv(value.tags),
-          title: value.title,
-        });
+      const result = await createPostAction({
+        body: value.body,
+        categories: splitCsv(value.categories),
+        excerpt: optional(value.excerpt),
+        focusKeyword: optional(value.focusKeyword),
+        niches: value.niches,
+        publish: value.publish,
+        scheduledAt: value.scheduledAt === "" ? undefined : new Date(value.scheduledAt),
+        siteId: value.siteId,
+        slug: value.slug,
+        tags: splitCsv(value.tags),
+        title: value.title,
+      });
 
-        if (!result.ok) {
-          setError(result.error);
+      if (!result.ok) {
+        setError(result.error);
 
-          return;
-        }
-
-        router.push(`/dashboard/posts/${result.id}`);
-      } catch {
-        setError("Could not save the post. Try again.");
+        return;
       }
+
+      router.push(`/dashboard/posts/${result.data}`);
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -181,36 +169,7 @@ export const NewPostForm = ({
         <CardContent>
           <FieldGroup className="gap-5">
             <form.Field name="siteId">
-              {(field) => (
-                <Field data-invalid={!field.state.meta.isValid || undefined}>
-                  <FieldLabel htmlFor="siteId">Site</FieldLabel>
-                  <Select
-                    onValueChange={(next: string | null) => {
-                      field.handleChange(next ?? "");
-                    }}
-                    value={field.state.value}
-                  >
-                    <SelectTrigger
-                      aria-describedby={field.state.meta.isValid ? undefined : "siteId-error"}
-                      aria-invalid={!field.state.meta.isValid}
-                      aria-required
-                      id="siteId"
-                    >
-                      <SelectValue placeholder="Pick a site" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sites.map((site) => (
-                        <SelectItem key={site.id} value={site.id}>
-                          {site.domain}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!field.state.meta.isValid && (
-                    <FormFieldError errors={field.state.meta.errors} id="siteId-error" />
-                  )}
-                </Field>
-              )}
+              {(field) => <SitePicker field={field} sites={sites} />}
             </form.Field>
 
             <div className="grid gap-5 sm:grid-cols-post-editor">
@@ -228,7 +187,7 @@ export const NewPostForm = ({
               <form.Field name="title">
                 {(field) => (
                   <TextField
-                    description="Up to 160 characters."
+                    description={`Up to ${POST_TITLE_MAX_LENGTH} characters.`}
                     field={field}
                     isRequired
                     label="Title"
@@ -281,7 +240,7 @@ export const NewPostForm = ({
               <form.Field name="focusKeyword">
                 {(field) => (
                   <TextField
-                    description="Up to 80 characters."
+                    description={`Up to ${POST_FOCUS_KEYWORD_MAX_LENGTH} characters.`}
                     field={field}
                     label="Focus keyword"
                     placeholder="wedding photography"
@@ -291,7 +250,7 @@ export const NewPostForm = ({
               <form.Field name="excerpt">
                 {(field) => (
                   <TextField
-                    description="Up to 300 characters."
+                    description={`Up to ${POST_EXCERPT_MAX_LENGTH} characters.`}
                     field={field}
                     label="Excerpt"
                     placeholder="Short summary"
@@ -340,11 +299,7 @@ export const NewPostForm = ({
               <FieldLabel>Niches</FieldLabel>
               <form.Field name="niches">
                 {(field) => (
-                  <NicheToggleGroup
-                    onChange={field.handleChange}
-                    options={NICHE_OPTIONS}
-                    value={field.state.value}
-                  />
+                  <NicheToggleGroup onChange={field.handleChange} value={field.state.value} />
                 )}
               </form.Field>
             </Field>

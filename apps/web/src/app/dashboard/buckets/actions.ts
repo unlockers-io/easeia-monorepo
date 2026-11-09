@@ -1,13 +1,10 @@
 "use server";
 
 import * as AutoPublish from "@repo/auto-publish";
-import { AutoPublishConfigError } from "@repo/auto-publish";
 import * as Posts from "@repo/posts";
-import * as Sites from "@repo/sites";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
-import { requireSession } from "@/lib/auth-helpers";
 import { withAuth } from "@/lib/server-action";
 
 export const refillBucketAction = async (siteId: string) =>
@@ -22,46 +19,15 @@ export const refillBucketAction = async (siteId: string) =>
     return { queued };
   });
 
-export type ApplyNetworkDefaultsInput = {
-  bucketRefillAt: number | null;
-  bucketTarget: number | null;
-  cadenceDays: number | null;
-  scope: "overwrite" | "unconfigured";
-};
+export const applyNetworkDefaultsAction = async (input: AutoPublish.NetworkDefaultsInput) =>
+  withAuth(async () => {
+    const counts = await AutoPublish.applyNetworkDefaults(input);
+    await audit({ action: "site.update", meta: counts, target: "network" });
+    revalidatePath("/dashboard/buckets");
+    revalidatePath("/dashboard/sites");
 
-export type ApplyNetworkDefaultsResult = {
-  bucketSitesUpdated: number;
-  cadenceSitesUpdated: number;
-  errors: Array<string>;
-};
-
-export const applyNetworkDefaultsAction = async (
-  input: ApplyNetworkDefaultsInput,
-): Promise<ApplyNetworkDefaultsResult> => {
-  await requireSession();
-  let counts: Awaited<ReturnType<typeof AutoPublish.applyNetworkDefaults>>;
-
-  try {
-    counts = await AutoPublish.applyNetworkDefaults({
-      bucket: { refillAt: input.bucketRefillAt, target: input.bucketTarget },
-      cadenceDays: input.cadenceDays,
-      scope: input.scope,
-    });
-  } catch (error) {
-    if (error instanceof AutoPublishConfigError) {
-      return { bucketSitesUpdated: 0, cadenceSitesUpdated: 0, errors: error.messages };
-    }
-
-    throw error;
-  }
-
-  await audit({ action: "site.update", meta: counts, target: "network" });
-
-  revalidatePath("/dashboard/buckets");
-  revalidatePath("/dashboard/sites");
-
-  return { ...counts, errors: [] };
-};
+    return counts;
+  });
 
 export const refillAllNeedyBucketsAction = async () =>
   withAuth(async () => {
@@ -80,32 +46,17 @@ export const refillAllNeedyBucketsAction = async () =>
     return { queuedPerSite, sitesTouched: Object.keys(queuedPerSite).length };
   });
 
-type PublishNextResult = { ok: true } | { error: string; ok: false };
-
-export const publishNextFromBucketAction = async (siteId: string): Promise<PublishNextResult> => {
-  await requireSession();
-
-  try {
+export const publishNextFromBucketAction = async (siteId: string) =>
+  withAuth(async () => {
     const published = await AutoPublish.publishNext(siteId);
 
-    if (!published) {
-      return { error: "Bucket is empty", ok: false };
+    if (published !== null) {
+      await audit({ action: "post.publish", target: `post:${published.postId}` });
+      revalidatePath("/dashboard/buckets");
     }
 
-    await audit({ action: "post.publish", target: `post:${published.postId}` });
-    revalidatePath("/dashboard/buckets");
-
-    return { ok: true };
-  } catch (error) {
-    return {
-      error:
-        error instanceof Sites.DomainError
-          ? error.message
-          : "Could not queue publishing. Try again.",
-      ok: false,
-    };
-  }
-};
+    return { published: published !== null };
+  });
 
 export const publishDraftAction = async (postId: string) =>
   withAuth(async () => {

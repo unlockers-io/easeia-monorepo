@@ -1,6 +1,5 @@
 "use client";
 
-import { deployHookUrlSchema } from "@repo/api-types/sites";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -18,23 +17,10 @@ import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { z } from "zod";
 
-import { updateSitePublishingAction } from "./actions";
+import { updateSitePublishingAction } from "../actions";
 
-const urlInput = z
-  .string()
-  .refine(
-    (value) => deployHookUrlSchema.safeParse(value).success,
-    "Enter an HTTP(S) URL or leave it blank.",
-  );
-
-const formSchema = z.object({
-  astroRepoUrl: urlInput,
-  imageStyle: z.string().max(2000),
-  vercelDeployHookUrl: urlInput,
-  vercelProjectName: z.string().max(200),
-});
+import { publishingFormSchema } from "./patches";
 
 const fields = [
   ["vercelDeployHookUrl", "Deploy hook URL"],
@@ -88,7 +74,7 @@ export const PublishingForm = ({
       focusFirstInvalidField(formApi.formId);
     },
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: formSchema },
+    validators: { onDynamic: publishingFormSchema },
   });
 
   return (

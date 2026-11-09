@@ -2,9 +2,10 @@ import { OAuth2Client, type Credentials } from "google-auth-library";
 
 import { GoogleNotConfiguredError } from "./errors";
 
+export const GOOGLE_ENV_VARS = ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"] as const;
+
 export const isGoogleConfigured = () =>
-  (process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() ?? "") !== "" &&
-  (process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() ?? "") !== "";
+  GOOGLE_ENV_VARS.every((name) => (process.env[name]?.trim() ?? "") !== "");
 
 export const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
@@ -23,9 +24,7 @@ const loadEnv = (): OAuthEnv => {
     clientSecret === undefined ||
     clientSecret === ""
   ) {
-    throw new GoogleNotConfiguredError(
-      "GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be set",
-    );
+    throw new GoogleNotConfiguredError(`${GOOGLE_ENV_VARS.join(" and ")} must be set`);
   }
 
   return { clientId, clientSecret };

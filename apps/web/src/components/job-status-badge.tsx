@@ -1,6 +1,14 @@
-import type { JobStatus } from "@repo/db/browser";
+import type { JobKind, JobStatus } from "@repo/db/browser";
 import { Badge } from "@repo/ui/components/badge";
-import { CheckCircle2, Clock, Loader2, MinusCircle, XCircle, type LucideIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Hash,
+  Loader2,
+  MinusCircle,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import type { ComponentProps } from "react";
 
 const statuses = {
@@ -27,3 +35,12 @@ export const JobStatusBadge = ({ status }: { status: JobStatus }) => {
     </Badge>
   );
 };
+
+export const JobKindBadge = ({ kind }: { kind: JobKind }) => (
+  <Badge variant="outline">
+    <span className="inline-flex items-center gap-1 font-mono">
+      <Hash className="size-3" />
+      {kind}
+    </span>
+  </Badge>
+);

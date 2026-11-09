@@ -1,4 +1,5 @@
-import { JobKind, PostStatus, prisma } from "@repo/db";
+import { assertAiConfigured } from "@repo/ai";
+import { BackfillKind, JobKind, PostStatus, prisma } from "@repo/db";
 
 import { completed, createBackfill } from "./backfill";
 import { enqueuePostMember } from "./members";
@@ -10,15 +11,17 @@ export const networkBackfill = createBackfill({
     posts: run.postIds.length,
     suggestDone: completed(jobs, JobKind.SUGGEST_LINKS),
   }),
-  kind: JobKind.BACKFILL_NETWORK,
+  kind: BackfillKind.NETWORK,
   label: "network backfill",
   members: async () => {
+    assertAiConfigured();
+
     const posts = await prisma.post.findMany({
       select: { id: true },
       where: { status: PostStatus.PUBLISHED },
     });
 
-    return { moneySiteIds: [], postIds: posts.map((post) => post.id) };
+    return { postIds: posts.map((post) => post.id) };
   },
   phases: [
     {

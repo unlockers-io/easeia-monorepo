@@ -1,7 +1,6 @@
 import type { ConsumerContext } from "@repo/jobs";
+import { createJobLogger } from "@repo/observability/worker";
 import { deploy } from "@repo/sites";
-
-import { createJobLogger } from "../lib/logger";
 
 export const handleTriggerDeploy = async (
   ctx: ConsumerContext<"TRIGGER_DEPLOY">,

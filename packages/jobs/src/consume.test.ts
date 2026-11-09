@@ -5,16 +5,10 @@ import { Queue, type Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { QUEUE_NAMES } from "./queue";
+import { queueName } from "./transport";
+import { closeJobs, consume, dispatchPendingJobs } from "./worker";
 
-import {
-  closeJobs,
-  consume,
-  dispatchPendingJobs,
-  enqueue,
-  JobSkippedError,
-  type ConsumerContext,
-} from "./index";
+import { enqueue, JobSkippedError, type ConsumerContext } from "./index";
 
 const KIND = JobKind.SNAPSHOT_SITE;
 
@@ -30,7 +24,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
     beforeAll(async () => {
       admin = new Redis(process.env.REDIS_URL ?? "", { maxRetriesPerRequest: null });
-      queue = new Queue(QUEUE_NAMES[KIND], { connection: admin });
+      queue = new Queue(queueName(KIND), { connection: admin });
       await queue.obliterate({ force: true });
     });
 
@@ -49,9 +43,12 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
     const run = async (
       handler: (ctx: ConsumerContext<typeof KIND>) => Promise<void>,
-      isRetryable?: (cause: unknown) => boolean,
+      options: {
+        isRetryable?: (cause: unknown) => boolean;
+        onFailure?: (ctx: ConsumerContext<typeof KIND>) => Promise<void>;
+      } = {},
     ) => {
-      worker = consume({ handler, isRetryable, kind: KIND });
+      worker = consume({ handler, kind: KIND, ...options });
       const { id } = await enqueue({ kind: KIND, payload: { siteId: "site_unused" } });
       createdIds.push(id);
       await dispatchPendingJobs();
@@ -85,19 +82,26 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       expect(job).toMatchObject({ attempts: 1, lastError: null, status: JobStatus.DONE });
       expect(job.finishedAt).not.toBeNull();
-      expect(seen).toEqual([
-        { attemptsMade: 0, finalAttempt: false, jobId: job.id, payload: { siteId: "site_unused" } },
-      ]);
+      expect(seen).toEqual([{ jobId: job.id, payload: { siteId: "site_unused" } }]);
     });
 
-    it("retries a throwing handler until attempts run out, then marks the Job FAILED", async () => {
-      const calls: Array<{ attemptsMade: number; finalAttempt: boolean }> = [];
+    it("retries a throwing handler until attempts run out, then fails it once", async () => {
+      const events: Array<string> = [];
 
-      const job = await run(({ attemptsMade, finalAttempt }) => {
-        calls.push({ attemptsMade, finalAttempt });
+      const job = await run(
+        () => {
+          events.push("attempt");
 
-        return Promise.reject(new Error("boom"));
-      });
+          return Promise.reject(new Error("boom"));
+        },
+        {
+          onFailure: () => {
+            events.push("failed");
+
+            return Promise.resolve();
+          },
+        },
+      );
 
       expect(job).toMatchObject({
         attempts: 5,
@@ -105,17 +109,27 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         status: JobStatus.FAILED,
       });
       expect(job.finishedAt).not.toBeNull();
-      expect(calls.map((call) => call.attemptsMade)).toEqual([0, 1, 2, 3, 4]);
-      expect(calls.map((call) => call.finalAttempt)).toEqual([false, false, false, false, true]);
+      expect(events).toEqual(["attempt", "attempt", "attempt", "attempt", "attempt", "failed"]);
     }, 30_000);
 
-    it("records an explicit skip as a terminal outcome", async () => {
-      const job = await run(() => Promise.reject(new JobSkippedError("AI unavailable")));
+    it("records an explicit skip as a terminal outcome without failing it", async () => {
+      let failed = 0;
+
+      const job = await run(() => Promise.reject(new JobSkippedError("AI unavailable")), {
+        onFailure: () => {
+          failed += 1;
+
+          return Promise.resolve();
+        },
+      });
+
       expect(job.status).toBe(JobStatus.SKIPPED);
+      expect(failed).toBe(0);
     });
 
     it("fails a non-retryable error after one attempt", async () => {
       let calls = 0;
+      let failed = 0;
 
       const job = await run(
         () => {
@@ -123,7 +137,14 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
           return Promise.reject(new NotConfiguredError("AI is not configured"));
         },
-        (error) => !(error instanceof NotConfiguredError),
+        {
+          isRetryable: (error) => !(error instanceof NotConfiguredError),
+          onFailure: () => {
+            failed += 1;
+
+            return Promise.resolve();
+          },
+        },
       );
 
       await queue.promoteJobs();
@@ -136,6 +157,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       });
       expect(await bullJob?.getState()).toBe("failed");
       expect(calls).toBe(1);
+      expect(failed).toBe(1);
     });
 
     it("keeps retrying errors the classifier accepts", async () => {
@@ -147,7 +169,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
           return calls < 3 ? Promise.reject(new Error("flaky")) : Promise.resolve();
         },
-        (error) => !(error instanceof NotConfiguredError),
+        { isRetryable: (error) => !(error instanceof NotConfiguredError) },
       );
 
       expect(job).toMatchObject({ attempts: 3, lastError: null, status: JobStatus.DONE });

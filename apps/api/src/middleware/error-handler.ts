@@ -1,11 +1,12 @@
-import { AiUnavailableError } from "@repo/ai";
 import type { Prisma } from "@repo/db";
-import { DomainError } from "@repo/sites";
+import { DomainError } from "@repo/errors";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 
 import { env } from "@/lib/env";
+
+import { getClientIp } from "./client-ip";
 
 type ErrorPayload = {
   code: string;
@@ -21,12 +22,8 @@ const isPrismaKnownError = (
 
 const createErrorHandler =
   (nodeEnv: "development" | "production" | "test") => (err: Error, c: Context) => {
-    const forwardedFor = c.req.header("x-forwarded-for");
     c.get("log").error(err, {
-      ip:
-        forwardedFor !== undefined && forwardedFor !== ""
-          ? forwardedFor
-          : c.req.header("x-real-ip"),
+      ip: getClientIp(c),
       method: c.req.method,
       url: c.req.url,
       userAgent: c.req.header("user-agent"),
@@ -63,10 +60,6 @@ const createErrorHandler =
         },
         err.httpStatus,
       );
-    }
-
-    if (err instanceof AiUnavailableError) {
-      return c.json({ error: { code: "AI_UNAVAILABLE", message: err.message } }, 503 as const);
     }
 
     if (err instanceof ZodError) {

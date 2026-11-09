@@ -9,14 +9,15 @@
     "./fake": "./src/fake.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@easeia/astro-content": "workspace:*",
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/jobs": "workspace:*",
     "zod": "^4.6.5"
   },

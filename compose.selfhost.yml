@@ -2,7 +2,6 @@ name: easeia-selfhost
 
 x-app-env: &app-env
   DATABASE_URL: postgresql://easeia:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.selfhost}@postgres:5432/easeia
-  REDIS_URL: redis://redis:6379
   NODE_ENV: production
   WEB_APP_URL: ${PUBLIC_WEB_URL:-http://localhost:3000}
   CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
@@ -15,8 +14,6 @@ x-app: &app
   depends_on:
     schema:
       condition: service_completed_successfully
-    redis:
-      condition: service_healthy
 
 services:
   postgres:
@@ -83,9 +80,12 @@ services:
     environment:
       <<: *app-env
       PGAPPNAME: easeia:${DEPLOY_ENVIRONMENT:-production}:worker
-    # The worker owns five in-process timers. Multiple replicas double-fire them.
-    deploy:
-      replicas: 1
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      schema:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   web:
     <<: *app

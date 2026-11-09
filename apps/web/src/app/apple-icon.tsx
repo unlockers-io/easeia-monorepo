@@ -1,20 +1,10 @@
-import { BRAND_INK, BRAND_PAPER, MARK_PATH, MARK_STROKE_WIDTH } from "@repo/ui/lib/brand";
+import { BRAND_ICON_SIZE, brandIcon } from "@repo/social-image/brand";
 import { ImageResponse } from "next/og";
 
-const size = { height: 180, width: 180 };
+const size = BRAND_ICON_SIZE;
 const contentType = "image/png";
 
-const AppleIcon = () => {
-  return new ImageResponse(
-    <svg height={180} viewBox="0 0 180 180" width={180}>
-      <rect fill={BRAND_INK} height={180} width={180} />
-      <g transform="translate(32 33.66) scale(1.105)">
-        <path d={MARK_PATH} fill={BRAND_INK} stroke={BRAND_PAPER} strokeWidth={MARK_STROKE_WIDTH} />
-      </g>
-    </svg>,
-    size,
-  );
-};
+const AppleIcon = () => new ImageResponse(brandIcon(), size);
 
 export { contentType, size };
 

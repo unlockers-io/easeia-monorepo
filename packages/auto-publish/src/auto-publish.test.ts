@@ -1,6 +1,7 @@
 import { AiNotConfiguredError } from "@repo/ai";
 import { JobKind, Niche, type Prisma, PostStatus, prisma } from "@repo/db";
-import { closeJobs, countJobs, enqueue } from "@repo/jobs";
+import { countJobs, enqueue } from "@repo/jobs";
+import { closeJobs } from "@repo/jobs/worker";
 import * as Posts from "@repo/posts";
 import { PostStateError } from "@repo/posts";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -200,9 +201,27 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         expect(await stampOf(siteId)).not.toBeNull();
         expect(await AutoPublish.publishNext(siteId)).toBeNull();
       });
+
+      it("never claims a scheduled draft as a bucket draft", async () => {
+        const siteId = await createSite();
+        const scheduled = await createDraft(siteId, new Date(Date.now() + DAY_MS));
+
+        await expect(AutoPublish.publishDraft(scheduled)).rejects.toBeInstanceOf(PostStateError);
+        await expect(Posts.removeBucketDraft(scheduled)).rejects.toBeInstanceOf(PostStateError);
+        expect(await statusOf(scheduled)).toBe(PostStatus.DRAFT);
+        expect(await stampOf(siteId)).toBeNull();
+      });
     });
 
     describe("refill", () => {
+      it("queues one bucket's worth when refills race", async () => {
+        const siteId = await createSite({ bucketRefillAt: 2, bucketTarget: 4 });
+
+        await Promise.all([AutoPublish.refill(siteId), AutoPublish.refill(siteId)]);
+
+        expect(await generating(siteId)).toBe(4);
+      });
+
       it("counts in-flight GENERATE_POST Jobs as supply", async () => {
         const siteId = await createSite({ bucketRefillAt: 3, bucketTarget: 5 });
         await createDraft(siteId);
@@ -269,27 +288,30 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     });
 
     describe("config", () => {
-      it("clamps the cadence and enables auto-publish only with a cadence", async () => {
+      it("stores a schedule, and a cadence alone turns auto-publish on or off", async () => {
         const siteId = await createSite({ bucketRefillAt: 2, bucketTarget: 4 });
-
-        await AutoPublish.configure(siteId, { autoPublishEnabled: true, cadenceDays: 900 });
-        expect(await siteRow(siteId)).toMatchObject({
-          autoPublishEnabled: true,
-          bucketRefillAt: 2,
-          bucketTarget: 4,
-          cadenceDays: 365,
-        });
 
         await AutoPublish.configure(siteId, {
           autoPublishEnabled: false,
-          bucket: { refillAt: 0.5, target: 250 },
-          cadenceDays: 0,
+          bucketRefillAt: 3,
+          bucketTarget: 6,
+          cadenceDays: 5,
         });
         expect(await siteRow(siteId)).toMatchObject({
           autoPublishEnabled: false,
-          bucketRefillAt: 1,
-          bucketTarget: 100,
-          cadenceDays: 1,
+          bucketRefillAt: 3,
+          bucketTarget: 6,
+          cadenceDays: 5,
+        });
+
+        await AutoPublish.setCadence(siteId, 2);
+        expect(await siteRow(siteId)).toMatchObject({ autoPublishEnabled: true, cadenceDays: 2 });
+
+        await AutoPublish.setCadence(siteId, null);
+        expect(await siteRow(siteId)).toMatchObject({
+          autoPublishEnabled: false,
+          bucketRefillAt: 3,
+          cadenceDays: null,
         });
       });
 
@@ -297,9 +319,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite({ cadenceDays: 7 });
 
         const rejections = [
-          { autoPublishEnabled: true, cadenceDays: null },
-          { autoPublishEnabled: false, bucket: { refillAt: 3, target: null }, cadenceDays: 7 },
-          { autoPublishEnabled: false, bucket: { refillAt: 6, target: 5 }, cadenceDays: 7 },
+          { autoPublishEnabled: true, bucketRefillAt: null, bucketTarget: null, cadenceDays: null },
+          { autoPublishEnabled: false, bucketRefillAt: 3, bucketTarget: null, cadenceDays: 7 },
+          { autoPublishEnabled: false, bucketRefillAt: 6, bucketTarget: 5, cadenceDays: 7 },
+          { autoPublishEnabled: true, bucketRefillAt: null, bucketTarget: null, cadenceDays: 900 },
+          { autoPublishEnabled: false, bucketRefillAt: 0.5, bucketTarget: 250, cadenceDays: 7 },
         ];
 
         for (const input of rejections) {
@@ -310,16 +334,18 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
         await expect(
           AutoPublish.applyNetworkDefaults({
-            bucket: { refillAt: null, target: null },
+            bucketRefillAt: null,
+            bucketTarget: null,
             cadenceDays: null,
-            scope: "unconfigured",
+            overwrite: false,
           }),
         ).rejects.toThrow(/at least one section/v);
         await expect(
           AutoPublish.applyNetworkDefaults({
-            bucket: { refillAt: 9, target: 4 },
+            bucketRefillAt: 9,
+            bucketTarget: 4,
             cadenceDays: 3,
-            scope: "overwrite",
+            overwrite: true,
           }),
         ).rejects.toThrow(/must be ≤ bucket target/v);
         expect(await siteRow(siteId)).toMatchObject({

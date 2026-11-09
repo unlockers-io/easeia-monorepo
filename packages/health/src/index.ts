@@ -1,17 +1,6 @@
-/**
- * @repo/health: pure scoring + recommendation logic for the PBN
- * dashboard. No I/O, no Prisma writes; callers (worker, web) supply
- * the data.
- */
+export { computeHealthScore } from "./score";
 
-export { computeHealthScore, type ScoreInputs } from "./score";
-
-export {
-  buildRecommendations,
-  type Recommendation,
-  type RecommendationContext,
-  type RecommendationPriority,
-} from "./recommendations";
+export { buildRecommendations, type Recommendation } from "./recommendations";
 
 export {
   SEO_DESCRIPTION_MAX,
@@ -20,10 +9,6 @@ export {
   SEO_TITLE_MIN,
   classifyDescriptionLength,
   classifyTitleLength,
-  onPageIssuesForPost,
   summarizeOnPage,
   type OnPageCounts,
-  type OnPageIssueKind,
-  type OnPagePostInput,
-  type SeoLengthIssue,
 } from "./on-page";

@@ -10,7 +10,6 @@
     "./setup-react": "./setup-react.ts"
   },
   "scripts": {
-    "lint": "oxlint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -19,12 +18,12 @@
     "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "^5.0.1",
     "jsdom": "^30.0.1",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "zod-compiler": "^1.27.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^26.2.0",
-    "typescript": "^7.0.2",
-    "zod-compiler": "^1.27.0"
+    "typescript": "^7.0.2"
   }
 }

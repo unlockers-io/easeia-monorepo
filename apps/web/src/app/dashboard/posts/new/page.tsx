@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import * as Sites from "@repo/sites";
 import {
   Card,
   CardContent,
@@ -8,18 +8,14 @@ import {
 } from "@repo/ui/components/card";
 import { connection } from "next/server";
 
-import { SiteCreateDialog } from "../../sites/site-create-dialog";
+import { SiteCreateDialog } from "@/components/site-create-dialog";
 
 import { NewPostForm } from "./new-post-form";
 
 const NewPostPage = async () => {
   await connection();
 
-  const sites = await prisma.site.findMany({
-    orderBy: { domain: "asc" },
-    select: { domain: true, id: true },
-    where: { isEnabled: true },
-  });
+  const sites = await Sites.listEnabled();
 
   if (sites.length === 0) {
     return (

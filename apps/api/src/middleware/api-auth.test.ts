@@ -1,16 +1,6 @@
 import type { Actor } from "@repo/policy";
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
-
-vi.hoisted(() => {
-  Object.assign(process.env, {
-    BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters",
-    DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
-    FROM_EMAIL: "test@easeia.com",
-    REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
-  });
-});
+import { describe, expect, it } from "vitest";
 
 import { mountForTest } from "../routes/test-harness";
 
@@ -25,7 +15,7 @@ const appFor = (actor: Actor) => {
 
     return next();
   });
-  router.use("/sites/:siteId/*", requireAction("content:read"));
+  router.use("/sites/:siteId/*", requireAction("content:read", "siteId"));
   router.get("/sites/:siteId/posts", (c) => c.json({ ok: true }));
 
   return mountForTest(router);

@@ -8,7 +8,6 @@
     "build": "tsdown",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
     "dev": "portless run --name easeia.api tsdown --watch --on-success \"node dist/index.mjs\"",
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.mjs",
     "test": "vitest run",
@@ -17,13 +16,14 @@
     "dev:plain": "tsdown --watch --on-success \"node dist/index.mjs\""
   },
   "dependencies": {
+    "@easeia/astro-content": "workspace:*",
     "@hono/node-server": "^2.1.0",
     "@hono/zod-openapi": "^1.6.3",
-    "@repo/ai": "workspace:*",
     "@repo/api-types": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/backfill": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/links": "workspace:*",
     "@repo/money-sites": "workspace:*",
@@ -32,7 +32,6 @@
     "@repo/portless-env": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",
-    "@repo/transactional": "workspace:*",
     "@scalar/hono-api-reference": "^0.11.13",
     "@scalar/openapi-to-markdown": "^0.5.38",
     "dotenv": "^17.4.2",
@@ -41,6 +40,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@repo/ai": "workspace:*",
     "@repo/config-vitest": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@rollup/plugin-alias": "^6.0.0",

@@ -5,7 +5,6 @@ export type ExtractedLink = {
   anchorText: string;
   href: string;
   position: number;
-  rel: string | null;
 };
 
 // We are matching the dangerous prefix, not constructing one.
@@ -34,7 +33,6 @@ export const extractLinks = (body: string): Array<ExtractedLink> => {
       anchorText: a.textContent.trim(),
       href,
       position: position++,
-      rel: a.getAttribute("rel"),
     });
   }
 

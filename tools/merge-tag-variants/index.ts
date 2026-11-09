@@ -7,8 +7,7 @@ import "dotenv/config";
 
 import { prisma } from "@repo/db";
 import { update } from "@repo/posts";
-
-import { slugify } from "../_shared/slugify";
+import { slugify } from "@repo/sites";
 
 const APPLY = process.argv.includes("--apply");
 

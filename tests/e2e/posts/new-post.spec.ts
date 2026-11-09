@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { prisma } from "@repo/db";
+import * as Sites from "@repo/sites";
 
 import { recordCleanup } from "../helpers/cleanup-record";
 
@@ -7,7 +7,7 @@ test("a new post shows its errors on submit, focuses the first one, and saves on
   page,
 }) => {
   const domain = recordCleanup("site", `e2e-post-${crypto.randomUUID()}.example`);
-  await prisma.site.create({ data: { domain } });
+  await Sites.create({ domain });
 
   const slugError = page.getByText(
     "Use lowercase letters and numbers, separated by single hyphens.",

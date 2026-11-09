@@ -17,8 +17,6 @@ const jobPayloadSchemas = {
   AUTO_PUBLISH: tick,
   BACKFILL_GSC_LINKS: backfillGscLinksPayload,
   BACKFILL_HEROES: tick,
-  BACKFILL_NETWORK: tick,
-  BACKFILL_REWRITE: tick,
   CLASSIFY: postTarget,
   CRAWL_GSC_LINKS: postTarget,
   CRAWL_LINKS: postTarget,
@@ -37,17 +35,11 @@ const jobPayloadSchemas = {
   TRIGGER_DEPLOY: siteTarget,
 } satisfies Record<JobKind, z.ZodType<Prisma.InputJsonObject>>;
 
-type JobPayloads = { [K in JobKind]: z.infer<(typeof jobPayloadSchemas)[K]> };
+export type JobPayloads = { [K in JobKind]: z.infer<(typeof jobPayloadSchemas)[K]> };
 
-type BackfillGscLinksPayload = JobPayloads["BACKFILL_GSC_LINKS"];
+const payloadSchemas: { [K in JobKind]: z.ZodType<JobPayloads[K]> } = jobPayloadSchemas;
 
-type JobPayloadSchemas = { [K in JobKind]: z.ZodType<JobPayloads[K]> };
-
-const payloadSchemas: JobPayloadSchemas = jobPayloadSchemas;
-
-const getJobPayload = <K extends JobKind>(kind: K, payload: Prisma.JsonValue): JobPayloads[K] =>
-  payloadSchemas[kind].parse(payload);
-
-export { getJobPayload };
-
-export type { BackfillGscLinksPayload, JobPayloads };
+export const parsePayload = <K extends JobKind>(
+  kind: K,
+  payload: Prisma.InputJsonValue | Prisma.JsonValue,
+): JobPayloads[K] => payloadSchemas[kind].parse(payload);

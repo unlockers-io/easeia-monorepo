@@ -19,14 +19,6 @@ import Link from "next/link";
 import { getEnv } from "@/lib/env";
 import { readIntegrations } from "@/lib/integrations";
 
-const FEATURES = {
-  dataforseo: { feature: "Live keyword rankings, backlinks, and SEO audits", name: "DataForSEO" },
-  google: { feature: "Clicks, impressions, and indexing status", name: "Google Search Console" },
-  mail: { feature: "Email verification and password recovery", name: "Email" },
-  openai: { feature: "AI drafts, rewrites, image prompts, and similar posts", name: "OpenAI" },
-  r2: { feature: "Image uploads and public image delivery", name: "Cloudflare R2" },
-};
-
 export const IntegrationsCard = async () => {
   const integrations = readIntegrations();
   const sites = await Sites.list();
@@ -53,20 +45,19 @@ export const IntegrationsCard = async () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(["openai", "dataforseo", "google", "mail", "r2"] as const).map((key) => {
-              const status = integrations[key];
-              const feature = FEATURES[key];
-
-              return (
-                <TableRow key={key}>
-                  <TableCell>{feature.name}</TableCell>
-                  <TableCell className="whitespace-normal">{feature.feature}</TableCell>
+            {Object.values(integrations)
+              .toSorted((a, b) => a.name.localeCompare(b.name))
+              .map((integration) => (
+                <TableRow key={integration.name}>
+                  <TableCell>{integration.name}</TableCell>
+                  <TableCell className="whitespace-normal">{integration.feature}</TableCell>
                   <TableCell className="whitespace-normal">
-                    {status.configured ? "Configured" : `Missing: ${status.missing.join(", ")}`}
+                    {integration.configured
+                      ? "Configured"
+                      : `Missing: ${integration.missing.join(", ")}`}
                   </TableCell>
                 </TableRow>
-              );
-            })}
+              ))}
           </TableBody>
         </Table>
         <p className="text-sm">

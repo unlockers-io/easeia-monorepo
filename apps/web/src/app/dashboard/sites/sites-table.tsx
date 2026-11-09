@@ -1,9 +1,8 @@
 "use client";
 
-import { Niche } from "@repo/db/browser";
+import type { Niche } from "@repo/db/browser";
 import { Badge } from "@repo/ui/components/badge";
-import { Button, buttonVariants } from "@repo/ui/components/button";
-import { Input } from "@repo/ui/components/input";
+import { buttonVariants } from "@repo/ui/components/button";
 import {
   Select,
   SelectContent,
@@ -11,28 +10,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/select";
-import {
-  type ColumnDef,
-  DataTable,
-  DataTableColumnHeader,
-  DataTableFacetedFilter,
-  DataTableViewOptions,
-} from "@repo/ui/compositions/data-table";
+import { type ColumnDef, DataTable, DataTableColumnHeader } from "@repo/ui/compositions/data-table";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowUpRight, ExternalLink, SearchIcon, XIcon } from "lucide-react";
+import { ArrowUpRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+
+import { FilterToolbar, useUrlFilters } from "@/components/filter-toolbar";
 
 import { CadenceSelect } from "./cadence-select";
 import { SiteEditDialog } from "./site-edit-dialog";
 
-const NICHE_OPTIONS = Object.values(Niche).map((value) => ({ label: value, value }));
 const ALL_STATUSES = "__all__";
-const ENABLED = "enabled";
-const DISABLED = "disabled";
-const SEARCH_DEBOUNCE_MS = 250;
+const ENABLED = "true";
+const DISABLED = "false";
 const MAX_NICHE_BADGES = 3;
 
 export type SiteRow = {
@@ -54,113 +45,20 @@ type SitesTableFilters = {
 
 type SitesTableProps = {
   initialFilters: SitesTableFilters;
-  nowMs: number;
   rows: Array<SiteRow>;
 };
 
-const statusToValue = (enabled: SitesTableFilters["enabled"]): string => {
-  if (enabled === "true") {
-    return ENABLED;
-  }
+const isFiltered = (searchInput: string, filters: SitesTableFilters): boolean =>
+  searchInput.length > 0 || filters.niches.length > 0 || filters.enabled !== "";
 
-  if (enabled === "false") {
-    return DISABLED;
-  }
-
-  return ALL_STATUSES;
-};
-
-const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps) => {
-  const nowMsRef = useRef(nowMsProp);
-  useEffect(() => {
-    nowMsRef.current = nowMsProp;
-  }, [nowMsProp]);
-
-  const { replace } = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [searchInput, setSearchInput] = useState(initialFilters.q);
+const SitesTable = ({ initialFilters, rows }: SitesTableProps) => {
   const ready = useClientReady();
-  const lastPushedQ = useRef(initialFilters.q);
-
-  useEffect(() => {
-    if (initialFilters.q !== lastPushedQ.current) {
-      setSearchInput(initialFilters.q);
-      lastPushedQ.current = initialFilters.q;
-    }
-  }, [initialFilters.q]);
-
-  const updateParams = (mutate: (params: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParams.toString());
-    mutate(next);
-    const qs = next.toString();
-    replace(qs ? `${pathname}?${qs}` : pathname);
-  };
-
-  const pushSearch = useEffectEvent((trimmed: string) => {
-    lastPushedQ.current = trimmed;
-    updateParams((params) => {
-      if (trimmed) {
-        params.set("q", trimmed);
-      } else {
-        params.delete("q");
-      }
-    });
-  });
-
-  useEffect(() => {
-    const trimmed = searchInput.trim();
-
-    if (trimmed === lastPushedQ.current) {
-      return undefined;
-    }
-
-    const handle = setTimeout(() => {
-      pushSearch(trimmed);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(handle);
-    };
-  }, [searchInput]);
-
-  const selectedNiches = initialFilters.niches;
-  const statusValue = statusToValue(initialFilters.enabled);
-
-  const handleNichesChange = (next: Array<string>) => {
-    updateParams((params) => {
-      params.delete("niche");
-
-      for (const n of next) {
-        params.append("niche", n);
-      }
-    });
-  };
+  const filters = useUrlFilters({ keys: ["enabled"], q: initialFilters.q });
+  const statusValue = initialFilters.enabled || ALL_STATUSES;
 
   const handleStatusChange = (value: string | null) => {
-    updateParams((params) => {
-      if (value === ENABLED) {
-        params.set("enabled", "true");
-      } else if (value === DISABLED) {
-        params.set("enabled", "false");
-      } else {
-        params.delete("enabled");
-      }
-    });
+    filters.setParam("enabled", value === ALL_STATUSES ? null : value);
   };
-
-  const nicheCounts = (() => {
-    const map = new Map<string, number>();
-
-    for (const row of rows) {
-      for (const n of row.niches) {
-        map.set(n, (map.get(n) ?? 0) + 1);
-      }
-    }
-
-    return map;
-  })();
 
   const columns: Array<ColumnDef<SiteRow>> = [
     {
@@ -241,7 +139,6 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <SiteEditDialog
-            allNiches={Object.values(Niche)}
             site={{
               categorySlugMap: row.original.categorySlugMap,
               defaultCategory: row.original.defaultCategory,
@@ -267,18 +164,7 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
     },
   ];
 
-  const hasFilters =
-    searchInput.length > 0 || selectedNiches.length > 0 || statusValue !== ALL_STATUSES;
-
-  const handleReset = () => {
-    setSearchInput("");
-    lastPushedQ.current = "";
-    updateParams((params) => {
-      params.delete("q");
-      params.delete("niche");
-      params.delete("enabled");
-    });
-  };
+  const hasFilters = isFiltered(filters.searchInput, initialFilters);
 
   return (
     <DataTable
@@ -287,25 +173,14 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
       data={rows}
       emptyState={hasFilters ? "No sites match those filters." : "No sites under management yet."}
       toolbar={(table) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className={cn("flex items-center gap-2", "h-8 w-full sm:max-w-xs")}>
-            <SearchIcon />
-            <Input
-              disabled={!ready}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-              }}
-              placeholder="Search by domain…"
-              value={searchInput}
-            />
-          </div>
-          <DataTableFacetedFilter
-            counts={nicheCounts}
-            onChange={handleNichesChange}
-            options={NICHE_OPTIONS}
-            title="Niche"
-            value={selectedNiches}
-          />
+        <FilterToolbar
+          filters={filters}
+          hasFilters={hasFilters}
+          niches={initialFilters.niches}
+          placeholder="Search by domain…"
+          rows={rows}
+          table={table}
+        >
           <Select disabled={!ready} onValueChange={handleStatusChange} value={statusValue}>
             <SelectTrigger size="default">
               <SelectValue>
@@ -328,14 +203,7 @@ const SitesTable = ({ initialFilters, nowMs: nowMsProp, rows }: SitesTableProps)
               <SelectItem value={DISABLED}>Disabled</SelectItem>
             </SelectContent>
           </Select>
-          {hasFilters && (
-            <Button disabled={!ready} onClick={handleReset} size="default" variant="ghost">
-              Reset
-              <XIcon className="ml-1 size-4" />
-            </Button>
-          )}
-          <DataTableViewOptions table={table} />
-        </div>
+        </FilterToolbar>
       )}
     />
   );

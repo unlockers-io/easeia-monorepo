@@ -1,6 +1,5 @@
+import { log } from "@repo/observability";
 import { forSite } from "@repo/search-console";
-
-import { log } from "./logger";
 
 // Best-effort: topic selection must survive a missing Google connection,
 // an unverified property, or a Google API outage, so every failure path

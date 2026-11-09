@@ -1,7 +1,6 @@
 import { classifyPost } from "@repo/classify";
 import type { ConsumerContext } from "@repo/jobs";
-
-import { createJobLogger } from "../lib/logger";
+import { createJobLogger } from "@repo/observability/worker";
 
 export const handleClassify = async (ctx: ConsumerContext<"CLASSIFY">): Promise<void> => {
   const { jobId, payload } = ctx;

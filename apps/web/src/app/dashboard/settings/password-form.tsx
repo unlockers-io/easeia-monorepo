@@ -1,5 +1,6 @@
 "use client";
 
+import { PASSWORD_MIN_LENGTH } from "@repo/auth/limits";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -8,74 +9,24 @@ import {
   CardDescription,
   CardContent,
 } from "@repo/ui/components/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@repo/ui/components/field";
-import { Input } from "@repo/ui/components/input";
+import { FieldGroup } from "@repo/ui/components/field";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
 import { FormAlert } from "@repo/ui/compositions/form-alert";
-import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
-import { createFormHook, createFormHookContexts, revalidateLogic } from "@tanstack/react-form";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { authClient, authFailureMessage } from "@/lib/auth-client";
+import { AuthPasswordField } from "@/components/auth-password-field";
+import { authClient, runAuth } from "@/lib/auth-client";
 import { changePasswordSchema } from "@/lib/form-schemas";
-
-type PasswordFieldProps = {
-  autoComplete: "current-password" | "new-password";
-  description?: string;
-  label: string;
-};
-
-const { fieldContext, formContext, useFieldContext } = createFormHookContexts();
-
-const PasswordField = ({ autoComplete, description, label }: PasswordFieldProps) => {
-  const field = useFieldContext<string>();
-  const isInvalid = !field.state.meta.isValid;
-  const inputId = `account-${field.name}`;
-  const errorId = `${inputId}-error`;
-  const descriptionId = `${inputId}-description`;
-
-  const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
-    .filter((describer) => describer !== null)
-    .join(" ");
-
-  return (
-    <Field data-invalid={isInvalid || undefined}>
-      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
-      <Input
-        aria-describedby={describedBy === "" ? undefined : describedBy}
-        aria-invalid={isInvalid}
-        autoComplete={autoComplete}
-        id={inputId}
-        onBlur={field.handleBlur}
-        onChange={(event) => {
-          field.handleChange(event.target.value);
-        }}
-        type="password"
-        value={field.state.value}
-      />
-      {description !== undefined && (
-        <FieldDescription id={descriptionId}>{description}</FieldDescription>
-      )}
-      {isInvalid && <FormFieldError errors={field.state.meta.errors} id={errorId} />}
-    </Field>
-  );
-};
-
-const { useAppForm } = createFormHook({
-  fieldComponents: { PasswordField },
-  fieldContext,
-  formComponents: {},
-  formContext,
-});
 
 export const PasswordForm = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
 
-  const form = useAppForm({
+  const form = useForm({
     defaultValues: { confirmPassword: "", currentPassword: "", newPassword: "" },
     listeners: {
       onChange: () => {
@@ -87,22 +38,17 @@ export const PasswordForm = () => {
       setError(null);
       setMessage(null);
 
-      const result = await authClient
-        .changePassword({
+      const result = await runAuth(
+        authClient.changePassword({
           currentPassword: value.currentPassword,
           newPassword: value.newPassword,
           revokeOtherSessions: true,
-        })
-        .catch(authFailureMessage);
+        }),
+        "Could not change password.",
+      );
 
-      if (typeof result === "string") {
-        setError(result);
-
-        return;
-      }
-
-      if (result.error) {
-        setError(result.error.message ?? "Could not change password.");
+      if (!result.ok) {
+        setError(result.error);
 
         return;
       }
@@ -137,25 +83,34 @@ export const PasswordForm = () => {
         >
           <FieldGroup>
             <FormAlert message={error} />
-            <form.AppField name="currentPassword">
+            <form.Field name="currentPassword">
               {(field) => (
-                <field.PasswordField autoComplete="current-password" label="Current password" />
+                <AuthPasswordField
+                  autoComplete="current-password"
+                  field={field}
+                  label="Current password"
+                />
               )}
-            </form.AppField>
-            <form.AppField name="newPassword">
+            </form.Field>
+            <form.Field name="newPassword">
               {(field) => (
-                <field.PasswordField
+                <AuthPasswordField
                   autoComplete="new-password"
-                  description="At least 12 characters."
+                  description={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+                  field={field}
                   label="New password"
                 />
               )}
-            </form.AppField>
-            <form.AppField name="confirmPassword">
+            </form.Field>
+            <form.Field name="confirmPassword">
               {(field) => (
-                <field.PasswordField autoComplete="new-password" label="Confirm new password" />
+                <AuthPasswordField
+                  autoComplete="new-password"
+                  field={field}
+                  label="Confirm new password"
+                />
               )}
-            </form.AppField>
+            </form.Field>
             {message !== null && (
               <p aria-live="polite" className="text-sm">
                 {message}

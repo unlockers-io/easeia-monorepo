@@ -1,5 +1,6 @@
 "use client";
 
+import { NAME_MAX_LENGTH, NAME_MIN_LENGTH } from "@repo/auth/limits";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -18,7 +19,7 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { authClient, authFailureMessage } from "@/lib/auth-client";
+import { authClient, runAuth } from "@/lib/auth-client";
 import { profileSchema } from "@/lib/form-schemas";
 
 export const ProfileForm = ({ email, name }: { email: string; name: string }) => {
@@ -37,16 +38,10 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
     onSubmit: async ({ value }) => {
       setError(null);
       setMessage(null);
-      const result = await authClient.updateUser(value).catch(authFailureMessage);
+      const result = await runAuth(authClient.updateUser(value), "Could not update profile.");
 
-      if (typeof result === "string") {
-        setError(result);
-
-        return;
-      }
-
-      if (result.error) {
-        setError(result.error.message ?? "Could not update profile.");
+      if (!result.ok) {
+        setError(result.error);
 
         return;
       }
@@ -104,7 +99,7 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
                       value={field.state.value}
                     />
                     <FieldDescription id="account-name-description">
-                      3 to 32 characters.
+                      {NAME_MIN_LENGTH} to {NAME_MAX_LENGTH} characters.
                     </FieldDescription>
                     {isInvalid && (
                       <FormFieldError errors={field.state.meta.errors} id="account-name-error" />

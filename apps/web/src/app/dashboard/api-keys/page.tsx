@@ -1,8 +1,6 @@
-import { API_KEY_SCOPES, SITE_SCOPED_API_KEY_SCOPES } from "@repo/api-types";
-import { prisma } from "@repo/db";
 import { listApiKeys } from "@repo/policy";
+import * as Sites from "@repo/sites";
 import { Badge } from "@repo/ui/components/badge";
-import { Button } from "@repo/ui/components/button";
 import {
   Card,
   CardContent,
@@ -20,20 +18,15 @@ import {
 } from "@repo/ui/components/table";
 import { connection } from "next/server";
 
+import { ActionButton } from "@/components/action-button";
+
 import { revokeApiKeyAction } from "./actions";
 import { CreateKeyDialog } from "./create-key-dialog";
 
 const ApiKeysPage = async () => {
   await connection();
 
-  const [keys, sites] = await Promise.all([
-    listApiKeys(),
-    prisma.site.findMany({
-      orderBy: { domain: "asc" },
-      select: { domain: true, id: true },
-      where: { isEnabled: true },
-    }),
-  ]);
+  const [keys, sites] = await Promise.all([listApiKeys(), Sites.listEnabled()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,11 +38,7 @@ const ApiKeysPage = async () => {
             revoking and re-issuing.
           </p>
         </div>
-        <CreateKeyDialog
-          scopes={API_KEY_SCOPES}
-          sites={sites}
-          siteScopedScopes={SITE_SCOPED_API_KEY_SCOPES}
-        />
+        <CreateKeyDialog sites={sites} />
       </header>
 
       <Card>
@@ -100,12 +89,13 @@ const ApiKeysPage = async () => {
                     </TableCell>
                     <TableCell className="text-right">
                       {!key.revokedAt && (
-                        <form action={revokeApiKeyAction}>
-                          <input name="id" type="hidden" value={key.id} />
-                          <Button size="sm" type="submit" variant="outline">
-                            Revoke
-                          </Button>
-                        </form>
+                        <ActionButton
+                          action={revokeApiKeyAction.bind(null, key.id)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Revoke
+                        </ActionButton>
                       )}
                     </TableCell>
                   </TableRow>

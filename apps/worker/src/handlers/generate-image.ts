@@ -1,11 +1,10 @@
 import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
 import type { ConsumerContext } from "@repo/jobs";
-
-import { createJobLogger } from "../lib/logger";
+import { createJobLogger } from "@repo/observability/worker";
+import * as Posts from "@repo/posts";
 
 type PostForHero = {
-  categories: ReadonlyArray<string>;
   id: string;
   site: { imageStyle: string | null };
   siteId: string;
@@ -17,13 +16,12 @@ type PostForHero = {
 type Deps = {
   findPost?: (postId: string) => Promise<PostForHero | null>;
   generateHero?: typeof realGenerateHero;
-  hasHero?: (postId: string) => Promise<boolean>;
+  heroOf?: typeof Posts.heroOf;
 };
 
 const defaultFindPost = (postId: string): Promise<PostForHero | null> =>
   prisma.post.findUnique({
     select: {
-      categories: true,
       id: true,
       site: { select: { imageStyle: true } },
       siteId: true,
@@ -34,17 +32,13 @@ const defaultFindPost = (postId: string): Promise<PostForHero | null> =>
     where: { id: postId },
   });
 
-const defaultHasHero = async (postId: string): Promise<boolean> =>
-  (await prisma.postImage.findFirst({ select: { id: true }, where: { isHero: true, postId } })) !==
-  null;
-
 export const makeHandleGenerateImage =
   (deps: Deps = {}) =>
   async (ctx: ConsumerContext<"GENERATE_IMAGE">): Promise<void> => {
     const { jobId, payload } = ctx;
     const { postId } = payload;
     const findPost = deps.findPost ?? defaultFindPost;
-    const hasHero = deps.hasHero ?? defaultHasHero;
+    const heroOf = deps.heroOf ?? Posts.heroOf;
     const generateHero = deps.generateHero ?? realGenerateHero;
     const log = createJobLogger({ jobId, queue: "generate-image" });
     log.set({ postId });
@@ -60,7 +54,7 @@ export const makeHandleGenerateImage =
       return;
     }
 
-    if (await hasHero(postId)) {
+    if ((await heroOf(postId)) !== null) {
       log.info("generate-image: hero already exists; skipping");
       log.emit();
 
@@ -69,7 +63,6 @@ export const makeHandleGenerateImage =
 
     await generateHero({
       post: {
-        categories: post.categories,
         id: post.id,
         siteId: post.siteId,
         slug: post.slug,

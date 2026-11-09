@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const REQUIRED_ENV = {
   DATABASE_URL: "postgresql://test:test@localhost:5432/test",
   REDIS_URL: "redis://localhost:6379",
-  WP_ENCRYPTION_KEY: "test-key",
+  WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
 };
 
 describe("env", () => {
@@ -34,5 +34,11 @@ describe("env", () => {
     vi.stubEnv("BODY_IMAGES_ENABLED", value);
     const { env } = await import("./env");
     expect(env.BODY_IMAGES_ENABLED).toBe(value === "true");
+  });
+
+  it("rejects a WP_ENCRYPTION_KEY that does not decode to 32 bytes", async () => {
+    vi.resetModules();
+    vi.stubEnv("WP_ENCRYPTION_KEY", "test-key");
+    await expect(import("./env")).rejects.toThrow(/WP_ENCRYPTION_KEY/v);
   });
 });

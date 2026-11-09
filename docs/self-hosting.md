@@ -133,6 +133,47 @@ docker compose --env-file .env.selfhost -f compose.selfhost.yml up -d
 
 The schema service applies the schema with `db push`, so re-running it is safe. A failure prevents the first boot; inspect its logs and resolve the cause before starting the apps.
 
+### Backfill kinds and unused columns (November 2026)
+
+This release replaces the `BACKFILL_NETWORK` and `BACKFILL_REWRITE` Job kinds with a `BackfillKind` column on `BackfillRun`, and drops columns nothing reads (`Link.status`, `Link.rel`, `Link.lastCheckedAt`, `Post.featuredImagePrompt`, `SiteSnapshot.onPageScore`). `db push` will not drop enum values or retype a column on its own, so every existing installation upgrades once in this order. After the backup, build the images and stop the apps, because the old Prisma clients break on the new schema:
+
+```sh
+git pull --ff-only
+docker compose --env-file .env.selfhost -f compose.selfhost.yml build
+docker compose --env-file .env.selfhost -f compose.selfhost.yml stop api web worker
+```
+
+Run the SQL against the still-running Postgres:
+
+```sh
+docker compose --env-file .env.selfhost -f compose.selfhost.yml exec -T postgres \
+  psql -U easeia -d easeia -v ON_ERROR_STOP=1 <<'SQL'
+BEGIN;
+DELETE FROM "Job" WHERE kind IN ('BACKFILL_NETWORK', 'BACKFILL_REWRITE');
+CREATE TYPE "BackfillKind" AS ENUM ('NETWORK', 'REWRITE');
+ALTER TABLE "BackfillRun" ALTER COLUMN kind TYPE "BackfillKind"
+  USING (CASE kind WHEN 'BACKFILL_NETWORK' THEN 'NETWORK' ELSE 'REWRITE' END)::"BackfillKind";
+ALTER TYPE "JobKind" RENAME TO "JobKind_old";
+CREATE TYPE "JobKind" AS ENUM ('PUBLISH', 'CRAWL_LINKS', 'GENERATE_IMAGE', 'EMBED', 'SNAPSHOT_SITE', 'CLASSIFY', 'SUGGEST_LINKS', 'CRAWL_MONEY_SITE', 'CRAWL_MONEY_SITE_PAGE', 'REWRITE_POST', 'CRAWL_GSC_LINKS', 'BACKFILL_GSC_LINKS', 'GENERATE_POST', 'GENERATE_BODY_IMAGES', 'TRIGGER_DEPLOY', 'AUTO_PUBLISH', 'AUDIT_SLUG_DRIFT', 'BACKFILL_HEROES', 'REAP_STUCK_JOBS', 'REQUEST_SNAPSHOTS');
+ALTER TABLE "Job" ALTER COLUMN kind TYPE "JobKind" USING kind::text::"JobKind";
+DROP TYPE "JobKind_old";
+ALTER TABLE "Link" DROP COLUMN status, DROP COLUMN rel, DROP COLUMN "lastCheckedAt";
+DROP TYPE "LinkStatus";
+ALTER TABLE "Post" DROP COLUMN "featuredImagePrompt";
+ALTER TABLE "SiteSnapshot" DROP COLUMN "onPageScore";
+COMMIT;
+SQL
+```
+
+It deletes the Job rows of the two old kinds, converts both enum columns and drops the unused ones, so the schema service then finds nothing to change. Run the schema service and bring the apps back up:
+
+```sh
+docker compose --env-file .env.selfhost -f compose.selfhost.yml run --rm schema
+docker compose --env-file .env.selfhost -f compose.selfhost.yml up -d
+```
+
+A new installation skips this section.
+
 ## Backups
 
 ```sh

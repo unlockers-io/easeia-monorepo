@@ -1,5 +1,6 @@
 "use client";
 
+import { PASSWORD_MIN_LENGTH } from "@repo/auth/limits";
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup } from "@repo/ui/components/field";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
@@ -9,9 +10,10 @@ import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { AuthPasswordField } from "@/components/auth-password-field";
-import { authClient, authFailureMessage } from "@/lib/auth-client";
+import { authClient, runAuth } from "@/lib/auth-client";
 import { resetPasswordSchema } from "@/lib/form-schemas";
 
 const ResetPasswordForm = ({ token }: { token: string }) => {
@@ -26,26 +28,19 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
       },
     },
     onSubmit: async ({ value }) => {
-      const result = await authClient
-        .resetPassword({
-          newPassword: value.password,
-          token,
-        })
-        .catch(authFailureMessage);
+      const result = await runAuth(
+        authClient.resetPassword({ newPassword: value.password, token }),
+        "Failed to reset password",
+      );
 
-      if (typeof result === "string") {
-        setError(result);
+      if (!result.ok) {
+        setError(result.error);
 
         return;
       }
 
-      if (result.error) {
-        setError(result.error.message ?? "Failed to reset password");
-
-        return;
-      }
-
-      push("/login?message=password-reset-success");
+      toast.success("Password reset. Sign in with your new password.");
+      push("/login");
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -72,7 +67,8 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
           <form.Field name="password">
             {(field) => (
               <AuthPasswordField
-                description="At least 12 characters."
+                autoComplete="new-password"
+                description={`At least ${PASSWORD_MIN_LENGTH} characters.`}
                 disabled={isLoading}
                 field={field}
                 label="New password"
@@ -82,7 +78,12 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
 
           <form.Field name="confirmPassword">
             {(field) => (
-              <AuthPasswordField disabled={isLoading} field={field} label="Confirm password" />
+              <AuthPasswordField
+                autoComplete="new-password"
+                disabled={isLoading}
+                field={field}
+                label="Confirm password"
+              />
             )}
           </form.Field>
         </div>

@@ -12,8 +12,7 @@ const srcDir = path.resolve(process.cwd(), "src");
 export default defineConfig({
   clean: true,
   deps: {
-    alwaysBundle: [/^@repo\//v],
-    neverBundle: ["bullmq", "ioredis"],
+    alwaysBundle: [/^@repo\//v, /^@easeia\/astro-content$/v],
   },
   entry: ["src/index.ts"],
   format: ["esm"],
@@ -32,6 +31,6 @@ export default defineConfig({
     }),
   ],
   sourcemap: true,
-  target: "node22",
+  target: "node24",
   tsconfig: "tsconfig.json",
 });

@@ -143,8 +143,8 @@ describe("Auth Server Configuration", () => {
     expect(trusted).toContain("http://localhost:3000");
   });
 
-  it("should always define reset password handler (no-op when resendApiKey is absent)", () => {
-    expect(auth.options.emailAndPassword?.sendResetPassword).toBeDefined();
+  it("should leave password reset off without a mailer", () => {
+    expect(auth.options.emailAndPassword?.sendResetPassword).toBeUndefined();
   });
 
   it("should configure reset password email when resendApiKey is provided", () => {
@@ -167,8 +167,14 @@ describe("Auth Server Configuration", () => {
     expect(plugins.some((p) => p.id === "test-plugin")).toBe(true);
   });
 
-  it("should always define verification email handler (no-op when resendApiKey is absent)", () => {
-    expect(auth.options.emailVerification?.sendVerificationEmail).toBeDefined();
+  it("should leave verification and change-email mail off without a mailer", () => {
+    expect(auth.options.emailVerification?.sendVerificationEmail).toBeUndefined();
+    expect(auth.options.user?.changeEmail?.sendChangeEmailConfirmation).toBeUndefined();
+  });
+
+  it("should expire verification links after 24 hours and reset links after 1 hour", () => {
+    expect(auth.options.emailVerification?.expiresIn).toBe(60 * 60 * 24);
+    expect(auth.options.emailAndPassword?.resetPasswordTokenExpiresIn).toBe(60 * 60);
   });
 
   it("should configure verification email when resendApiKey is provided", () => {

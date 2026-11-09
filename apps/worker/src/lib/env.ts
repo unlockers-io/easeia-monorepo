@@ -1,3 +1,4 @@
+import { encryptionKeySchema } from "@repo/search-console";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -13,7 +14,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   REDIS_URL: z.string().min(1),
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
-  WP_ENCRYPTION_KEY: z.string().min(1),
+  WP_ENCRYPTION_KEY: encryptionKeySchema,
 });
 
 const emptyStringAsUndefined = (source: NodeJS.ProcessEnv) =>

@@ -1,6 +1,5 @@
 "use client";
 
-import type { FixAdvice, FixAdviceCategory, FixAdviceSeverity, FixStep } from "@repo/ai";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
 import {
@@ -13,18 +12,19 @@ import {
   DialogTitle,
 } from "@repo/ui/components/dialog";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
-import { AlertTriangle, Check, Copy, Loader2, Sparkles, Wand2, XCircle } from "lucide-react";
+import { AlertTriangle, Check, Copy, Loader2, Sparkles, XCircle } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { Skeleton } from "skullet/react";
+import { toast } from "sonner";
 
 import { BulkAdviceStatus } from "./bulk-advice-status";
 import type { BulkState } from "./bulk-advice-status";
 import { bulkGenerateFixAdviceAction, getFixAdviceAction } from "./fix-advice-actions";
+import type { FixAdvice, FixAdviceSeverity, FixStep } from "./fix-advice-generator";
 
 const VISIBLE_CHECK_LIMIT = 8;
 
 const SAMPLE_ADVICE: FixAdvice = {
-  autoApplyable: false,
   category: "hosting",
   problem:
     "The server is not setting a Content-Encoding header, so responses ship uncompressed and load slower than they should.",
@@ -65,10 +65,7 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
   const handleGenerateAll = () => {
     setBulk({ kind: "running", total: failing.length });
     startBulkTransition(async () => {
-      const result = await bulkGenerateFixAdviceAction({
-        checkNames: [...failing],
-        siteId,
-      });
+      const result = await bulkGenerateFixAdviceAction(siteId, failing);
 
       if (!result.ok) {
         setBulk({ kind: "error", message: result.error });
@@ -76,22 +73,13 @@ const FailingChecksList = ({ failing, siteId }: Props) => {
         return;
       }
 
-      const ready = new Set(
-        result.results.reduce<Array<string>>((acc, r) => {
-          if (r.ok) {
-            acc.push(r.checkName);
-          }
+      const ready = new Set(result.data.flatMap((r) => (r.result.ok ? [r.checkName] : [])));
 
-          return acc;
-        }, []),
-      );
-
-      const failed = result.results.length - ready.size;
       setBulk({
-        failedCount: failed,
+        failedCount: result.data.length - ready.size,
         kind: "done",
         readyChecks: ready,
-        total: result.results.length,
+        total: result.data.length,
       });
     });
   };
@@ -190,7 +178,7 @@ const FixAdviceDialog = ({ checkName, onClose, siteId }: DialogProps) => {
 
     let cancelled = false;
     startTransition(async () => {
-      const result = await getFixAdviceAction({ checkName, siteId });
+      const result = await getFixAdviceAction(siteId, checkName);
 
       if (cancelled) {
         return;
@@ -273,14 +261,6 @@ const AdviceView = ({ advice }: { advice: FixAdvice }) => (
     <div className="flex flex-wrap items-center gap-2">
       <SeverityBadge severity={advice.severity} />
       <CategoryBadge category={advice.category} />
-      {advice.autoApplyable ? (
-        <Badge variant="secondary">
-          <Wand2 aria-hidden="true" className="size-3" />
-          Auto-applyable
-        </Badge>
-      ) : (
-        <Badge variant="outline">Manual fix</Badge>
-      )}
     </div>
 
     <section className="flex flex-col gap-1">
@@ -306,9 +286,6 @@ const StepRow = ({ index, step }: { index: number; step: FixStep }) => (
         {index}
       </span>
       <p className="flex-1 text-sm">{step.description}</p>
-      <Badge variant={step.manual ? "outline" : "secondary"}>
-        {step.manual ? "Manual" : "WP REST"}
-      </Badge>
     </div>
     {step.snippet !== null && step.snippet !== "" ? <SnippetBlock snippet={step.snippet} /> : null}
   </li>
@@ -325,7 +302,7 @@ const SnippetBlock = ({ snippet }: { snippet: string }) => {
         setCopied(false);
       }, 1500);
     } catch {
-      setCopied(false);
+      toast.error("Copy failed. Select the snippet and copy it manually.");
     }
   };
 
@@ -368,15 +345,16 @@ const SeverityBadge = ({ severity }: { severity: FixAdviceSeverity }) => {
   return <Badge variant="outline">{SEVERITY_LABEL[severity]}</Badge>;
 };
 
-const CATEGORY_LABEL = {
-  content: "Content",
-  hosting: "Hosting",
-  structure: "Structure",
-  wordpress: "WordPress",
-} satisfies Record<FixAdviceCategory, string>;
+const CATEGORY_LABEL = new Map([
+  ["content", "Content"],
+  ["hosting", "Hosting"],
+  ["structure", "Structure"],
+]);
 
-const CategoryBadge = ({ category }: { category: FixAdviceCategory }) => (
-  <Badge variant="outline">{CATEGORY_LABEL[category]}</Badge>
-);
+const CategoryBadge = ({ category }: { category: string }) => {
+  const label = CATEGORY_LABEL.get(category);
+
+  return label === undefined ? null : <Badge variant="outline">{label}</Badge>;
+};
 
 export { FailingChecksList };

@@ -8,7 +8,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -16,8 +15,8 @@
   "dependencies": {
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
-    "@repo/observability": "workspace:*",
-    "@repo/sites": "workspace:*"
+    "@repo/errors": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",

@@ -8,15 +8,16 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@easeia/astro-content": "workspace:*",
     "@repo/ai": "workspace:*",
     "@repo/api-types": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/sites": "workspace:*",
     "@truto/turndown-plugin-gfm": "^1.0.5",

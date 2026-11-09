@@ -6,11 +6,11 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
-import { fetchLocalStats } from "./insights";
+import { fetchNicheCounts } from "./insights";
 
 export const NicheCard = async ({ siteId }: { siteId: string }) => {
-  const stats = await fetchLocalStats(siteId);
-  const max = stats.byNiche[0]?.count ?? 0;
+  const byNiche = await fetchNicheCounts(siteId);
+  const max = byNiche[0]?.count ?? 0;
 
   return (
     <Card>
@@ -21,13 +21,13 @@ export const NicheCard = async ({ siteId }: { siteId: string }) => {
         <CardDescription>From posts authored in Easeia.</CardDescription>
       </CardHeader>
       <CardContent>
-        {stats.byNiche.length === 0 ? (
+        {byNiche.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No tagged posts yet. Niches populate as you publish through Easeia.
           </p>
         ) : (
           <ul className="flex flex-col gap-2 text-sm">
-            {stats.byNiche.map(({ count, niche }) => (
+            {byNiche.map(({ count, niche }) => (
               <li className="flex items-center gap-3" key={niche}>
                 <span className="w-32 text-xs font-medium">{niche}</span>
                 <div className="relative h-2 flex-1 rounded-full bg-muted">

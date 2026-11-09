@@ -1,6 +1,4 @@
-import { type Job, type JobKind, JobStatus, type Prisma, prisma } from "@repo/db";
-
-import { getJobPayload, type JobPayloads } from "./payloads";
+import { type Job, type JobKind, JobStatus, pageOf, type Prisma, prisma } from "@repo/db";
 
 export const inFlight = {
   status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
@@ -31,8 +29,6 @@ type JobList = {
   nextCursor: string | undefined;
 };
 
-type LatestJob<K extends JobKind> = Omit<Job, "payload"> & { payload: JobPayloads[K] };
-
 const whereFor = (filter: JobFilter): Prisma.JobWhereInput => ({
   createdAt: filter.createdSince === undefined ? undefined : { gte: filter.createdSince },
   kind: filter.kinds === undefined ? undefined : { in: [...filter.kinds] },
@@ -54,9 +50,7 @@ export const listJobs = async (input: JobListInput): Promise<JobList> => {
     where: whereFor(input),
   });
 
-  const data = rows.slice(0, input.limit);
-
-  return { data, nextCursor: rows.length > input.limit ? data.at(-1)?.id : undefined };
+  return pageOf(rows, input.limit);
 };
 
 export const getJob = (id: string): Promise<JobWithTarget | null> =>
@@ -68,8 +62,9 @@ export const countJobs = (filter: JobFilter): Promise<number> =>
 export const countInFlightBySite = async (
   kind: JobKind,
   siteIds: ReadonlyArray<string>,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<Map<string, number>> => {
-  const rows = await prisma.job.groupBy({
+  const rows = await tx.job.groupBy({
     _count: { id: true },
     by: ["siteId"],
     where: { ...inFlight, kind, siteId: { in: [...siteIds] } },
@@ -81,21 +76,16 @@ export const countInFlightBySite = async (
 };
 
 export const findLatestJobByPost = async (
+  kind: JobKind,
   postIds: ReadonlyArray<string>,
 ): Promise<Map<string, Job>> => {
   const rows = await prisma.job.findMany({
     distinct: ["postId"],
     orderBy: [{ postId: "asc" }, { createdAt: "desc" }],
-    where: { postId: { in: [...postIds] } },
+    where: { kind, postId: { in: [...postIds] } },
   });
 
   return new Map(rows.flatMap((row) => (row.postId === null ? [] : [[row.postId, row] as const])));
-};
-
-export const findLatestJob = async <K extends JobKind>(kind: K): Promise<LatestJob<K> | null> => {
-  const job = await prisma.job.findFirst({ orderBy: { createdAt: "desc" }, where: { kind } });
-
-  return job === null ? null : { ...job, payload: getJobPayload(kind, job.payload) };
 };
 
 export const listRunJobs = (runId: string, tx: Prisma.TransactionClient = prisma) =>

@@ -1,5 +1,6 @@
 "use client";
 
+import { TICK_EVERY_MS } from "@repo/auto-publish/rules";
 import type { Niche } from "@repo/db";
 import { Badge } from "@repo/ui/components/badge";
 import { Button } from "@repo/ui/components/button";
@@ -8,6 +9,8 @@ import { cn } from "@repo/ui/lib/utils";
 import { ChevronDown, ChevronRight, Loader2, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+
+import { formatDuration, formatRelativeTime } from "@/lib/relative-time";
 
 import { publishNextFromBucketAction, refillBucketAction } from "./actions";
 import { DraftRow, type Draft } from "./draft-row";
@@ -22,69 +25,26 @@ export type BucketRow = {
   lastAutoPublishedAt: string | null;
   missedCadence: boolean;
   needsRefill: boolean;
+  nextDueAt: string | null;
   niches: ReadonlyArray<Niche>;
   siteDomain: string;
   siteId: string;
   supply: number;
 };
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const lastPublishLabel = (lastAutoPublishedAt: string | null, nowMs: number): string =>
+  lastAutoPublishedAt === null ? "never" : formatRelativeTime(new Date(lastAutoPublishedAt), nowMs);
 
-const relativeTime = (iso: string | null, nowMs: number): string => {
-  if (iso === null) {
-    return "never";
-  }
-
-  const diff = nowMs - new Date(iso).getTime();
-
-  if (diff < 0) {
-    return new Date(iso).toLocaleString("en-US", { timeZone: "UTC" });
-  }
-
-  const days = Math.floor(diff / MS_PER_DAY);
-
-  if (days >= 1) {
-    return `${days}d ago`;
-  }
-
-  const hours = Math.floor(diff / (60 * 60 * 1000));
-
-  if (hours >= 1) {
-    return `${hours}h ago`;
-  }
-
-  const minutes = Math.floor(diff / (60 * 1000));
-
-  return `${Math.max(1, minutes)}m ago`;
-};
-
-const nextPublishLabel = (
-  lastAutoPublishedAt: string | null,
-  cadenceDays: number | null,
-  enabled: boolean,
-): string => {
-  if (!enabled || cadenceDays === null) {
+const nextPublishLabel = (nextDueAt: string | null, nowMs: number): string => {
+  if (nextDueAt === null) {
     return "paused";
   }
 
-  if (lastAutoPublishedAt === null) {
-    return "within 1h";
-  }
+  const dueAt = new Date(nextDueAt);
 
-  const next = new Date(lastAutoPublishedAt).getTime() + cadenceDays * MS_PER_DAY;
-  const diff = next - Date.now();
-
-  if (diff <= 0) {
-    return "within 1h";
-  }
-
-  const days = Math.floor(diff / MS_PER_DAY);
-
-  if (days >= 1) {
-    return `in ${days}d`;
-  }
-
-  return `in ${Math.max(1, Math.floor(diff / (60 * 60 * 1000)))}h`;
+  return dueAt.getTime() <= nowMs
+    ? `within ${formatDuration(TICK_EVERY_MS)}`
+    : formatRelativeTime(dueAt, nowMs);
 };
 
 const fillRatio = (supply: number, target: number | null): number => {
@@ -144,34 +104,33 @@ const RowActions = ({
   const handleRefill = () => {
     setMessage(null);
     startTransition(async () => {
-      try {
-        const result = await refillBucketAction(siteId);
+      const result = await refillBucketAction(siteId);
 
-        if (!result.ok) {
-          setMessage(result.error);
+      if (!result.ok) {
+        setMessage(result.error);
 
-          return;
-        }
-
-        const { queued } = result.data;
-        setMessage(
-          queued > 0 ? `+${queued} draft${queued === 1 ? "" : "s"} queued` : "Already at target",
-        );
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Refill failed");
+        return;
       }
+
+      const { queued } = result.data;
+      setMessage(
+        queued > 0 ? `+${queued} draft${queued === 1 ? "" : "s"} queued` : "Already at target",
+      );
     });
   };
 
   const handlePublishNext = () => {
     setMessage(null);
     startTransition(async () => {
-      try {
-        const result = await publishNextFromBucketAction(siteId);
-        setMessage(result.ok ? "Publishing queued" : result.error);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Publish failed");
+      const result = await publishNextFromBucketAction(siteId);
+
+      if (!result.ok) {
+        setMessage(result.error);
+
+        return;
       }
+
+      setMessage(result.data.published ? "Publishing queued" : "Bucket is empty");
     });
   };
 
@@ -357,8 +316,8 @@ export const BucketsTable = ({
               <span className="text-sm text-muted-foreground">{cadenceLabel}</span>
 
               <span className="text-sm text-muted-foreground">
-                {relativeTime(row.lastAutoPublishedAt, nowMs)} →{" "}
-                {nextPublishLabel(row.lastAutoPublishedAt, row.cadenceDays, row.autoPublishEnabled)}
+                {lastPublishLabel(row.lastAutoPublishedAt, nowMs)} →{" "}
+                {nextPublishLabel(row.nextDueAt, nowMs)}
               </span>
 
               <div className="flex justify-end">

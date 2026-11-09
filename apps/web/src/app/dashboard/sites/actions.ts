@@ -1,64 +1,113 @@
 "use server";
 
-import { JobKind, prisma } from "@repo/db";
-import { enqueue, fanoutRejections } from "@repo/jobs";
-import { isConnected } from "@repo/search-console";
+import type { SiteCreateInput, SiteUpdatePatch } from "@repo/api-types";
+import * as AutoPublish from "@repo/auto-publish";
+import type { SiteLanguage } from "@repo/db";
+import { importCsvBacklinks, requestGscBacklinkBackfill } from "@repo/links";
+import * as Sites from "@repo/sites";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
-import { getSession } from "@/lib/auth-helpers";
-import { log } from "@/lib/observability";
+import { withAuth } from "@/lib/server-action";
 
-export type BackfillAllResult =
-  | { error: string; ok: false }
-  | { ok: true; queued: number; skipped: number };
+import { authorPatchSchema, publishingPatchSchema } from "./[id]/patches";
 
-export const startGscBacklinkBackfillAllAction = async (): Promise<BackfillAllResult> => {
-  const session = await getSession();
+export const createSiteAction = async (input: SiteCreateInput) =>
+  withAuth(async () => {
+    const site = await Sites.create(input);
+    await audit({ action: "site.create", target: `site:${site.id}` });
+    revalidatePath("/dashboard/sites");
+    revalidatePath("/dashboard/posts/new");
 
-  if (!session) {
-    return { error: "Not authenticated.", ok: false };
-  }
-
-  if (!(await isConnected())) {
-    return { error: "Connect Google in Settings before importing.", ok: false };
-  }
-
-  const sites = await prisma.site.findMany({
-    orderBy: { domain: "asc" },
-    select: { id: true },
-    where: { isEnabled: true },
+    return site.id;
   });
 
-  if (sites.length === 0) {
-    return { ok: true, queued: 0, skipped: 0 };
-  }
+export const updateSiteAction = async (id: string, patch: SiteUpdatePatch) =>
+  withAuth(async () => {
+    await Sites.update(id, patch);
+    await audit({ action: "site.update", target: `site:${id}` });
+    revalidatePath("/dashboard/sites");
+  });
 
-  const results = await Promise.allSettled(
-    sites.map((site) =>
-      enqueue({
-        kind: JobKind.BACKFILL_GSC_LINKS,
-        payload: { siteId: site.id },
-        siteId: site.id,
-      }),
-    ),
-  );
+export const startGscBacklinkBackfillAllAction = async () =>
+  withAuth(async () => {
+    const sites = await Sites.listEnabled();
+    const { queued } = await requestGscBacklinkBackfill(sites.map((site) => site.id));
+    await audit({ action: "backlinks.backfill", meta: { queued }, target: "network" });
 
-  const rejections = fanoutRejections(results);
+    return { alreadyRunning: sites.length - queued, queued };
+  });
 
-  for (const { index, reason } of rejections) {
-    log.error({
-      err: reason,
-      message: "gsc-backfill-all: enqueue failed",
-      siteId: sites[index]?.id,
-    });
-  }
+export const assignMoneySiteAction = async (siteId: string, moneySiteId: string | null) =>
+  withAuth(async () => {
+    await Sites.update(siteId, { moneySiteId });
+    await audit({ action: "site.update", meta: { moneySiteId }, target: `site:${siteId}` });
+    revalidatePath(`/dashboard/sites/${siteId}`);
+    revalidatePath("/dashboard");
+  });
 
-  const skipped = rejections.length;
-  const queued = results.length - skipped;
-  await audit({ action: "backlinks.backfill", meta: { queued, skipped }, target: "network" });
+export const uploadExternalBacklinksAction = async (siteId: string, csvText: string) =>
+  withAuth(async () => {
+    const result = await importCsvBacklinks(siteId, csvText);
+    await audit({ action: "backlinks.import", meta: result, target: `site:${siteId}` });
+    revalidatePath(`/dashboard/sites/${siteId}`);
 
-  revalidatePath("/dashboard/sites");
+    return result;
+  });
 
-  return { ok: true, queued, skipped };
+export type UpdateAutoPublishInput = AutoPublish.AutoPublishInput & {
+  language: SiteLanguage;
+  topicHints: string | null;
 };
+
+export const updateAutoPublishAction = async (siteId: string, input: UpdateAutoPublishInput) =>
+  withAuth(async () => {
+    const { language, topicHints } = input;
+    await AutoPublish.configure(siteId, input);
+    await Sites.update(siteId, { language, topicHints });
+    await audit({ action: "site.update", target: `site:${siteId}` });
+    revalidatePath(`/dashboard/sites/${siteId}`);
+    revalidatePath("/dashboard/buckets");
+  });
+
+export const updateSiteAuthorAction = async (
+  siteId: string,
+  input: Pick<SiteUpdatePatch, "authorBio" | "authorName" | "authorPhotoUrl" | "authorUrl">,
+) =>
+  withAuth(async () => {
+    await Sites.update(siteId, authorPatchSchema.parse(input));
+    await audit({ action: "site.update", target: `site:${siteId}` });
+    revalidatePath(`/dashboard/sites/${siteId}`);
+  });
+
+export const updateSiteCadenceAction = async (siteId: string, cadenceDays: number | null) =>
+  withAuth(async () => {
+    await AutoPublish.setCadence(siteId, cadenceDays);
+    await audit({ action: "site.update", target: `site:${siteId}` });
+    revalidatePath("/dashboard/sites");
+    revalidatePath(`/dashboard/sites/${siteId}`);
+  });
+
+export const startGscBacklinkBackfillAction = async (siteId: string) =>
+  withAuth(async () => {
+    await Sites.load(siteId);
+    const result = await requestGscBacklinkBackfill([siteId]);
+    await audit({ action: "backlinks.backfill", target: `site:${siteId}` });
+    revalidatePath(`/dashboard/sites/${siteId}`);
+
+    return result;
+  });
+
+export const updateSitePublishingAction = async (
+  siteId: string,
+  input: Pick<
+    SiteUpdatePatch,
+    "astroRepoUrl" | "imageStyle" | "vercelDeployHookUrl" | "vercelProjectName"
+  >,
+) =>
+  withAuth(async () => {
+    await Sites.update(siteId, publishingPatchSchema.parse(input));
+    await audit({ action: "site.update", target: `site:${siteId}` });
+    revalidatePath(`/dashboard/sites/${siteId}`);
+    revalidatePath("/dashboard/posts");
+  });

@@ -1,11 +1,10 @@
 import { buttonVariants } from "@repo/ui/components/button";
+import { Logo } from "@repo/ui/compositions/logo";
 import { cn } from "@repo/ui/lib/utils";
 import { Menu } from "lucide-react";
 import Link from "next/link";
 
 import { GITHUB_URL, webAppUrl } from "@/lib/urls";
-
-import { Logo } from "./logo";
 
 const NAV = [
   { href: GITHUB_URL, label: "GitHub" },

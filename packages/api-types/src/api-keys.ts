@@ -12,6 +12,8 @@ export const API_KEY_SCOPES = [
   "content:read",
 ] as const;
 
+export const API_KEY_NAME_MAX_LENGTH = 80;
+
 export const SITE_SCOPED_API_KEY_SCOPES = ["content:read"] as const;
 
 const apiKeyScopeSchema = z.enum(API_KEY_SCOPES);
@@ -25,7 +27,7 @@ export const apiKeyCreateSchema = z
       .string()
       .trim()
       .min(1, "Name is required")
-      .max(80, "Name must be 80 characters or fewer"),
+      .max(API_KEY_NAME_MAX_LENGTH, `Name must be ${API_KEY_NAME_MAX_LENGTH} characters or fewer`),
     scopes: z.array(apiKeyScopeSchema).min(1, "Pick at least one scope"),
     siteId: z.string().optional(),
   })

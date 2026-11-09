@@ -105,6 +105,12 @@ const createAi = (transport: AiTransport) => {
     const model = provider().embedding(MODELS.embedding.name);
     const { embedding } = await surfacingBudgetError(() => embed({ model, value }));
 
+    if (embedding.length !== MODELS.embedding.dimensions) {
+      throw new Error(
+        `Embedding dimension mismatch: expected ${MODELS.embedding.dimensions}, got ${embedding.length}`,
+      );
+    }
+
     return embedding;
   };
 
@@ -127,4 +133,16 @@ const {
   generateStructured,
 } = createAi({ apiKey: () => envValue(API_KEY_VAR), fetch: budgetedOpenAiFetch });
 
-export { AI_ENV_VARS, assertAiConfigured, createAi, embedText, generateImage, generateStructured };
+const MAX_EMBED_INPUT_CHARS = 6000 * 4;
+
+const embedDocument = (title: string, body: string): Promise<Array<number>> =>
+  embedText(`${title}\n\n${body}`.slice(0, MAX_EMBED_INPUT_CHARS));
+
+export {
+  AI_ENV_VARS,
+  assertAiConfigured,
+  createAi,
+  embedDocument,
+  generateImage,
+  generateStructured,
+};

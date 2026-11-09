@@ -1,3 +1,4 @@
+import { identifyUser } from "@repo/observability/auth";
 import { authenticate, can, type Action, type Actor } from "@repo/policy";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
@@ -8,14 +9,22 @@ import { auth } from "../lib/auth";
 export type AuthVariables = { actor: Actor };
 
 const sessionActor = async (c: Context): Promise<Actor | null> => {
-  try {
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  let session: Awaited<ReturnType<typeof auth.api.getSession>>;
 
-    return session ? { id: session.user.id, kind: "user" } : null;
+  try {
+    session = await auth.api.getSession({ headers: c.req.raw.headers });
   } catch (error) {
     c.get("log").error(error instanceof Error ? error : "session lookup failed");
     throw new HTTPException(503, { message: "Authentication service unavailable" });
   }
+
+  if (session === null) {
+    return null;
+  }
+
+  identifyUser(c.get("log"), session);
+
+  return { id: session.user.id, kind: "user" };
 };
 
 export const apiAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -30,9 +39,10 @@ export const apiAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>(
   return next();
 });
 
-export const requireAction = (action: Action) =>
+export const requireAction = (action: Action, siteParam?: string) =>
   createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-    const decision = can(c.get("actor"), action, c.req.param("siteId"));
+    const siteId = siteParam === undefined ? undefined : c.req.param(siteParam);
+    const decision = can(c.get("actor"), action, siteId);
 
     if (!decision.allowed) {
       throw new HTTPException(403, { message: decision.reason });

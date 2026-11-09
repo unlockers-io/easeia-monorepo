@@ -5,13 +5,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "tsx index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/db": "workspace:*",
-    "@repo/jobs": "workspace:*",
     "@repo/links": "workspace:*",
     "@repo/posts": "workspace:*",
     "dotenv": "^17.4.2",

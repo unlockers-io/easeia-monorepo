@@ -1,4 +1,4 @@
-import { DomainError } from "./domain-error";
+import { DomainError } from "@repo/errors";
 
 export class SiteNotFoundError extends DomainError {
   constructor(siteId: string) {
@@ -22,5 +22,12 @@ export class SiteDomainTakenError extends DomainError {
   constructor() {
     super("A site with this domain already exists.", "SITE_DOMAIN_TAKEN", 409);
     this.name = "SiteDomainTakenError";
+  }
+}
+
+export class SiteMoneySiteNotFoundError extends DomainError {
+  constructor() {
+    super("That money site does not exist.", "MONEY_SITE_NOT_FOUND", 404);
+    this.name = "SiteMoneySiteNotFoundError";
   }
 }

@@ -12,7 +12,6 @@ vi.hoisted(() => {
 import { makeEnsureHero, type EnsureHeroDeps } from "./ensure-hero";
 
 const samplePost = {
-  categories: ["audio"],
   featuredImage: "https://cdn.example/hero.jpg",
   id: "p1",
   siteId: "s1",
@@ -22,7 +21,6 @@ const samplePost = {
 };
 
 const herolessPost = {
-  categories: [],
   featuredImage: null,
   id: "p1",
   siteId: "s1",
@@ -34,10 +32,10 @@ const herolessPost = {
 const makeDeps = (overrides: Partial<EnsureHeroDeps> = {}): EnsureHeroDeps => ({
   blob: createFakeBlobStore(),
   fetchImage: vi.fn(() => Promise.resolve(new Uint8Array([1, 2, 3]))),
-  findHeroImage: vi.fn(() => Promise.resolve(null)),
   generateHero: vi.fn(),
-  r2PublicBaseUrl: undefined,
-  upsertPostImage: vi.fn(() => Promise.resolve(undefined)),
+  heroOf: vi.fn(() => Promise.resolve(null)),
+  isBlobUrl: () => false,
+  setHero: vi.fn(() => Promise.resolve()),
   ...overrides,
 });
 
@@ -48,15 +46,15 @@ describe("ensureHero", () => {
     const deps = makeDeps();
 
     await makeEnsureHero(deps)({
+      autogenEnabled: true,
       post: samplePost,
       site: liveSite,
     });
 
-    expect(deps.upsertPostImage).toHaveBeenCalledWith(
+    expect(deps.setHero).toHaveBeenCalledWith(
+      "p1",
       expect.objectContaining({
         filename: expect.stringMatching(/^hero/v),
-        isHero: true,
-        postId: "p1",
       }),
     );
   });
@@ -89,13 +87,13 @@ describe("ensureHero", () => {
 
   it("does not generate when a hero already exists", async () => {
     const deps = makeDeps({
-      findHeroImage: vi.fn(() =>
+      heroOf: vi.fn(() =>
         Promise.resolve({
           blobUrl: "https://img.easeia.com/sites/s1/posts/p1/hero.jpg",
           filename: "hero.jpg",
         }),
       ),
-      r2PublicBaseUrl: "https://img.easeia.com",
+      isBlobUrl: (url: string) => url.startsWith("https://img.easeia.com"),
     });
 
     await makeEnsureHero(deps)({
@@ -109,21 +107,21 @@ describe("ensureHero", () => {
   it("uploads external featuredImage even when r2PublicBaseUrl is set but URL does not match", async () => {
     const deps = makeDeps({
       fetchImage: vi.fn(() => Promise.resolve(new Uint8Array([4, 5, 6]))),
-      r2PublicBaseUrl: "https://img.easeia.com",
+      isBlobUrl: (url: string) => url.startsWith("https://img.easeia.com"),
     });
 
     await makeEnsureHero(deps)({
+      autogenEnabled: true,
       post: samplePost,
       site: liveSite,
     });
 
     expect(deps.fetchImage).toHaveBeenCalledOnce();
     expect(deps.fetchImage).toHaveBeenCalledWith("https://cdn.example/hero.jpg");
-    expect(deps.upsertPostImage).toHaveBeenCalledWith(
+    expect(deps.setHero).toHaveBeenCalledWith(
+      "p1",
       expect.objectContaining({
         filename: expect.stringMatching(/hero/v),
-        isHero: true,
-        postId: "p1",
       }),
     );
     expect(deps.generateHero).not.toHaveBeenCalled();
@@ -133,7 +131,11 @@ describe("ensureHero", () => {
     // Regression: this combination previously matched neither branch, so the
     // post published with no hero image, no log, and no error.
     const blob = { upload: vi.fn() };
-    const deps = makeDeps({ blob, r2PublicBaseUrl: "https://img.easeia.com" });
+
+    const deps = makeDeps({
+      blob,
+      isBlobUrl: (url: string) => url.startsWith("https://img.easeia.com"),
+    });
 
     await makeEnsureHero(deps)({
       autogenEnabled: true,
@@ -151,67 +153,70 @@ describe("ensureHero", () => {
 
   it("re-uploads a hero row whose blobUrl is not R2-hosted", async () => {
     const deps = makeDeps({
-      findHeroImage: vi.fn(() =>
+      heroOf: vi.fn(() =>
         Promise.resolve({ blobUrl: "https://old-cdn.example/legacy.jpg", filename: "legacy.jpg" }),
       ),
-      r2PublicBaseUrl: "https://img.easeia.com",
+      isBlobUrl: (url: string) => url.startsWith("https://img.easeia.com"),
     });
 
     await makeEnsureHero(deps)({
+      autogenEnabled: true,
       post: herolessPost,
       site: liveSite,
     });
 
     expect(deps.fetchImage).toHaveBeenCalledWith("https://old-cdn.example/legacy.jpg");
-    expect(deps.upsertPostImage).toHaveBeenCalledWith(
-      expect.objectContaining({ filename: "legacy.jpg", isHero: true, postId: "p1" }),
+    expect(deps.setHero).toHaveBeenCalledWith(
+      "p1",
+      expect.objectContaining({ filename: "legacy.jpg" }),
     );
   });
 
   it("retry case: skips re-upload when an R2 hero row from the same source URL exists", async () => {
     const deps = makeDeps({
-      findHeroImage: vi.fn(() =>
+      heroOf: vi.fn(() =>
         Promise.resolve({
           blobUrl: "https://img.easeia.com/sites/s1/posts/p1/hero.jpg",
           filename: "hero.jpg",
         }),
       ),
-      r2PublicBaseUrl: "https://img.easeia.com",
+      isBlobUrl: (url: string) => url.startsWith("https://img.easeia.com"),
     });
 
     await makeEnsureHero(deps)({
+      autogenEnabled: true,
       post: samplePost,
       site: liveSite,
     });
 
     expect(deps.fetchImage).not.toHaveBeenCalled();
-    expect(deps.upsertPostImage).not.toHaveBeenCalled();
+    expect(deps.setHero).not.toHaveBeenCalled();
   });
 
   it("changed-image case: re-uploads when the existing hero row's filename differs", async () => {
     const deps = makeDeps({
       fetchImage: vi.fn(() => Promise.resolve(new Uint8Array([7, 8, 9]))),
-      findHeroImage: vi.fn(() =>
+      heroOf: vi.fn(() =>
         Promise.resolve({
           blobUrl: "https://img.easeia.com/sites/s1/posts/p1/old.jpg",
           filename: "old.jpg",
         }),
       ),
-      r2PublicBaseUrl: "https://img.easeia.com",
+      isBlobUrl: (url: string) => url.startsWith("https://img.easeia.com"),
     });
 
     await makeEnsureHero(deps)({
+      autogenEnabled: true,
       post: samplePost,
       site: liveSite,
     });
 
     expect(deps.fetchImage).toHaveBeenCalledOnce();
     expect(deps.fetchImage).toHaveBeenCalledWith("https://cdn.example/hero.jpg");
-    expect(deps.upsertPostImage).toHaveBeenCalledWith(
+    expect(deps.setHero).toHaveBeenCalledWith(
+      "p1",
       expect.objectContaining({
         filename: expect.stringMatching(/hero/v),
-        isHero: true,
-        postId: "p1",
       }),
     );
   });

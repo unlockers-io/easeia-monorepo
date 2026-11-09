@@ -11,14 +11,11 @@ import {
   forceBodySchema,
   idParamSchema,
 } from "@/lib/openapi-schemas";
-import { apiAuthMiddleware, requireAction } from "@/middleware/api-auth";
-import { recordAudit } from "@/middleware/audit";
-import { apiRateLimit } from "@/middleware/security";
+import { guards } from "@/lib/protected-router";
 
 import { createRunRouter, type RunRouteDependencies } from "./run-router";
 
 type RewriteRouteDependencies = RunRouteDependencies & {
-  audit: typeof recordAudit;
   requestRewrite: typeof Posts.requestRewrite;
   start: typeof rewriteBackfill.start;
 };
@@ -80,12 +77,9 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
 };
 
 const rewriteRoutes = createRewriteRoutes({
-  apiAuth: apiAuthMiddleware,
-  audit: recordAudit,
-  rateLimit: apiRateLimit,
+  ...guards,
   readStatus: rewriteBackfill.readStatus,
   requestRewrite: Posts.requestRewrite,
-  requirePermission: requireAction,
   start: rewriteBackfill.start,
 });
 

@@ -1,7 +1,8 @@
 # ADR-0011: Atomic job intents and explicit backfill runs
 
 **Status:** accepted (2026-10-20); amends [ADR-0002](./0002-durable-job-module.md),
-[ADR-0007](./0007-site-module-owns-redeploy.md), and [ADR-0008](./0008-post-intake-owns-transition-consequences.md)
+[ADR-0007](./0007-site-module-owns-redeploy.md), and [ADR-0008](./0008-post-intake-owns-transition-consequences.md);
+amended 2026-11-06 (below)
 
 ## Context
 
@@ -48,3 +49,13 @@ skipped children from that run only.
 - A completed publish does not repeat its consequences on a worker retry. Explicit republishing
   still claims PUBLISHED as SCHEDULED and creates a fresh publish intent.
 - No production resources or data are changed by this implementation or its disposable tests.
+
+## Amendment (2026-11-06)
+
+- `BackfillRun.kind` is a `BackfillKind` enum (NETWORK, REWRITE). The BACKFILL_NETWORK and
+  BACKFILL_REWRITE Job kinds are gone; the worker advances runs without them.
+- Historical Job rows of those kinds are deleted, which reverses "no historical Jobs are deleted"
+  above. `db push` cannot drop the enum values while rows use them, so the
+  [upgrade SQL](../self-hosting.md#backfill-kinds-and-unused-columns-november-2026) deletes the
+  rows and converts both columns first.
+- A fan-out enqueues all its children in one transaction, so no fan-out is left half enqueued.

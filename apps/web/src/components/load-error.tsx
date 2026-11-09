@@ -1,10 +1,8 @@
 import { Button } from "@repo/ui/components/button";
 
-export const LoadError = ({ onRetry, what }: { onRetry: () => void; what: string }) => (
+export const LoadError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
   <div className="flex flex-col items-start gap-3">
-    <p className="text-sm text-destructive">
-      Failed to load {what}. Check your connection and retry.
-    </p>
+    <p className="text-sm text-destructive">{message}</p>
     <Button onClick={onRetry} variant="outline">
       Retry
     </Button>

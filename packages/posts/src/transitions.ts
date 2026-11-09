@@ -5,15 +5,25 @@ import {
   type PostCreateInput,
   type PostUpdateInput,
 } from "@repo/api-types";
-import { JobKind, type Post, PostStatus, type Prisma, prisma, type Site } from "@repo/db";
+import {
+  JobKind,
+  type Post,
+  PostStatus,
+  Prisma,
+  prisma,
+  type Site,
+  type SiteLanguage,
+} from "@repo/db";
 import { enqueue } from "@repo/jobs";
 import * as Sites from "@repo/sites";
 
-import { PostStateError } from "./errors";
+import { buildProjection, mayBeDeployed } from "./build";
+import { PostSlugTakenError, PostStateError } from "./errors";
 import { fallbackCategory } from "./fallback-category";
 import { normalizeBody } from "./normalize-body";
 import { parseOrThrow } from "./parse";
 import { requirePost } from "./reads";
+import { stripEmDash } from "./strip-em-dash";
 
 type QueuedJob = { id: string };
 
@@ -25,11 +35,6 @@ export type CreateResult = {
 export type PublishResult = {
   job: QueuedJob;
   post: Post;
-};
-
-export type PublishTarget = {
-  post: Post;
-  site: Site;
 };
 
 export type BodyRevision = {
@@ -47,9 +52,12 @@ const REPUBLISHABLE: ReadonlyArray<PostStatus> = [
   PostStatus.PUBLISHED,
 ];
 
-const BUCKET: ReadonlyArray<PostStatus> = [PostStatus.DRAFT];
-
 const AWAITING_PUBLISH: ReadonlyArray<PostStatus> = [PostStatus.SCHEDULED];
+
+export const bucketDraftWhere = {
+  scheduledAt: null,
+  status: PostStatus.DRAFT,
+} satisfies Prisma.PostWhereInput;
 
 const requireState = (post: Post, accepted: ReadonlyArray<PostStatus>, action: string): void => {
   if (!accepted.includes(post.status)) {
@@ -57,13 +65,59 @@ const requireState = (post: Post, accepted: ReadonlyArray<PostStatus>, action: s
   }
 };
 
-const mayBeDeployed = (post: Post): boolean =>
-  post.publishedAt !== null && post.status !== PostStatus.ARCHIVED;
+const requireBucketDraft = (post: Post, action: string): void => {
+  if (post.status !== PostStatus.DRAFT || post.scheduledAt !== null) {
+    throw new PostStateError(`Cannot ${action}: Post ${post.id} is not a bucket draft`);
+  }
+};
 
 const delayUntil = (scheduledAt: Date | null): number =>
   scheduledAt === null ? 0 : Math.max(0, scheduledAt.getTime() - Date.now());
 
-const lockedPost = async (id: string, tx: Prisma.TransactionClient) => {
+type TextFields = {
+  body?: string;
+  excerpt?: string | null;
+  focusKeyword?: string | null;
+  title?: string;
+};
+
+type PostWrite = Prisma.PostUpdateManyMutationInput & TextFields;
+
+export const normalizePostText = (text: TextFields, language: SiteLanguage): TextFields => {
+  const normalized: TextFields = {};
+
+  if (text.body !== undefined) {
+    normalized.body = normalizeBody(text.body, language);
+  }
+
+  if (text.title !== undefined) {
+    normalized.title = stripEmDash(text.title, language, "title").text;
+  }
+
+  if (typeof text.excerpt === "string") {
+    normalized.excerpt = stripEmDash(text.excerpt, language).text;
+  }
+
+  if (typeof text.focusKeyword === "string") {
+    normalized.focusKeyword = stripEmDash(text.focusKeyword, language).text;
+  }
+
+  return normalized;
+};
+
+const claimingSlug = async <T>(write: () => Promise<T>): Promise<T> => {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new PostSlugTakenError();
+    }
+
+    throw error;
+  }
+};
+
+export const lockedPost = async (id: string, tx: Prisma.TransactionClient) => {
   await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${id} FOR UPDATE`;
 
   return requirePost(id, tx);
@@ -75,12 +129,12 @@ const enqueueForPost = (
   tx: Prisma.TransactionClient,
 ) => Promise.all(kinds.map((kind) => enqueue({ kind, payload: { postId }, postId }, tx)));
 
-const settleLiveChange = async (
+export const settleLiveChange = async (
   post: Post,
   contentChanged: boolean,
   tx: Prisma.TransactionClient,
 ): Promise<void> => {
-  if (post.status !== PostStatus.PUBLISHED) {
+  if (!mayBeDeployed(post)) {
     return;
   }
 
@@ -110,69 +164,61 @@ const sendToPublish = async (post: Post, tx: Prisma.TransactionClient): Promise<
   return { job: { id: job.id }, post: claimed };
 };
 
-const claimPublish = (id: string, accepted: ReadonlyArray<PostStatus>): Promise<PublishResult> =>
+const claimPublish = (
+  id: string,
+  requireClaimable: (post: Post) => void,
+  onClaim?: (post: Post, tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<PublishResult> =>
   prisma.$transaction(async (tx) => {
     const post = await lockedPost(id, tx);
-    requireState(post, accepted, "publish");
-    await Sites.requirePublishable(post.siteId);
+    requireClaimable(post);
+    await Sites.requirePublishable(post.siteId, tx);
+    await onClaim?.(post, tx);
 
     return sendToPublish(post, tx);
   });
 
-const buildProjection = (post: Post) => [
-  post.body,
-  post.title,
-  post.excerpt,
-  post.slug,
-  post.categories,
-  post.tags,
-  post.featuredImage,
-  post.focusKeyword,
-];
-
-const write = (
+export const writeIn = async (
+  tx: Prisma.TransactionClient,
   id: string,
-  { body, ...data }: Prisma.PostUpdateManyMutationInput & { body?: string },
+  data: PostWrite,
   from?: string,
-): Promise<Post> =>
-  prisma.$transaction(async (tx) => {
-    const before = await lockedPost(id, tx);
+): Promise<Post> => {
+  const before = await lockedPost(id, tx);
 
-    if (from !== undefined && before.body !== from) {
-      throw new PostStateError(`Post ${id} body changed since it was read`);
-    }
+  if (from !== undefined && before.body !== from) {
+    throw new PostStateError(`Post ${id} body changed since it was read`);
+  }
 
-    const site =
-      body === undefined ? null : await tx.site.findUniqueOrThrow({ where: { id: before.siteId } });
+  const site = await tx.site.findUniqueOrThrow({ where: { id: before.siteId } });
 
-    const post = await tx.post.update({
-      data: {
-        ...data,
-        ...(site === null || body === undefined
-          ? {}
-          : { body: normalizeBody(body, site.language) }),
-      },
-      where: { id },
-    });
+  const post = await claimingSlug(() =>
+    tx.post.update({ data: { ...data, ...normalizePostText(data, site.language) }, where: { id } }),
+  );
 
-    if (JSON.stringify(buildProjection(before)) !== JSON.stringify(buildProjection(post))) {
-      await settleLiveChange(post, post.body !== before.body || post.title !== before.title, tx);
-    }
+  if (buildProjection(before) !== buildProjection(post)) {
+    await settleLiveChange(post, post.body !== before.body || post.title !== before.title, tx);
+  }
 
-    return post;
-  });
+  return post;
+};
+
+const write = (id: string, data: PostWrite, from?: string, tx?: Prisma.TransactionClient) =>
+  tx === undefined
+    ? prisma.$transaction((db) => writeIn(db, id, data, from))
+    : writeIn(tx, id, data, from);
 
 export const create = async (input: PostCreateInput): Promise<CreateResult> => {
   const { publish, ...data } = parseOrThrow(postCreateSchema, input);
 
-  const site = await (publish
+  const site: Site = await (publish
     ? Sites.requirePublishable(data.siteId)
     : Sites.requireEnabled(data.siteId));
 
   return prisma.$transaction(async (tx) => {
-    const post = await tx.post.create({
-      data: { ...data, body: normalizeBody(data.body, site.language) },
-    });
+    const post = await claimingSlug(() =>
+      tx.post.create({ data: { ...data, ...normalizePostText(data, site.language) } }),
+    );
 
     return publish ? sendToPublish(post, tx) : { post };
   });
@@ -181,16 +227,31 @@ export const create = async (input: PostCreateInput): Promise<CreateResult> => {
 export const update = async (id: string, input: PostUpdateInput): Promise<Post> =>
   write(id, parseOrThrow(postUpdateSchema, input));
 
-export const reviseBody = (id: string, { from, ...revision }: BodyRevision): Promise<Post> =>
-  write(id, revision, from);
+export const reviseBody = (
+  id: string,
+  { from, ...revision }: BodyRevision,
+  tx?: Prisma.TransactionClient,
+): Promise<Post> => write(id, revision, from, tx);
 
-export const publish = (id: string): Promise<PublishResult> => claimPublish(id, REPUBLISHABLE);
+export const publish = (id: string): Promise<PublishResult> =>
+  claimPublish(id, (post) => {
+    requireState(post, REPUBLISHABLE, "publish");
+  });
 
-export const publishBucketDraft = (id: string): Promise<PublishResult> => claimPublish(id, BUCKET);
+export const publishBucketDraft = (id: string): Promise<PublishResult> =>
+  claimPublish(
+    id,
+    (post) => {
+      requireBucketDraft(post, "publish from the bucket");
+    },
+    async (post, tx) => {
+      await Sites.updateSchedule(post.siteId, { lastAutoPublishedAt: new Date() }, tx);
+    },
+  );
 
 export const removeBucketDraft = async (id: string): Promise<void> => {
-  requireState(await requirePost(id), BUCKET, "remove from the bucket");
-  const removed = await prisma.post.deleteMany({ where: { id, status: { in: [...BUCKET] } } });
+  requireBucketDraft(await requirePost(id), "remove from the bucket");
+  const removed = await prisma.post.deleteMany({ where: { ...bucketDraftWhere, id } });
 
   if (removed.count === 0) {
     throw new PostStateError(`Post ${id} left the bucket while being removed`);
@@ -238,7 +299,7 @@ export const requestRewrite = async (
   return { id: job.id };
 };
 
-export const startPublish = async (id: string): Promise<PublishTarget | null> => {
+export const startPublish = async (id: string): Promise<{ post: Post; site: Site } | null> => {
   const post = await prisma.post.findUnique({ where: { id } });
 
   if (post === null || !AWAITING_PUBLISH.includes(post.status)) {
@@ -256,10 +317,7 @@ export const startPublish = async (id: string): Promise<PublishTarget | null> =>
   return { post: await prisma.post.update({ data: { categories }, where: { id } }), site };
 };
 
-export const completePublish = (
-  id: string,
-  { bodyImages }: { bodyImages: boolean },
-): Promise<void> =>
+export const completePublish = (id: string): Promise<void> =>
   prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${id} FOR UPDATE`;
 
@@ -273,10 +331,7 @@ export const completePublish = (
     }
 
     await settleLiveChange(post, true, tx);
-
-    if (bodyImages) {
-      await enqueueForPost(id, [JobKind.GENERATE_BODY_IMAGES], tx);
-    }
+    await enqueueForPost(id, [JobKind.GENERATE_BODY_IMAGES], tx);
   });
 
 export const failPublish = async (id: string): Promise<void> => {

@@ -2,9 +2,11 @@ import { dataForSeo, DataForSeoError } from "@repo/dataforseo";
 import type { SiteLanguage } from "@repo/db";
 import { cacheLife } from "next/cache";
 
-import { type ProviderResult, tryProvider } from "./provider-result";
+import type { ActionResult } from "@/lib/action-result";
 
-const cached = async <T>(call: () => Promise<T>): Promise<ProviderResult<T>> => {
+import { tryProvider } from "./provider-result";
+
+const cached = async <T>(call: () => Promise<T>): Promise<ActionResult<T>> => {
   const outcome = await tryProvider(call, [DataForSeoError]);
 
   if (outcome.ok) {

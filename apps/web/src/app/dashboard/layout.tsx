@@ -4,11 +4,11 @@ import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { SkeletonSuspense, SkulletProvider } from "skullet/react";
 
-import { SignOutButton } from "@/components/sign-out-button";
 import { getSession } from "@/lib/auth-helpers";
 
 import DashboardLoading from "./loading";
 import { NavLink } from "./nav-link";
+import { SignOutButton } from "./sign-out-button";
 
 const SessionEmail = async () => {
   const session = await getSession();
@@ -27,15 +27,15 @@ const EmailLine = ({ email }: { email: string }) => (
 );
 
 const NAV = [
-  { href: "/dashboard", index: "00", label: "Overview" },
-  { href: "/dashboard/sites", index: "01", label: "Sites" },
-  { href: "/dashboard/network", index: "02", label: "Network" },
-  { href: "/dashboard/posts", index: "03", label: "Posts" },
-  { href: "/dashboard/buckets", index: "04", label: "Buckets" },
-  { href: "/dashboard/jobs", index: "05", label: "Jobs" },
-  { href: "/dashboard/api-keys", index: "06", label: "API Keys" },
-  { href: "/dashboard/money-sites", index: "07", label: "Money sites" },
-  { href: "/dashboard/settings", index: "08", label: "Settings" },
+  { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/sites", label: "Sites" },
+  { href: "/dashboard/network", label: "Network" },
+  { href: "/dashboard/posts", label: "Posts" },
+  { href: "/dashboard/buckets", label: "Buckets" },
+  { href: "/dashboard/jobs", label: "Jobs" },
+  { href: "/dashboard/api-keys", label: "API Keys" },
+  { href: "/dashboard/money-sites", label: "Money sites" },
+  { href: "/dashboard/settings", label: "Settings" },
 ];
 
 const AuthGate = async ({ children }: { children: ReactNode }) => {
@@ -77,8 +77,8 @@ const Layout = ({ children }: { children: ReactNode }) => {
             aria-label="Sections"
             className="flex gap-1 overflow-x-auto max-md:-mx-4 max-md:px-2 md:mt-2 md:flex-col md:gap-0 md:overflow-visible"
           >
-            {NAV.map((item) => (
-              <NavLink href={item.href} index={item.index} key={item.href}>
+            {NAV.map((item, index) => (
+              <NavLink href={item.href} index={String(index).padStart(2, "0")} key={item.href}>
                 {item.label}
               </NavLink>
             ))}

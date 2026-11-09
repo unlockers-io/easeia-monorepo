@@ -2,16 +2,23 @@ import { Heading, Link, Text } from "react-email";
 
 import { Button } from "../components/button";
 import { Divider } from "../components/divider";
+import { formatHours } from "../utils/format-hours";
 
 import { BaseLayout } from "./base-layout";
 
 type WelcomeEmailProps = {
+  expiresInHours: number;
   userEmail: string;
   username?: string;
   verificationUrl: string;
 };
 
-const WelcomeEmail = ({ userEmail, username, verificationUrl }: WelcomeEmailProps) => {
+const WelcomeEmail = ({
+  expiresInHours,
+  userEmail,
+  username,
+  verificationUrl,
+}: WelcomeEmailProps) => {
   return (
     <BaseLayout preview="Welcome to Easeia. Verify your email to get started.">
       <Heading className="mt-0 mb-4 text-2xl font-semibold tracking-tight text-balance break-words text-foreground">
@@ -32,7 +39,7 @@ const WelcomeEmail = ({ userEmail, username, verificationUrl }: WelcomeEmailProp
 
       <Text className="m-0 mb-4 text-sm text-muted-foreground">
         If you didn&apos;t create an account with Easeia, you can safely ignore this email. The
-        verification link expires in 24 hours.
+        verification link expires in {formatHours(expiresInHours)}.
       </Text>
 
       <Text className="m-0 mb-4 text-sm text-muted-foreground">

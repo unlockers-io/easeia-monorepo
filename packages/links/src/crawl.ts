@@ -1,4 +1,4 @@
-import { LinkSource, LinkStatus, LinkType, prisma } from "@repo/db";
+import { LinkSource, LinkType, prisma } from "@repo/db";
 
 import { editPostBody } from "./body";
 import { classifyLinks, type ClassifiedLink, type ResolvedLink } from "./classify";
@@ -82,7 +82,7 @@ export const crawlPost = async (postId: string): Promise<CrawlSummary | null> =>
     where: { id: postId },
   });
 
-  if (post === null || post.body === "") {
+  if (post === null) {
     return null;
   }
 
@@ -91,11 +91,8 @@ export const crawlPost = async (postId: string): Promise<CrawlSummary | null> =>
   const rows = resolved.map((link) => ({
     anchorText: link.anchorText.slice(0, MAX_ANCHOR_LENGTH),
     fromPostId: post.id,
-    lastCheckedAt: new Date(),
     position: link.position,
-    rel: link.rel,
     source: LinkSource.IMPORTED,
-    status: LinkStatus.ACTIVE,
     toPostId: link.toPostId,
     toUrl: link.href.slice(0, MAX_URL_LENGTH),
     type: link.type,

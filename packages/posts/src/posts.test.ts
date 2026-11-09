@@ -1,12 +1,18 @@
 import { AiNotConfiguredError } from "@repo/ai";
 import type { PostCreateInput } from "@repo/api-types";
 import { JobKind, Niche, type Post, PostStatus, prisma, type SiteLanguage } from "@repo/db";
-import { closeJobs, countJobs, listJobs } from "@repo/jobs";
+import { countJobs, listJobs } from "@repo/jobs";
+import { closeJobs } from "@repo/jobs/worker";
 import { SiteDeployHookMissingError } from "@repo/sites";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 import * as Posts from "./index";
-import { PostNotFoundError, PostStateError, PostValidationError } from "./index";
+import {
+  PostNotFoundError,
+  PostSlugTakenError,
+  PostStateError,
+  PostValidationError,
+} from "./index";
 
 const HOOK = "https://deploy.test/hook";
 
@@ -146,6 +152,25 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         expect(updated.siteId).toBe(siteId);
       });
 
+      it("reports a taken slug as a domain error", async () => {
+        const siteId = await createSite();
+        const post = await createDraft(siteId);
+
+        await expect(createDraft(siteId, { slug: post.slug })).rejects.toBeInstanceOf(
+          PostSlugTakenError,
+        );
+      });
+
+      it("strips em dashes from the title on every write", async () => {
+        const siteId = await createSite();
+        const post = await createDraft(siteId, { title: "Casamento — guia" });
+
+        expect(post.title).not.toContain("—");
+        const updated = await Posts.update(post.id, { title: "Festa — dicas" });
+
+        expect(updated.title).not.toContain("—");
+      });
+
       it("rejects invalid fields", async () => {
         const siteId = await createSite();
         const post = await createDraft(siteId);
@@ -232,7 +257,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         await Posts.publish(post.id);
 
         expect(await Posts.startPublish(post.id)).not.toBeNull();
-        await Posts.completePublish(post.id, { bodyImages: false });
+        await Posts.completePublish(post.id);
 
         const published = await load(post.id);
         const deploy = await latestDeploy(siteId);
@@ -242,16 +267,6 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         );
         expect(await postJobs(JobKind.EMBED, post.id)).toBe(1);
         expect(await postJobs(JobKind.CRAWL_LINKS, post.id)).toBe(1);
-        expect(await postJobs(JobKind.GENERATE_BODY_IMAGES, post.id)).toBe(0);
-      });
-
-      it("illustrates the body when body images are enabled", async () => {
-        const siteId = await createSite();
-        const post = await createDraft(siteId);
-        await Posts.publish(post.id);
-
-        await Posts.completePublish(post.id, { bodyImages: true });
-
         expect(await postJobs(JobKind.GENERATE_BODY_IMAGES, post.id)).toBe(1);
       });
 
@@ -287,7 +302,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         await Posts.unpublish(post.id);
 
         expect(await Posts.startPublish(post.id)).toBeNull();
-        await Posts.completePublish(post.id, { bodyImages: false });
+        await Posts.completePublish(post.id);
 
         expect(await statusOf(post.id)).toBe(PostStatus.ARCHIVED);
         expect(await deploys(siteId)).toBe(0);
@@ -328,6 +343,34 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
         expect(await prisma.post.count({ where: { id: post.id } })).toBe(0);
         expect(await deploys(siteId)).toBe(1);
+      });
+
+      it("keeps a live post in its Site's build while it is republished", async () => {
+        const siteId = await createSite();
+        const live = await createLive(siteId);
+        await Posts.publish(live.id);
+
+        const built = await Posts.listForBuild(siteId, null);
+
+        expect(built.map((post) => post.slug)).toEqual([live.slug]);
+
+        await Posts.update(live.id, { title: "Edited while republishing" });
+
+        expect(await deploys(siteId)).toBe(1);
+      });
+
+      it("serves a legacy published post that has no publish date", async () => {
+        const siteId = await createSite();
+        const draft = await createDraft(siteId);
+        await prisma.post.update({
+          data: { status: PostStatus.PUBLISHED },
+          where: { id: draft.id },
+        });
+
+        const [built] = await Posts.listForBuild(siteId, null);
+
+        expect(built?.slug).toBe(draft.slug);
+        expect(built?.frontmatter.status).toBe(PostStatus.PUBLISHED);
       });
 
       it("redeploys nothing for a post that never went live", async () => {
@@ -522,6 +565,28 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         });
 
         expect(data.map((p) => p.id)).toEqual([wedding.id, film.id]);
+      });
+
+      it("pages through every post without skipping one", async () => {
+        const siteId = await createSite();
+
+        const posts = [
+          await createDraft(siteId),
+          await createDraft(siteId),
+          await createDraft(siteId),
+        ];
+
+        const first = await Posts.list({ limit: 2, siteId, sort: "oldest" });
+
+        const second = await Posts.list({
+          cursor: first.meta.nextCursor,
+          limit: 2,
+          siteId,
+          sort: "oldest",
+        });
+
+        expect([...first.data, ...second.data].map((p) => p.id)).toEqual(posts.map((p) => p.id));
+        expect(second.meta.nextCursor).toBeUndefined();
       });
     });
   },

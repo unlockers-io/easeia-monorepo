@@ -16,7 +16,14 @@ const createField = () => ({
 describe("AuthPasswordField", () => {
   it("keeps the labelled password input and forwards changes and blur", () => {
     const field = createField();
-    render(<AuthPasswordField disabled={false} field={field} label="New password" />);
+    render(
+      <AuthPasswordField
+        autoComplete="new-password"
+        disabled={false}
+        field={field}
+        label="New password"
+      />,
+    );
 
     const input = screen.getByLabelText<HTMLInputElement>("New password");
     expect(input.type).toBe("password");
@@ -35,7 +42,14 @@ describe("AuthPasswordField", () => {
   it("shows the error of an invalid field without a touched check", () => {
     const field = createField();
     field.state.meta.isValid = false;
-    render(<AuthPasswordField disabled={false} field={field} label="Password" />);
+    render(
+      <AuthPasswordField
+        autoComplete="new-password"
+        disabled={false}
+        field={field}
+        label="Password"
+      />,
+    );
 
     expect(screen.getByLabelText("Password").getAttribute("aria-invalid")).toBe("true");
     expect(screen.getByLabelText("Password").getAttribute("aria-describedby")).toBe(
@@ -49,6 +63,7 @@ describe("AuthPasswordField", () => {
 
     const { rerender } = render(
       <AuthPasswordField
+        autoComplete="new-password"
         description="At least 12 characters."
         disabled={false}
         field={field}
@@ -63,6 +78,7 @@ describe("AuthPasswordField", () => {
     field.state.meta.isValid = false;
     rerender(
       <AuthPasswordField
+        autoComplete="new-password"
         description="At least 12 characters."
         disabled={false}
         field={{ ...field }}
@@ -77,7 +93,14 @@ describe("AuthPasswordField", () => {
     const field = createField();
     field.name = "confirmPassword";
     field.state.value = "confirmed-password";
-    render(<AuthPasswordField disabled field={field} label="Confirm password" />);
+    render(
+      <AuthPasswordField
+        autoComplete="new-password"
+        disabled
+        field={field}
+        label="Confirm password"
+      />,
+    );
 
     const input = screen.getByLabelText<HTMLInputElement>("Confirm password");
     expect(input.id).toBe("confirmPassword");

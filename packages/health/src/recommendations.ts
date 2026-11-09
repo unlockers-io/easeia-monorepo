@@ -28,7 +28,7 @@ const unreachable: Rule = ({ latest, siteId }) => {
   return {
     action: { href: sitePostsHref(siteId), label: "Open site" },
     id: "unreachable",
-    message: "Site unreachable; check WP REST and app password",
+    message: "Site unreachable; check the deployment and DNS",
     priority: 1,
   };
 };
@@ -87,19 +87,6 @@ const gscClicksDropped: Rule = ({ latest, prior, siteId }) => {
   };
 };
 
-const lowOnPageScore: Rule = ({ latest, siteId }) => {
-  if (latest.onPageScore === null || latest.onPageScore >= 70) {
-    return null;
-  }
-
-  return {
-    action: { href: sitePostsHref(siteId), label: "Open site" },
-    id: "lowOnPageScore",
-    message: `On-page audit score ${Math.round(latest.onPageScore)}; review homepage`,
-    priority: 2,
-  };
-};
-
 const gscErrorsSchema = z.looseObject({
   gsc: z.string().optional(),
 });
@@ -154,7 +141,6 @@ const RULES: ReadonlyArray<Rule> = [
   noPublishRecent,
   rankDropped,
   gscClicksDropped,
-  lowOnPageScore,
   gscNotConnected,
   noRefDomains,
   lowCadence,

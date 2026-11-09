@@ -1,6 +1,6 @@
 import { JobStatus, prisma } from "@repo/db";
 
-import { describeError, queueFor } from "./queue";
+import { describeError, JOB_ATTEMPTS, jobName, queueFor } from "./transport";
 
 const RECHECK_MS = 30_000;
 
@@ -36,8 +36,8 @@ export const dispatchPendingJobs = async (): Promise<void> => {
       }
 
       if (existing === undefined) {
-        await queue.add(row.kind.toLowerCase(), row.payload, {
-          attempts: Math.max(1, 5 - row.attempts),
+        await queue.add(jobName(row.kind), row.payload, {
+          attempts: Math.max(1, JOB_ATTEMPTS - row.attempts),
           delay: Math.max(0, row.availableAt.getTime() - Date.now()),
           jobId: row.id,
         });

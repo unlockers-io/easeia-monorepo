@@ -1,4 +1,4 @@
-import { type Link, LinkSource, LinkStatus, LinkType, prisma } from "@repo/db";
+import { type Link, LinkSource, LinkType, prisma } from "@repo/db";
 import { postPublicUrl } from "@repo/sites";
 
 const INTERNAL_LIMIT = 5;
@@ -79,7 +79,6 @@ const suggestionRow = (fromPostId: string, target: Target, type: LinkType, sugge
   approved: null,
   fromPostId,
   source: LinkSource.SUGGESTED,
-  status: LinkStatus.ACTIVE,
   suggestedAt,
   toPostId: target.id,
   toUrl: target.link,
@@ -87,39 +86,39 @@ const suggestionRow = (fromPostId: string, target: Target, type: LinkType, sugge
 });
 
 export const suggestForPost = async (postId: string): Promise<SuggestResult> => {
-  await prisma.link.deleteMany({
-    where: { approved: null, fromPostId: postId, source: LinkSource.SUGGESTED },
-  });
-
-  const existing = await prisma.link.findMany({
-    select: { toPostId: true },
-    where: { fromPostId: postId, toPostId: { not: null } },
-  });
+  const [internal, pbn, existing] = await Promise.all([
+    query(postId, true, INTERNAL_LIMIT * 2),
+    query(postId, false, PBN_LIMIT * 2),
+    prisma.link.findMany({
+      select: { toPostId: true },
+      where: {
+        fromPostId: postId,
+        NOT: { approved: null, source: LinkSource.SUGGESTED },
+        toPostId: { not: null },
+      },
+    }),
+  ]);
 
   const existingTargets = new Set(existing.map((l) => l.toPostId));
 
   const fresh = (targets: ReadonlyArray<Target>, limit: number): Array<Target> =>
     targets.filter((t) => !existingTargets.has(t.id)).slice(0, limit);
 
-  const [internal, pbn] = await Promise.allSettled([
-    query(postId, true, INTERNAL_LIMIT * 2),
-    query(postId, false, PBN_LIMIT * 2),
-  ]);
-
-  const internalFinal = fresh(
-    internal.status === "fulfilled" ? internal.value : [],
-    INTERNAL_LIMIT,
-  );
-
-  const pbnFinal = fresh(pbn.status === "fulfilled" ? pbn.value : [], PBN_LIMIT);
-
+  const internalFinal = fresh(internal, INTERNAL_LIMIT);
+  const pbnFinal = fresh(pbn, PBN_LIMIT);
   const now = new Date();
-  await prisma.link.createMany({
-    data: [
-      ...internalFinal.map((t) => suggestionRow(postId, t, LinkType.INTERNAL, now)),
-      ...pbnFinal.map((t) => suggestionRow(postId, t, LinkType.PBN, now)),
-    ],
-  });
+
+  await prisma.$transaction([
+    prisma.link.deleteMany({
+      where: { approved: null, fromPostId: postId, source: LinkSource.SUGGESTED },
+    }),
+    prisma.link.createMany({
+      data: [
+        ...internalFinal.map((t) => suggestionRow(postId, t, LinkType.INTERNAL, now)),
+        ...pbnFinal.map((t) => suggestionRow(postId, t, LinkType.PBN, now)),
+      ],
+    }),
+  ]);
 
   return { internal: internalFinal.length, pbn: pbnFinal.length };
 };

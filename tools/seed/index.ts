@@ -24,11 +24,9 @@ const main = async () => {
     const entries = seedSchema.parse(raw);
 
     for (const entry of entries) {
-      const site = await Sites.upsert({
-        domain: entry.domain,
-      });
+      const site = await Sites.ensure(entry.domain);
 
-      console.log(`upserted ${site.domain}`);
+      console.log(`ensured ${site.domain}`);
     }
   } else {
     console.log("(no sites file — skipping Site seed)");

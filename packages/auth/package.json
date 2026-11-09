@@ -7,11 +7,12 @@
   "exports": {
     "./server": "./src/server.ts",
     "./client": "./src/client.ts",
+    "./env": "./src/env.ts",
     "./env-config": "./src/env-config.ts",
-    "./signup": "./src/signup.ts"
+    "./signup": "./src/signup.ts",
+    "./limits": "./src/limits.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,7 +23,8 @@
     "@repo/observability": "workspace:*",
     "@repo/portless-env": "workspace:*",
     "@repo/transactional": "workspace:*",
-    "better-auth": "^1.7.6"
+    "better-auth": "^1.7.6",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
