@@ -7,8 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/card";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import { Suspense } from "react";
+import { SkeletonBox, SkeletonSuspense } from "skullet/react";
 
 import { GscBackfillAllButton } from "./gsc-backfill-all-button";
 import { SiteCreateDialog } from "./site-create-dialog";
@@ -120,10 +120,12 @@ const SitesContent = async ({ searchParams }: { searchParams: Promise<SearchPara
 };
 
 const SitesSkeleton = () => (
-  <div aria-hidden className="flex flex-col gap-2">
-    {[0, 1, 2, 3, 4, 5].map((slot) => (
-      <Skeleton className="h-10 w-full" key={slot} />
-    ))}
+  <div className="flex flex-col gap-4">
+    <div className="flex flex-row items-start justify-between gap-4">
+      <p className="text-sm text-muted-foreground">12 Astro sites under management.</p>
+      <GscBackfillAllButton />
+    </div>
+    <SkeletonBox height={320} width="100%" />
   </div>
 );
 
@@ -149,9 +151,9 @@ const SitesPage = ({ searchParams }: { searchParams: Promise<SearchParams> }) =>
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Suspense fallback={<SitesSkeleton />}>
+        <SkeletonSuspense id="sites" label="Loading sites" skeleton={<SitesSkeleton />}>
           <SitesContent searchParams={searchParams} />
-        </Suspense>
+        </SkeletonSuspense>
       </CardContent>
     </Card>
   </div>

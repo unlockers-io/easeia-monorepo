@@ -10,9 +10,11 @@ import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { LoadError } from "@/components/load-error";
 import { unwrapAction } from "@/lib/action-result";
 
 import { listMoneySitesAction, createMoneySiteAction, recrawlMoneySiteAction } from "./actions";
@@ -31,6 +33,17 @@ const moneySiteSchema = z.object({
 const moneySitesPayloadSchema = z.object({ data: z.array(moneySiteSchema) });
 
 type MoneySite = z.infer<typeof moneySiteSchema>;
+
+const SAMPLE_MONEY_SITES: Array<MoneySite> = ["a", "b", "c"].map((id) => ({
+  _count: { pages: 120 },
+  contentPathPrefix: null,
+  createdAt: new Date(0),
+  domain: "acmestudios.example",
+  id,
+  isEnabled: true,
+  name: "Acme Studios",
+  sitemapUrl: "https://acmestudios.example/sitemap.xml",
+}));
 
 const formSchema = z.object({
   contentPathPrefix: z.string().trim().max(500),
@@ -72,9 +85,8 @@ const MoneySitesPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const {
-    data: items = [],
+    data: items,
     isError,
-    isPending,
     refetch,
   } = useQuery({
     queryFn: fetchAll,
@@ -183,56 +195,58 @@ const MoneySitesPage = () => {
         </form.Subscribe>
       </ClientReadyForm>
 
-      {isError ? (
-        <div className="mt-6 flex flex-col items-start gap-3">
-          <p className="text-sm text-destructive">
-            Failed to load money sites. Check your connection and retry.
-          </p>
-          <Button
-            onClick={() => {
-              void refetch();
-            }}
-            variant="outline"
-          >
-            Retry
-          </Button>
-        </div>
-      ) : null}
-
-      {!isPending && !isError && items.length === 0 ? (
-        <p className="mt-6 text-sm text-muted-foreground">No money sites yet.</p>
-      ) : null}
-
-      <ul className="mt-6 space-y-2">
-        {items.map(({ _count, contentPathPrefix, domain, id, name }) => (
-          <li className="flex items-center justify-between rounded border p-3" key={id}>
-            <div>
-              <Link
-                className="font-medium hover:underline"
-                href={`/dashboard/money-sites/${id}`}
-                prefetch
-              >
-                {name}
-              </Link>
-              <div className="text-xs text-muted-foreground">
-                {domain} · {_count.pages} pages
-                {contentPathPrefix !== null && contentPathPrefix !== ""
-                  ? ` · prefix ${contentPathPrefix}`
-                  : ""}
-              </div>
-            </div>
-            <Button
-              onClick={() => {
-                recrawlSite(id);
+      <Skeleton
+        className="mt-6"
+        data={items}
+        empty={items?.length === 0}
+        emptyMessage={<p className="text-sm text-muted-foreground">No money sites yet.</p>}
+        error={
+          isError ? (
+            <LoadError
+              onRetry={() => {
+                void refetch();
               }}
-              size="sm"
-              variant="outline"
-            >
-              Re-crawl
-            </Button>
-          </li>
-        ))}
-      </ul>
+              what="money sites"
+            />
+          ) : undefined
+        }
+        id="money-sites"
+        label="Loading money sites"
+        sample={SAMPLE_MONEY_SITES}
+      >
+        {(sites) => (
+          <ul className="space-y-2">
+            {sites.map(({ _count, contentPathPrefix, domain, id, name }) => (
+              <li className="flex items-center justify-between rounded border p-3" key={id}>
+                <div>
+                  <Link
+                    className="font-medium hover:underline"
+                    href={`/dashboard/money-sites/${id}`}
+                    prefetch
+                  >
+                    {name}
+                  </Link>
+                  <div className="text-xs text-muted-foreground">
+                    {domain} · {_count.pages} pages
+                    {contentPathPrefix !== null && contentPathPrefix !== ""
+                      ? ` · prefix ${contentPathPrefix}`
+                      : ""}
+                  </div>
+                </div>
+                <Button
+                  onClick={() => {
+                    recrawlSite(id);
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Re-crawl
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Skeleton>
     </section>
   );
 };

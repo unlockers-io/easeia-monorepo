@@ -3,7 +3,6 @@ import { buildRecommendations } from "@repo/health";
 import { countJobs, listJobs } from "@repo/jobs";
 import { countPbnBacklinks } from "@repo/links";
 import { Button } from "@repo/ui/components/button";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -16,7 +15,7 @@ import {
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { SkeletonBox, SkeletonSuspense } from "skullet/react";
 
 import { SectionHead } from "@/components/section-head";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
@@ -44,6 +43,27 @@ const avgTone = (avg: number | null): StatItem["tone"] => {
 
 const needsAttention = (c: SiteCardModel): boolean =>
   c.latest !== null && (!c.latest.reachable || (c.latest.healthScore ?? 100) < 60);
+
+const ReportHead = ({ items, subtitle }: { items: ReadonlyArray<StatItem>; subtitle: string }) => (
+  <div>
+    <header className="flex flex-col gap-4 border-b-4 border-foreground pb-3 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h1 className="text-4xl leading-display-tight font-black tracking-display-tight">
+          Network report
+        </h1>
+        <p className="mt-2 text-(length:--text-label) text-muted-foreground">{subtitle}</p>
+      </div>
+      <form action={refreshSnapshotsAction}>
+        <Button type="submit" variant="outline">
+          <RefreshCw className="size-4" />
+          Refresh all
+        </Button>
+      </form>
+    </header>
+
+    <StatGrid columns={6} items={items} rule={false} />
+  </div>
+);
 
 const DashboardContent = async () => {
   const session = await getSession();
@@ -112,29 +132,10 @@ const DashboardContent = async () => {
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
-        <header className="flex flex-col gap-4 border-b-4 border-foreground pb-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-4xl leading-display-tight font-black tracking-display-tight">
-              Network report
-            </h1>
-            <p className="mt-2 text-(length:--text-label) text-muted-foreground">
-              {lastSnapshotAt === undefined
-                ? "No snapshots yet"
-                : `Snapshots ${lastSnapshotAt.toLocaleString()}`}
-              {` · ${rollup.totalSites} ${rollup.totalSites === 1 ? "site" : "sites"} · ${moneySiteCount} money ${moneySiteCount === 1 ? "site" : "sites"}`}
-            </p>
-          </div>
-          <form action={refreshSnapshotsAction}>
-            <Button type="submit" variant="outline">
-              <RefreshCw className="size-4" />
-              Refresh all
-            </Button>
-          </form>
-        </header>
-
-        <StatGrid columns={6} items={rollupItems} rule={false} />
-      </div>
+      <ReportHead
+        items={rollupItems}
+        subtitle={`${lastSnapshotAt === undefined ? "No snapshots yet" : `Snapshots ${lastSnapshotAt.toLocaleString()}`} · ${rollup.totalSites} ${rollup.totalSites === 1 ? "site" : "sites"} · ${moneySiteCount} money ${moneySiteCount === 1 ? "site" : "sites"}`}
+      />
 
       <section>
         <SectionHead
@@ -356,29 +357,48 @@ const JobStatusMark = ({ status }: { status: JobStatus }) => {
   );
 };
 
+const SAMPLE_ROLLUP: ReadonlyArray<StatItem> = [
+  {
+    description: "Across 12 enabled sites",
+    emphasis: "lead",
+    label: "Average health",
+    suffix: "/100",
+    value: "82",
+  },
+  {
+    description: "Unreachable or health under 60",
+    emphasis: "lead",
+    label: "Need attention",
+    suffix: "/12",
+    value: "2",
+  },
+  { emphasis: "minor", label: "Posts, 7 days", value: "24" },
+  { emphasis: "minor", label: "Backlinks", value: "340" },
+  { emphasis: "minor", label: "Money sites", value: "3" },
+  { emphasis: "minor", label: "Rewrites", value: "40" },
+];
+
 const DashboardSkeleton = () => (
-  <div aria-hidden className="flex flex-col gap-10">
-    <header className="flex flex-row items-end justify-between gap-4 border-b-4 border-foreground pb-3">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-4 w-80" />
-      </div>
-      <Skeleton className="h-8 w-28" />
-    </header>
-    <div className="grid grid-cols-2 gap-4 border-t-4 border-foreground py-4 md:grid-cols-3 lg:grid-cols-6">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton className="h-20" key={i} />
-      ))}
-    </div>
-    <Skeleton className="h-56" />
-    <Skeleton className="h-72" />
+  <div className="flex flex-col gap-10">
+    <ReportHead
+      items={SAMPLE_ROLLUP}
+      subtitle="Snapshots 1/1/2026, 12:00:00 AM · 12 sites · 3 money sites"
+    />
+    <section>
+      <SectionHead aside="2 of 12 · worst first" no="01" title="Sites needing attention" />
+      <SkeletonBox height={224} width="100%" />
+    </section>
+    <section>
+      <SectionHead aside="All 12 · Manage sites" no="02" title="Schedule of sites" />
+      <SkeletonBox height={288} width="100%" />
+    </section>
   </div>
 );
 
 const Dashboard = () => (
-  <Suspense fallback={<DashboardSkeleton />}>
+  <SkeletonSuspense id="dashboard" label="Loading network report" skeleton={<DashboardSkeleton />}>
     <DashboardContent />
-  </Suspense>
+  </SkeletonSuspense>
 );
 
 /** @public Next.js app-router reads the instant segment config via the module loader */
