@@ -133,8 +133,7 @@ const MoneySiteDetailView = ({ embeddedCount, nowMs, site }: MoneySiteDetailView
   const total = site.pages.length;
   const classified = site.pages.filter((p) => p.niches.length > 0).length;
 
-  const lastCrawledAt =
-    site.pages.length > 0 && site.pages[0]?.lastCrawledAt ? site.pages[0].lastCrawledAt : null;
+  const lastCrawledAt = site.pages[0]?.lastCrawledAt ?? null;
 
   return (
     <>

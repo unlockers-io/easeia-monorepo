@@ -6,6 +6,7 @@ import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { LoadError } from "@/components/load-error";
 import { unwrapAction } from "@/lib/action-result";
 
 import { listSuggestionsAction, decideSuggestionAction } from "../actions";
@@ -110,19 +111,12 @@ const SuggestionsPage = () => {
         emptyMessage={<p className="text-sm text-muted-foreground">No pending suggestions.</p>}
         error={
           isError ? (
-            <div className="flex flex-col items-start gap-3">
-              <p className="text-sm text-destructive">
-                Failed to load suggestions. Check your connection and retry.
-              </p>
-              <Button
-                onClick={() => {
-                  void refetch();
-                }}
-                variant="outline"
-              >
-                Retry
-              </Button>
-            </div>
+            <LoadError
+              onRetry={() => {
+                void refetch();
+              }}
+              what="suggestions"
+            />
           ) : undefined
         }
         id="suggestions"
