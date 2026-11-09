@@ -29,8 +29,9 @@ import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, CheckCircle2, ExternalLink, XCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { SkeletonSuspense } from "skullet/react";
 
+import { CardSuspense } from "@/components/card-suspense";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
 import { readIntegrations } from "@/lib/integrations";
 
@@ -39,7 +40,13 @@ import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
 import { AuthorCard } from "./author-form";
 import { AutoPublishForm } from "./auto-publish-form";
 import { BacklinksCard } from "./backlinks-card";
-import { DomainRankCard, OnPageAuditCard, SeoPanel, TopKeywordsCard } from "./dataforseo-cards";
+import {
+  DomainRankCard,
+  OnPageAuditCard,
+  SectionSuspense,
+  SeoPanel,
+  TopKeywordsCard,
+} from "./dataforseo-cards";
 import { InboundLinksCard } from "./inbound-links";
 import {
   type HealthCheck,
@@ -53,7 +60,12 @@ import { NicheCard } from "./niche-card";
 import { PublishFrequencyCard } from "./publish-frequency-card";
 import { PublishingForm } from "./publishing-form";
 import { SearchConsoleCard } from "./search-console-card";
-import { StatGridSkeleton, CardSkeleton, SectionSkeleton } from "./skeletons";
+
+const SAMPLE_SITE_STATS: ReadonlyArray<StatItem> = [
+  { label: "Published posts", value: "120" },
+  { label: "Last published", value: "1/1/2026" },
+  { label: "Rewrites", value: "40" },
+];
 
 const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
@@ -133,34 +145,38 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
         </div>
       </header>
 
-      <Suspense fallback={<StatGridSkeleton />}>
+      <SkeletonSuspense
+        id="site-stats"
+        label="Loading site stats"
+        skeleton={<StatGrid columns={3} items={SAMPLE_SITE_STATS} />}
+      >
         <SiteStatGrid siteId={id} />
-      </Suspense>
+      </SkeletonSuspense>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <Suspense fallback={<CardSkeleton title="Health checks" />}>
+        <CardSuspense title="Health checks">
           <HealthChecksCard site={site} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton title="Niche distribution" />}>
+        </CardSuspense>
+        <CardSuspense title="Niche distribution">
           <NicheCard siteId={id} />
-        </Suspense>
+        </CardSuspense>
       </section>
 
-      <Suspense fallback={<CardSkeleton title="On-page SEO" />}>
+      <CardSuspense title="On-page SEO">
         <OnPageSeoCard siteId={id} />
-      </Suspense>
+      </CardSuspense>
 
-      <Suspense fallback={<CardSkeleton title="Latest posts" />}>
+      <CardSuspense title="Latest posts">
         <RecentPostsCard siteId={id} />
-      </Suspense>
+      </CardSuspense>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <Suspense fallback={<CardSkeleton title="Publish frequency" />}>
+        <CardSuspense title="Publish frequency">
           <PublishFrequencyCard siteId={id} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton title="Inbound link footprint" />}>
+        </CardSuspense>
+        <CardSuspense title="Inbound link footprint">
           <InboundLinksCard siteId={id} />
-        </Suspense>
+        </CardSuspense>
       </section>
 
       <Card>
@@ -188,9 +204,9 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
       </Card>
 
       <PublishingForm site={{ ...site, hasDeployHook: hasDeployHook(site) }} />
-      <Suspense fallback={<CardSkeleton title="Backlinks" />}>
+      <CardSuspense title="Backlinks">
         <BacklinksCard siteId={site.id} />
-      </Suspense>
+      </CardSuspense>
       <AuthorCard
         defaultBio={site.authorBio}
         defaultName={site.authorName}
@@ -213,15 +229,15 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
             vertically with unknown heights, so independent reveals shove each other down
             the panel. Nesting keeps the fetches parallel but settles the panel top-down. */}
             <SeoPanel>
-              <Suspense fallback={<SectionSkeleton title="Domain rank" />}>
+              <SectionSuspense title="Domain rank">
                 <DomainRankCard domain={site.domain} language={site.language} />
-                <Suspense fallback={<SectionSkeleton title="Homepage audit" />}>
+                <SectionSuspense title="Homepage audit">
                   <OnPageAuditCard siteId={site.id} url={`https://${site.domain}`} />
-                  <Suspense fallback={<SectionSkeleton title="Top organic keywords" />}>
+                  <SectionSuspense title="Top organic keywords">
                     <TopKeywordsCard domain={site.domain} language={site.language} />
-                  </Suspense>
-                </Suspense>
-              </Suspense>
+                  </SectionSuspense>
+                </SectionSuspense>
+              </SectionSuspense>
             </SeoPanel>
           </div>
         </>
@@ -233,9 +249,9 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       )}
 
-      <Suspense fallback={<CardSkeleton title="Google Search Console" />}>
+      <CardSuspense title="Google Search Console">
         <SearchConsoleCard domain={site.domain} />
-      </Suspense>
+      </CardSuspense>
     </div>
   );
 };

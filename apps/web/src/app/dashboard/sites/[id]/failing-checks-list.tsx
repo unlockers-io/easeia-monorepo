@@ -11,10 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@repo/ui/components/dialog";
-import { Skeleton } from "@repo/ui/components/skeleton";
 import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { AlertTriangle, Check, Copy, Loader2, Sparkles, XCircle } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
 
 import { BulkAdviceStatus } from "./bulk-advice-status";
@@ -23,6 +23,25 @@ import { bulkGenerateFixAdviceAction, getFixAdviceAction } from "./fix-advice-ac
 import type { FixAdvice, FixAdviceSeverity, FixStep } from "./fix-advice-generator";
 
 const VISIBLE_CHECK_LIMIT = 8;
+
+const SAMPLE_ADVICE: FixAdvice = {
+  category: "hosting",
+  problem:
+    "The server is not setting a Content-Encoding header, so responses ship uncompressed and load slower than they should.",
+  severity: "medium",
+  steps: [
+    {
+      description: "Enable gzip in the hosting panel under Advanced > Cache.",
+      manual: true,
+      snippet: null,
+    },
+    {
+      description: "Purge the CDN cache so visitors get the compressed responses.",
+      manual: true,
+      snippet: null,
+    },
+  ],
+};
 
 type Props = {
   failing: ReadonlyArray<string>;
@@ -207,9 +226,20 @@ const FixAdviceDialog = ({ checkName, onClose, siteId }: DialogProps) => {
           </DialogDescription>
         </DialogHeader>
 
-        {visiblePhase.kind === "loading" ? <LoadingState /> : null}
-        {visiblePhase.kind === "error" ? <ErrorState message={visiblePhase.message} /> : null}
-        {visiblePhase.kind === "ready" ? <AdviceView advice={visiblePhase.advice} /> : null}
+        {visiblePhase.kind === "idle" ? null : (
+          <Skeleton
+            data={visiblePhase.kind === "ready" ? visiblePhase.advice : undefined}
+            error={
+              visiblePhase.kind === "error" ? (
+                <ErrorState message={visiblePhase.message} />
+              ) : undefined
+            }
+            label="Asking the model for a fix recipe"
+            sample={SAMPLE_ADVICE}
+          >
+            {(advice) => <AdviceView advice={advice} />}
+          </Skeleton>
+        )}
 
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>Close</DialogClose>
@@ -218,18 +248,6 @@ const FixAdviceDialog = ({ checkName, onClose, siteId }: DialogProps) => {
     </Dialog>
   );
 };
-
-const LoadingState = () => (
-  <div aria-live="polite" className="flex flex-col gap-3 py-2">
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Loader2 className="size-4 motion-safe:animate-spin" />
-      Asking the model for a fix recipe…
-    </div>
-    <Skeleton className="h-4 w-3/4" />
-    <Skeleton className="h-4 w-2/3" />
-    <Skeleton className="h-20 w-full" />
-  </div>
-);
 
 const ErrorState = ({ message }: { message: string }) => (
   <div aria-live="polite" className="flex items-start gap-2 rounded-md bg-destructive/10 p-3">

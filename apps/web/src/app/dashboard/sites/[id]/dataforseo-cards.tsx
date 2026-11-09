@@ -9,6 +9,7 @@ import {
 } from "@repo/ui/components/table";
 import { CheckCircle2, ExternalLink, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
+import { SkeletonBox, SkeletonSuspense } from "skullet/react";
 
 import { auditPage, domainRankOverview, rankedKeywords } from "@/app/dashboard/lib/dataforseo";
 import { RankBadge, Stat } from "@/app/dashboard/lib/metrics";
@@ -38,6 +39,20 @@ const Section = ({ children, description, flushBody = false, title }: SectionPro
     </header>
     <div className={flushBody ? "-mx-4 -mb-4" : ""}>{children}</div>
   </section>
+);
+
+export const SectionSuspense = ({ children, title }: { children: ReactNode; title: string }) => (
+  <SkeletonSuspense
+    id={`seo:${title}`}
+    label={`Loading ${title}`}
+    skeleton={
+      <Section description="Fetching from DataForSEO" title={title}>
+        <SkeletonBox height={96} width="100%" />
+      </Section>
+    }
+  >
+    {children}
+  </SkeletonSuspense>
 );
 
 const SectionError = ({ message, title }: { message: string; title: string }) => (
