@@ -47,16 +47,51 @@ const recordFailure = async (jobId: string, error: unknown, retry: boolean): Pro
   throw retry ? error : new UnrecoverableError(lastError);
 };
 
+const jobIdOf = (bull: BullJob<Prisma.InputJsonObject>, kind: JobKind): string => {
+  if (bull.id === undefined || bull.id === "") {
+    throw new UnrecoverableError(`BullMQ job has no id (kind=${kind})`);
+  }
+
+  return bull.id;
+};
+
+const contextFor = <K extends JobKind>(
+  kind: K,
+  row: Job,
+  data: Prisma.InputJsonObject,
+): ConsumerContext<K> => {
+  const run = runFor(row);
+  const context: ConsumerContext<K> = { jobId: row.id, payload: parsePayload(kind, data) };
+
+  if (run !== undefined) {
+    context.run = run;
+  }
+
+  return context;
+};
+
+const settleFailure = async <K extends JobKind>(
+  options: ConsumeOptions<K>,
+  context: ConsumerContext<K>,
+  error: unknown,
+  finalAttempt: boolean,
+): Promise<void> => {
+  const retry = !finalAttempt && (options.isRetryable?.(error) ?? true);
+
+  try {
+    if (!retry && !(error instanceof JobSkippedError)) {
+      await options.onFailure?.(context);
+    }
+  } finally {
+    await recordFailure(context.jobId, error, retry);
+  }
+};
+
 export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =>
   new Worker(
     queueName(options.kind),
     async (bull: BullJob<Prisma.InputJsonObject>) => {
-      const jobId = bull.id;
-
-      if (jobId === undefined || jobId === "") {
-        throw new UnrecoverableError(`BullMQ job has no id (kind=${options.kind})`);
-      }
-
+      const jobId = jobIdOf(bull, options.kind);
       const finalAttempt = bull.attemptsMade + 1 >= (bull.opts.attempts ?? 1);
       const startedAt = new Date();
 
@@ -77,12 +112,7 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       let context: ConsumerContext<K>;
 
       try {
-        const run = runFor(row);
-        context = { jobId, payload: parsePayload(options.kind, bull.data) };
-
-        if (run !== undefined) {
-          context.run = run;
-        }
+        context = contextFor(options.kind, row, bull.data);
       } catch (error) {
         await recordFailure(jobId, error, false);
 
@@ -92,15 +122,7 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       try {
         await options.handler(context);
       } catch (error) {
-        const retry = !finalAttempt && (options.isRetryable?.(error) ?? true);
-
-        try {
-          if (!retry && !(error instanceof JobSkippedError)) {
-            await options.onFailure?.(context);
-          }
-        } finally {
-          await recordFailure(jobId, error, retry);
-        }
+        await settleFailure(options, context, error, finalAttempt);
 
         return;
       }

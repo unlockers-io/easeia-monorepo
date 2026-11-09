@@ -92,14 +92,26 @@ export const useUrlFilters = ({ keys, q }: { keys: ReadonlyArray<string>; q: str
   return { handleNichesChange, handleReset, searchInput, setParam, setSearchInput };
 };
 
+type NicheRow = { niches: ReadonlyArray<string> };
+
 type Props<TData extends object> = {
   children: ReactNode;
   filters: ReturnType<typeof useUrlFilters>;
   hasFilters: boolean;
   niches: Array<string>;
   placeholder: string;
-  rows: ReadonlyArray<{ niches: ReadonlyArray<string> }>;
+  rows: ReadonlyArray<NicheRow>;
   table: DataTableInstance<TData>;
+};
+
+const countNiches = (rows: ReadonlyArray<NicheRow>): Map<string, number> => {
+  const counts = new Map<string, number>();
+
+  for (const niche of rows.flatMap((row) => row.niches)) {
+    counts.set(niche, (counts.get(niche) ?? 0) + 1);
+  }
+
+  return counts;
 };
 
 export const FilterToolbar = <TData extends object>({
@@ -112,13 +124,7 @@ export const FilterToolbar = <TData extends object>({
   table,
 }: Props<TData>) => {
   const ready = useClientReady();
-  const nicheCounts = new Map<string, number>();
-
-  for (const row of rows) {
-    for (const niche of row.niches) {
-      nicheCounts.set(niche, (nicheCounts.get(niche) ?? 0) + 1);
-    }
-  }
+  const nicheCounts = countNiches(rows);
 
   return (
     <div className="flex flex-wrap items-center gap-2">

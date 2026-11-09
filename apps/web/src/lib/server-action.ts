@@ -7,24 +7,31 @@ import type { ActionResult } from "./action-result";
 import { requireSession } from "./auth-helpers";
 import { log } from "./observability";
 
+const firstIssueMessage = (error: z.ZodError): string =>
+  error.issues[0]?.message ?? "Check your input.";
+
+const unexpectedFailure = (error: unknown): string => {
+  log.error({
+    error: error instanceof Error ? error.message : String(error),
+    message: "Dashboard action failed",
+  });
+
+  return "Could not complete the request. Please try again.";
+};
+
+const failureMessage = (error: unknown): string => {
+  if (error instanceof DomainError) {
+    return error.message;
+  }
+
+  return error instanceof z.ZodError ? firstIssueMessage(error) : unexpectedFailure(error);
+};
+
 export const settle = async <T>(operation: () => Promise<T>): Promise<ActionResult<T>> => {
   try {
     return { data: await operation(), ok: true };
   } catch (error) {
-    if (error instanceof DomainError) {
-      return { error: error.message, ok: false };
-    }
-
-    if (error instanceof z.ZodError) {
-      return { error: error.issues[0]?.message ?? "Check your input.", ok: false };
-    }
-
-    log.error({
-      error: error instanceof Error ? error.message : String(error),
-      message: "Dashboard action failed",
-    });
-
-    return { error: "Could not complete the request. Please try again.", ok: false };
+    return { error: failureMessage(error), ok: false };
   }
 };
 

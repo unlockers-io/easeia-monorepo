@@ -108,6 +108,9 @@ export type JobRegistration<K extends JobKind = JobKind> = {
   tick?: { enabled: boolean; everyMs: number };
 };
 
+const scheduleOf = (tick: JobDefinition<JobKind>["tick"]): JobRegistration["tick"] =>
+  tick === undefined ? undefined : { enabled: tick.enabled ?? true, everyMs: tick.everyMs };
+
 const register = <K extends JobKind>(kind: K): JobRegistration<K> => {
   const { aiOptional, handle, serial, tick } = JOBS[kind];
   const published = forPublishedMember(handle);
@@ -117,7 +120,7 @@ const register = <K extends JobKind>(kind: K): JobRegistration<K> => {
     handle: aiOptional ? skipWhenAiUnconfigured(published) : published,
     kind,
     onFailure: failureOf(kind),
-    tick: tick === undefined ? undefined : { enabled: tick.enabled ?? true, everyMs: tick.everyMs },
+    tick: scheduleOf(tick),
   };
 };
 

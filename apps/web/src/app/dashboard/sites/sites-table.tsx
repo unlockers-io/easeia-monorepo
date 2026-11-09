@@ -48,6 +48,9 @@ type SitesTableProps = {
   rows: Array<SiteRow>;
 };
 
+const isFiltered = (searchInput: string, filters: SitesTableFilters): boolean =>
+  searchInput.length > 0 || filters.niches.length > 0 || filters.enabled !== "";
+
 const SitesTable = ({ initialFilters, rows }: SitesTableProps) => {
   const ready = useClientReady();
   const filters = useUrlFilters({ keys: ["enabled"], q: initialFilters.q });
@@ -161,10 +164,7 @@ const SitesTable = ({ initialFilters, rows }: SitesTableProps) => {
     },
   ];
 
-  const hasFilters =
-    filters.searchInput.length > 0 ||
-    initialFilters.niches.length > 0 ||
-    statusValue !== ALL_STATUSES;
+  const hasFilters = isFiltered(filters.searchInput, initialFilters);
 
   return (
     <DataTable

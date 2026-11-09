@@ -18,6 +18,8 @@ import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useState } from "react";
 
+import { fieldAria } from "@/lib/field-aria";
+
 import { updateSiteAuthorAction } from "../actions";
 
 import { authorFormSchema } from "./patches";
@@ -69,9 +71,10 @@ const AuthorField = ({
 }) => {
   const isInvalid = !field.state.meta.isValid;
   const id = `${field.name}-${siteId}`;
+  const { describedBy, errorId } = fieldAria(id, false, isInvalid);
 
   const props = {
-    "aria-describedby": isInvalid ? `${id}-error` : undefined,
+    "aria-describedby": describedBy,
     "aria-invalid": isInvalid,
     id,
     onBlur: field.handleBlur,
@@ -86,7 +89,7 @@ const AuthorField = ({
     <Field data-invalid={isInvalid || undefined}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       {multiline ? <Textarea {...props} rows={3} /> : <Input {...props} />}
-      {isInvalid && <FormFieldError errors={field.state.meta.errors} id={`${id}-error`} />}
+      {isInvalid && <FormFieldError errors={field.state.meta.errors} id={errorId} />}
     </Field>
   );
 };

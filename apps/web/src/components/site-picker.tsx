@@ -11,6 +11,8 @@ import {
 import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import type { ReactNode } from "react";
 
+import { fieldAria } from "@/lib/field-aria";
+
 export type SiteOption = { domain: string; id: string };
 
 type Props = {
@@ -25,12 +27,12 @@ type Props = {
 
 export const SitePicker = ({ description, field, sites }: Props) => {
   const isInvalid = !field.state.meta.isValid;
-  const descriptionId = `${field.name}-description`;
-  const errorId = `${field.name}-error`;
 
-  const describedBy = [description === undefined ? null : descriptionId, isInvalid ? errorId : null]
-    .filter((describer) => describer !== null)
-    .join(" ");
+  const { describedBy, descriptionId, errorId } = fieldAria(
+    field.name,
+    description !== undefined,
+    isInvalid,
+  );
 
   return (
     <Field data-invalid={isInvalid || undefined}>
@@ -43,7 +45,7 @@ export const SitePicker = ({ description, field, sites }: Props) => {
         value={field.state.value}
       >
         <SelectTrigger
-          aria-describedby={describedBy === "" ? undefined : describedBy}
+          aria-describedby={describedBy}
           aria-invalid={isInvalid}
           aria-required
           className="w-full"

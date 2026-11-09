@@ -83,29 +83,38 @@ export const RunPanel = <C extends Counts>({
       )}
 
       {status?.counts ? (
-        <div className="mt-6 rounded border p-4">
-          <div className="mb-2 text-sm font-medium">
-            Phase: {status.phase}
-            {status.ended ? ` (${status.ended})` : ""}
-          </div>
-          {rows(status.counts).map(({ done, label, total }) => (
-            <div className="flex items-baseline justify-between gap-4 py-1" key={label}>
-              <span className="text-sm">{label}</span>
-              <span className="font-mono text-sm tabular-nums">
-                {done} / {total} ({total === 0 ? 0 : Math.round((done / total) * 100)}%)
-              </span>
-            </div>
-          ))}
-          {status.counts.skipped > 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Skipped jobs: {status.counts.skipped}
-            </p>
-          ) : null}
-          {status.counts.failed > 0 ? (
-            <div className="mt-2 text-sm text-destructive">Failed jobs: {status.counts.failed}</div>
-          ) : null}
-        </div>
+        <RunProgress counts={status.counts} ended={status.ended} phase={status.phase} rows={rows} />
       ) : null}
     </section>
   );
 };
+
+type RunProgressProps<C extends Counts> = {
+  counts: C;
+  ended: RunStatus<C>["ended"];
+  phase: RunStatus<C>["phase"];
+  rows: Props<C>["rows"];
+};
+
+const RunProgress = <C extends Counts>({ counts, ended, phase, rows }: RunProgressProps<C>) => (
+  <div className="mt-6 rounded border p-4">
+    <div className="mb-2 text-sm font-medium">
+      Phase: {phase}
+      {ended ? ` (${ended})` : ""}
+    </div>
+    {rows(counts).map(({ done, label, total }) => (
+      <div className="flex items-baseline justify-between gap-4 py-1" key={label}>
+        <span className="text-sm">{label}</span>
+        <span className="font-mono text-sm tabular-nums">
+          {done} / {total} ({total === 0 ? 0 : Math.round((done / total) * 100)}%)
+        </span>
+      </div>
+    ))}
+    {counts.skipped > 0 ? (
+      <p className="mt-2 text-sm text-muted-foreground">Skipped jobs: {counts.skipped}</p>
+    ) : null}
+    {counts.failed > 0 ? (
+      <div className="mt-2 text-sm text-destructive">Failed jobs: {counts.failed}</div>
+    ) : null}
+  </div>
+);
