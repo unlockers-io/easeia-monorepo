@@ -29,6 +29,4 @@ const GlobalErrorContent = ({ error, log, retry }: GlobalErrorContentProps) => {
   );
 };
 
-const globalErrorClassNames = { body: styles.body, html: styles.document };
-
-export { GlobalErrorContent, globalErrorClassNames };
+export { GlobalErrorContent };

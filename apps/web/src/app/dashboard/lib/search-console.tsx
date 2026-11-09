@@ -1,11 +1,11 @@
 import { forSite, GoogleAuthError, GoogleNotConfiguredError } from "@repo/search-console";
 import { Card, CardDescription, CardHeader, CardTitle } from "@repo/ui/components/card";
-import { Plug, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { ProviderErrorCard } from "./provider-card";
 import { tryProvider } from "./provider-result";
+import { SearchConsoleError } from "./search-console-error";
 
 type ConnectedSite = Extract<Awaited<ReturnType<typeof forSite>>, { status: "ok" }>;
 
@@ -13,15 +13,6 @@ type Gate = { domain: string; purpose: string; title: string };
 
 export const searchConsoleCall = async <T,>(call: () => Promise<T>) =>
   tryProvider(call, [GoogleAuthError, GoogleNotConfiguredError]);
-
-export const SearchConsoleError = ({ message, title }: { message: string; title: string }) => (
-  <ProviderErrorCard
-    description="Search Console unavailable."
-    icon={Plug}
-    message={message}
-    title={title}
-  />
-);
 
 const GateCard = ({ children, title }: { children: ReactNode; title: string }) => (
   <Card>

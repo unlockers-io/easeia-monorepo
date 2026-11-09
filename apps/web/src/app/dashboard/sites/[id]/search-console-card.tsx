@@ -16,11 +16,8 @@ import {
 import { Activity, MousePointer2 } from "lucide-react";
 
 import { RankBadge, Stat } from "@/app/dashboard/lib/metrics";
-import {
-  searchConsoleCall,
-  SearchConsoleError,
-  withSearchConsole,
-} from "@/app/dashboard/lib/search-console";
+import { searchConsoleCall, withSearchConsole } from "@/app/dashboard/lib/search-console";
+import { SearchConsoleError } from "@/app/dashboard/lib/search-console-error";
 
 const WINDOW_DAYS = 28;
 const TOP_LIMIT = 10;

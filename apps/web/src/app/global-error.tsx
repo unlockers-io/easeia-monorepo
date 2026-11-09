@@ -1,7 +1,8 @@
 "use client";
 
-import { globalErrorClassNames, GlobalErrorContent } from "@repo/ui/compositions/global-error";
+import { GlobalErrorContent } from "@repo/ui/compositions/global-error";
 import type { ErrorBoundaryProps } from "@repo/ui/hooks/use-error-report";
+import { globalErrorClassNames } from "@repo/ui/lib/global-error-class-names";
 
 import { log } from "@/lib/observability-client";
 
