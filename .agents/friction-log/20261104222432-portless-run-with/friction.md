@@ -1,6 +1,7 @@
 ---
 title: 'portless run with pnpm exec next start fails: applyPortlessUrls portless get refuses pnpm'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#39'
 ---
 
 ## Expected Behavior

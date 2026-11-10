@@ -1,6 +1,7 @@
 ---
 title: 'turbo typecheck replays a stale pass after a workspace package changes'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#42'
 ---
 
 ### Expected Behavior
