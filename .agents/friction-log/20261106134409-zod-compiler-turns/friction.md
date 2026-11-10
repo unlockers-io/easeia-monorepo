@@ -1,6 +1,7 @@
 ---
 title: 'zod-compiler turns Hono validation failures into a thrown undefined'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#41'
 ---
 
 ### Expected Behavior
