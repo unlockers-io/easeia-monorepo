@@ -1,5 +1,11 @@
 # @easeia/astro-content
 
+## 0.6.0
+
+### Minor Changes
+
+- b30aac4: Export the build contract schemas (`buildPostSchema`, `buildImageSchema`, `buildManifestSchema`) and the `BuildAuthor` type, so the build API documents the same contract the loader reads.
+
 ## 0.5.2
 
 ### Patch Changes
