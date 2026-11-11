@@ -35,7 +35,7 @@
     "@repo/sites": "workspace:*",
     "bullmq": "^6.0.9",
     "dotenv": "^17.4.2",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
