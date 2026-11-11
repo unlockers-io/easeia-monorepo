@@ -12,7 +12,7 @@
     "@repo/rewrite": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.11",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

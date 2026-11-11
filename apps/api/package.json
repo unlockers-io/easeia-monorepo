@@ -37,7 +37,7 @@
     "dotenv": "^17.4.2",
     "hono": "^4.13.9",
     "hono-rate-limiter": "^0.5.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@repo/ai": "workspace:*",
