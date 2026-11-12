@@ -47,9 +47,9 @@ const Pricing = () => (
     <div className="grid border-t-4 border-foreground lg:grid-cols-2 lg:gap-x-12">
       {TIERS.map((tier, index) => (
         <div className="flex flex-col py-6 max-lg:border-b max-lg:border-border" key={tier.name}>
-          <p className="text-(length:--text-label) font-black tabular-nums">05.{index + 1}</p>
+          <p className="text-label font-black tabular-nums">05.{index + 1}</p>
           <h3 className="mt-1 text-3xl font-black tracking-hero">{tier.name}</h3>
-          <p className="mt-2 min-h-plan-description max-w-(--container-measure-body) text-sm text-pretty text-muted-foreground">
+          <p className="mt-2 min-h-plan-description max-w-measure-body text-sm text-pretty text-muted-foreground">
             {tier.description}
           </p>
           <div className="mt-4 border-t border-foreground pt-3">

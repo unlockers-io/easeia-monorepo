@@ -44,8 +44,8 @@ const PbnSiteNodeComponent = ({ data, selected }: NodeProps<PbnSiteNode>) => {
       } ${data.moneyLinks > 0 ? "" : "border-dashed opacity-80"}`}
       data-testid={`pbn-node-${data.id}`}
     >
-      <Handle className="!bg-muted-foreground" position={Position.Left} type="target" />
-      <Handle className="!bg-muted-foreground" position={Position.Right} type="source" />
+      <Handle className="bg-muted-foreground!" position={Position.Left} type="target" />
+      <Handle className="bg-muted-foreground!" position={Position.Right} type="source" />
       <div className="flex items-start justify-between gap-2">
         <span className="font-mono text-xs break-all">{data.domain}</span>
         <Globe2 aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
@@ -77,7 +77,7 @@ const MoneySiteNodeComponent = ({ data, selected }: NodeProps<MoneySiteNode>) =>
     }`}
     data-testid={`money-node-${data.id}`}
   >
-    <Handle className="!bg-primary" position={Position.Left} type="target" />
+    <Handle className="bg-primary!" position={Position.Left} type="target" />
     <div className="flex items-start justify-between gap-2">
       <div className="flex flex-col">
         <span className="text-sm font-semibold">{data.name}</span>

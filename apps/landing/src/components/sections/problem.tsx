@@ -2,7 +2,7 @@ import { Section } from "@/components/section";
 
 const Problem = () => (
   <Section no="01" title="More sites mean more publishing work.">
-    <div className="flex max-w-(--container-measure-65) flex-col gap-4 text-base text-pretty text-muted-foreground md:text-lg">
+    <div className="flex max-w-measure-65 flex-col gap-4 text-base text-pretty text-muted-foreground md:text-lg">
       <p>
         Each blog needs its own topics, draft queue, publishing schedule, and links. Across ten
         sites, checking what is ready and what failed becomes a daily job.

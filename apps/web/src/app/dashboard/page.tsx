@@ -46,7 +46,7 @@ const ReportHead = ({ items, subtitle }: { items: ReadonlyArray<StatItem>; subti
         <h1 className="text-4xl leading-display-tight font-black tracking-display-tight">
           Network report
         </h1>
-        <p className="mt-2 text-(length:--text-label) text-muted-foreground">{subtitle}</p>
+        <p className="mt-2 text-label text-muted-foreground">{subtitle}</p>
       </div>
       <ActionButton action={refreshSnapshotsAction} variant="outline">
         <RefreshCw className="size-4" />

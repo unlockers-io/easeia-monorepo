@@ -50,7 +50,7 @@ const Capabilities = () => {
         {CAPABILITIES.map((cap) => (
           <div className="border-b border-border py-5" key={cap.title}>
             <dt className="text-lg font-extrabold tracking-heading">{cap.title}</dt>
-            <dd className="mt-2 max-w-(--container-measure-42) text-sm text-pretty text-muted-foreground">
+            <dd className="mt-2 max-w-measure-42 text-sm text-pretty text-muted-foreground">
               {cap.description}
             </dd>
           </div>

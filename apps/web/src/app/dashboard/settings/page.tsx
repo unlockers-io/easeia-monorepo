@@ -89,7 +89,7 @@ const ConnectionCard = async ({ userId }: { userId: string }) => {
             )}
           </Term>
           <Term label="Scope">
-            <code className="text-(length:--text-caption-sm)">webmasters.readonly</code>
+            <code className="text-caption-sm">webmasters.readonly</code>
           </Term>
           <Term label="Access token expires">
             <span className="tabular-nums">{new Date(connection.expiresAt).toLocaleString()}</span>

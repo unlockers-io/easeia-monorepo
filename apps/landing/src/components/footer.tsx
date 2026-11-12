@@ -21,7 +21,7 @@ const Footer = () => (
         <Link aria-label="Homepage" href="/">
           <Logo />
         </Link>
-        <p className="max-w-(--container-measure-40) text-sm text-muted-foreground">
+        <p className="max-w-measure-40 text-sm text-muted-foreground">
           An open-source dashboard for private blog networks. Astro publishing, links, and search
           data in one place.
         </p>

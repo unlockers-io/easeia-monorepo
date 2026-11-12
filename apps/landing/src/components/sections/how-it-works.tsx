@@ -40,7 +40,7 @@ const HowItWorks = () => {
             </span>
             <div>
               <p className="text-lg font-extrabold tracking-heading">{step.title}</p>
-              <p className="mt-1.5 max-w-(--container-measure-footer) text-sm text-pretty text-muted-foreground">
+              <p className="mt-1.5 max-w-measure-footer text-sm text-pretty text-muted-foreground">
                 {step.description}
               </p>
             </div>
