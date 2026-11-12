@@ -12,7 +12,7 @@ const FinalCta = () => (
           <h2 className="text-4xl leading-display font-black tracking-hero text-balance md:text-5xl">
             Run it yourself, or wait for Cloud.
           </h2>
-          <p className="mt-5 max-w-(--container-measure-50) text-base text-pretty text-muted-foreground md:text-lg">
+          <p className="mt-5 max-w-measure-50 text-base text-pretty text-muted-foreground md:text-lg">
             The self-hosted dashboard is available now under the MIT license. Cloud pricing and
             availability will be announced at launch.
           </p>

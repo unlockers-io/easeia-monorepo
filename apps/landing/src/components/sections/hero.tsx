@@ -26,10 +26,10 @@ const Hero = () => {
     <section className="border-b border-foreground">
       <div className="mx-auto grid max-w-(--breakpoint-xl) gap-x-6 gap-y-12 px-6 pt-16 pb-16 md:grid-cols-12 md:px-8 md:pt-20 md:pb-20">
         <div className="md:col-span-7">
-          <h1 className="max-w-(--container-measure-14) text-5xl leading-hero font-black tracking-hero text-balance md:text-7xl lg:text-(length:--text-display-lg)">
+          <h1 className="max-w-measure-14 text-5xl leading-hero font-black tracking-hero text-balance md:text-7xl lg:text-display-lg">
             Run a private blog network from one dashboard.
           </h1>
-          <p className="mt-7 max-w-(--container-measure-46) text-lg text-pretty text-muted-foreground md:text-xl">
+          <p className="mt-7 max-w-measure-46 text-lg text-pretty text-muted-foreground md:text-xl">
             AI drafts, scheduled publishing to Astro, and cross-site links to money sites. Track
             rankings and Search Console data per post. Open source and self-hosted.
           </p>
@@ -56,10 +56,10 @@ const Hero = () => {
             <span className="text-muted-foreground">Illustration</span>
           </figcaption>
           <div className="mt-4 bg-muted px-4 py-3">
-            <p className="text-(length:--text-intro) font-extrabold tracking-heading">
+            <p className="text-intro font-extrabold tracking-heading">
               A publishing queue for each site
             </p>
-            <p className="text-(length:--text-label) text-muted-foreground">
+            <p className="text-label text-muted-foreground">
               drafts · schedules · links · rankings
             </p>
           </div>

@@ -20,9 +20,7 @@ const PRIORITY_CLASS = {
 
 const Figure = ({ label, value }: { label: string; value: string }) => (
   <div className="pr-3">
-    <dd className="text-(length:--text-heading-sm) font-extrabold tracking-display tabular-nums">
-      {value}
-    </dd>
+    <dd className="text-heading-sm font-extrabold tracking-display tabular-nums">{value}</dd>
     <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
   </div>
 );
@@ -41,7 +39,7 @@ const AttentionRow = ({ card }: { card: SiteCardModel }) => {
     <article className="grid gap-4 border-b border-border py-5 md:grid-cols-site-detail md:gap-x-4">
       <div className="flex items-baseline gap-4 md:block">
         <p
-          className={`text-5xl font-extrabold tracking-tighter tabular-nums md:text-(length:--text-display) md:leading-display-compact ${STANDING_TEXT[standing]}`}
+          className={`text-5xl font-extrabold tracking-tighter tabular-nums md:text-display md:leading-display-compact ${STANDING_TEXT[standing]}`}
         >
           {score ?? "—"}
         </p>
@@ -60,7 +58,7 @@ const AttentionRow = ({ card }: { card: SiteCardModel }) => {
 
       <div className="grid min-w-0 gap-4 md:grid-cols-site-summary md:gap-x-8">
         <div className="min-w-0">
-          <h3 className="text-(length:--text-heading-sm) font-extrabold tracking-tight break-all">
+          <h3 className="text-heading-sm font-extrabold tracking-tight break-all">
             <Link
               className="hover:underline hover:underline-offset-4"
               href={`/dashboard/sites/${site.id}`}
@@ -68,7 +66,7 @@ const AttentionRow = ({ card }: { card: SiteCardModel }) => {
               {site.domain}
             </Link>
           </h3>
-          <p className="mt-1 text-(length:--text-label) text-muted-foreground">
+          <p className="mt-1 text-label text-muted-foreground">
             {site.niches.length === 0 ? "No niches" : site.niches.slice(0, 3).join(", ")}
             {moneySite ? (
               <>
@@ -95,7 +93,7 @@ const AttentionRow = ({ card }: { card: SiteCardModel }) => {
             <ol className="mt-3 flex flex-col">
               {recommendations.map((rec) => (
                 <li
-                  className="grid grid-cols-site-metric gap-2 border-t border-border py-1.5 text-(length:--text-label-lg)"
+                  className="grid grid-cols-site-metric gap-2 border-t border-border py-1.5 text-label-lg"
                   key={rec.id}
                 >
                   <span

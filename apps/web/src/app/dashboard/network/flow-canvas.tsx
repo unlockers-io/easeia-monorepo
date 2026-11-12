@@ -144,7 +144,7 @@ export const FlowCanvas = ({ filterVersion }: { filterVersion: string }) => {
             <span className="text-muted-foreground">PBN&nbsp;↔ PBN</span>
           </div>
           <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="inline-block h-0.75 w-6 rounded bg-primary" />
+            <span aria-hidden="true" className="inline-block h-tabs w-6 rounded bg-primary" />
             <span className="text-muted-foreground">PBN&nbsp;→ money site</span>
           </div>
           <span className="mt-0.5 text-xs text-muted-foreground">

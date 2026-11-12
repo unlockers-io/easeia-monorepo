@@ -33,7 +33,7 @@ const Api = () => {
           <span className="text-background/60">Public API</span>
         </div>
         <section aria-label="API request example">
-          <pre className="p-5 font-mono text-(length:--text-label) leading-6 whitespace-pre-wrap">
+          <pre className="p-5 font-mono text-label leading-6 whitespace-pre-wrap">
             <code>{`curl "$EASEIA_API_URL/api/posts" \\
   -H "Authorization: Bearer $EASEIA_API_KEY" \\
   -H "Content-Type: application/json" \\
