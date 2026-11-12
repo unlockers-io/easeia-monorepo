@@ -86,7 +86,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(listPostsRoute, async (c) => {
     const result = await deps.posts.list(c.req.valid("query"));
 
-    return c.json({ data: result.data, meta: result.meta }, 200);
+    return c.json({ data: z.array(postSchema).parse(result.data), meta: result.meta }, 200);
   });
 
   const createPostRoute = createRoute({
@@ -123,7 +123,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     const result = await deps.posts.create(c.req.valid("json"));
     await deps.audit(c, { action: "post.create", target: `post:${result.post.id}` });
 
-    return c.json({ data: result.post, job: result.job }, 201);
+    return c.json({ data: postSchema.parse(result.post), job: result.job }, 201);
   });
 
   const getPostRoute = createRoute({
@@ -149,7 +149,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(getPostRoute, async (c) => {
     const post = await deps.posts.get(c.req.valid("param").id);
 
-    return c.json({ data: post }, 200);
+    return c.json({ data: postSchema.parse(post) }, 200);
   });
 
   const updatePostRoute = createRoute({
@@ -186,7 +186,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     const post = await deps.posts.update(c.req.valid("param").id, c.req.valid("json"));
     await deps.audit(c, { action: "post.update", target: `post:${post.id}` });
 
-    return c.json({ data: post }, 200);
+    return c.json({ data: postSchema.parse(post) }, 200);
   });
 
   const deletePostRoute = createRoute({
