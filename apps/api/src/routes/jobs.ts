@@ -5,11 +5,12 @@ import { getJob, listJobs } from "@repo/jobs";
 import { HTTPException } from "hono/http-exception";
 
 import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
-import { createProtectedRouter, guards } from "@/lib/protected-router";
+import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
-const jobRoutes = createProtectedRouter(guards);
-
-jobRoutes.use("*", guards.requirePermission("jobs:read"));
+type JobRouteDependencies = Guards & {
+  getJob: typeof getJob;
+  listJobs: typeof listJobs;
+};
 
 const jobSchema = z
   .object({
@@ -56,24 +57,6 @@ const listJobsRoute = createRoute({
   tags: ["Jobs"],
 });
 
-const present = (value: string | undefined): string | undefined =>
-  value === "" ? undefined : value;
-
-jobRoutes.openapi(listJobsRoute, async (c) => {
-  const { cursor, kind, limit, postId, siteId, status } = c.req.valid("query");
-
-  const { data, nextCursor } = await listJobs({
-    cursor: present(cursor),
-    kinds: kind === undefined ? undefined : [kind],
-    limit,
-    postId: present(postId),
-    siteId: present(siteId),
-    status,
-  });
-
-  return c.json({ data, meta: { nextCursor } }, 200);
-});
-
 const getJobRoute = createRoute({
   description: "Fetch a single Job by id.",
   method: "get",
@@ -93,14 +76,42 @@ const getJobRoute = createRoute({
   tags: ["Jobs"],
 });
 
-jobRoutes.openapi(getJobRoute, async (c) => {
-  const job = await getJob(c.req.valid("param").id);
+const present = (value: string | undefined): string | undefined =>
+  value === "" ? undefined : value;
 
-  if (!job) {
-    throw new HTTPException(404, { message: "Job not found" });
-  }
+const createJobRoutes = (deps: JobRouteDependencies) => {
+  const jobRoutes = createProtectedRouter(deps);
 
-  return c.json({ data: job }, 200);
-});
+  jobRoutes.use("*", deps.requirePermission("jobs:read"));
 
-export { jobRoutes };
+  jobRoutes.openapi(listJobsRoute, async (c) => {
+    const { cursor, kind, limit, postId, siteId, status } = c.req.valid("query");
+
+    const { data, nextCursor } = await deps.listJobs({
+      cursor: present(cursor),
+      kinds: kind === undefined ? undefined : [kind],
+      limit,
+      postId: present(postId),
+      siteId: present(siteId),
+      status,
+    });
+
+    return c.json({ data: z.array(jobSchema).parse(data), meta: { nextCursor } }, 200);
+  });
+
+  jobRoutes.openapi(getJobRoute, async (c) => {
+    const job = await deps.getJob(c.req.valid("param").id);
+
+    if (!job) {
+      throw new HTTPException(404, { message: "Job not found" });
+    }
+
+    return c.json({ data: jobSchema.parse(job) }, 200);
+  });
+
+  return jobRoutes;
+};
+
+const jobRoutes = createJobRoutes({ ...guards, getJob, listJobs });
+
+export { createJobRoutes, jobRoutes };
