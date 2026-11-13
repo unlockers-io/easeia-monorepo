@@ -1,5 +1,6 @@
 import { expect, test } from "../fixtures/auth.fixture";
-import { verification } from "../fixtures/verification.fixture";
+import { verificationLink } from "../fixtures/verification.fixture";
+import { recordCleanup } from "../helpers/cleanup-record";
 import { makeTestEmail } from "../helpers/test-email";
 import { webUrl } from "../urls";
 
@@ -15,7 +16,8 @@ test.describe("Change password", () => {
     request,
     settingsPage,
   }, testInfo) => {
-    const email = makeTestEmail(testInfo);
+    const email = recordCleanup("user", makeTestEmail(testInfo));
+    const signedUpAt = Date.now();
 
     const signUp = await request.post(`${webUrl}/api/auth/sign-up/email`, {
       data: { email, name: "Change Password User", password: PASSWORD },
@@ -23,11 +25,11 @@ test.describe("Change password", () => {
 
     expect([200, 201]).toContain(signUp.status());
 
-    if (process.env.RESEND_API_KEY) {
-      const { url } = await verification.forVerifyEmail(email);
-      const verified = await request.get(url);
-      expect(verified.ok()).toBe(true);
-    }
+    const verified = await request.get(
+      await verificationLink({ sinceMs: signedUpAt, subject: /verify/i, to: email }),
+    );
+
+    expect(verified.ok()).toBe(true);
 
     await loginPage.goto();
     await loginPage.login(email, PASSWORD);

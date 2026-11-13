@@ -1,6 +1,7 @@
 import { envAuthConfig } from "@repo/auth/env-config";
 import { createAuth, type Auth, type AuthConfig } from "@repo/auth/server";
 import { prisma } from "@repo/db";
+import { createTransport } from "@repo/transactional/transport";
 import { nextCookies } from "better-auth/next-js";
 
 import { getEnv } from "./env";
@@ -20,9 +21,11 @@ const createGetAuth = <AuthResult>(
     cachedAuth = create({
       ...envAuthConfig(),
       extraPlugins: [nextCookies()],
-      fromEmail: env.FROM_EMAIL,
+      mailer: {
+        from: env.FROM_EMAIL,
+        transport: createTransport({ apiKey: env.RESEND_API_KEY, transport: env.MAIL_TRANSPORT }),
+      },
       prisma,
-      resendApiKey: env.RESEND_API_KEY,
       secret: env.BETTER_AUTH_SECRET,
       signupMode: env.SIGNUP_MODE,
     });

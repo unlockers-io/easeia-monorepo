@@ -31,7 +31,7 @@ This repo follows the fleet's shared standards, checked by `standy` (`~/dev/stan
 - **Auth:** Better Auth (admin sessions) + bearer API keys (public API)
 - **Queue:** BullMQ on Redis (hosted instance uses Upstash); durable `Job` row in Postgres + queue behind one interface (`@repo/jobs`)
 - **Object store:** Cloudflare R2 (S3-compatible) via `@repo/blob`
-- **Email:** Resend (optional; `@repo/transactional`)
+- **Email:** required; Resend, or the local outbox with `MAIL_TRANSPORT=outbox` (`@repo/transactional`)
 - **AI:** `@repo/ai` (post generation, rewrites), `@repo/hero` (images), `@repo/classify` (categorization)
 - **Worker host:** Node.js (hosted instance uses Railway)
 - **Monorepo:** Turborepo + pnpm workspaces, Node 24, pnpm 11
@@ -171,23 +171,24 @@ The `dev` and `dev:plain` scripts and the e2e workflow's URL env vars must stay 
 
 Copy `.env.example` to `.env` at root. Per-app envs live in `apps/web/.env`, `apps/api/.env`, and `apps/worker/.env`.
 
-| Var                         | Purpose                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | PostgreSQL with `pgvector` enabled (hosted instance uses Neon)                         |
-| `REDIS_URL`                 | Redis URL for BullMQ (hosted instance uses Upstash)                                    |
-| `BETTER_AUTH_SECRET`        | min 32 chars; identical across api + web                                               |
-| `AUTH_ALLOWED_HOSTS`        | comma-separated host patterns trusted by Better Auth dynamic baseURL                   |
-| `TRUSTED_ORIGINS`           | comma-separated exact origins for non-`.localhost` requests                            |
-| `CORS_ORIGINS`              | comma-separated origins allowed by Hono CORS                                           |
-| `WP_ENCRYPTION_KEY`         | AES-256-GCM key (32 bytes, base64): encrypts Google OAuth tokens at rest               |
-| `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO API credentials (password = generated API key, not account password)        |
-| `RESEND_API_KEY`            | Optional. When unset, signup falls back to no-verification mode (see auth-config gate) |
-| `FROM_EMAIL`                | Required. Sender address for all auth/transactional mail; no default                   |
-| `R2_ENDPOINT`               | Cloudflare R2 S3 endpoint (`https://<account>.r2.cloudflarestorage.com`)               |
-| `R2_ACCESS_KEY_ID`          | R2 access key id                                                                       |
-| `R2_SECRET_ACCESS_KEY`      | R2 secret access key                                                                   |
-| `R2_BUCKET`                 | R2 bucket name (e.g. `easeia`)                                                         |
-| `R2_PUBLIC_BASE_URL`        | Public read URL base: `r2.dev` subdomain or custom domain bound to the bucket          |
+| Var                         | Purpose                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | PostgreSQL with `pgvector` enabled (hosted instance uses Neon)                          |
+| `REDIS_URL`                 | Redis URL for BullMQ (hosted instance uses Upstash)                                     |
+| `BETTER_AUTH_SECRET`        | min 32 chars; identical across api + web                                                |
+| `AUTH_ALLOWED_HOSTS`        | comma-separated host patterns trusted by Better Auth dynamic baseURL                    |
+| `TRUSTED_ORIGINS`           | comma-separated exact origins for non-`.localhost` requests                             |
+| `CORS_ORIGINS`              | comma-separated origins allowed by Hono CORS                                            |
+| `WP_ENCRYPTION_KEY`         | AES-256-GCM key (32 bytes, base64): encrypts Google OAuth tokens at rest                |
+| `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO API credentials (password = generated API key, not account password)         |
+| `MAIL_TRANSPORT`            | `outbox` writes mail to `<temp dir>/easeia-outbox` (dev, e2e, self-host without Resend) |
+| `RESEND_API_KEY`            | Required unless `MAIL_TRANSPORT=outbox`; web refuses to boot without it                 |
+| `FROM_EMAIL`                | Required. Sender address for all auth/transactional mail; no default                    |
+| `R2_ENDPOINT`               | Cloudflare R2 S3 endpoint (`https://<account>.r2.cloudflarestorage.com`)                |
+| `R2_ACCESS_KEY_ID`          | R2 access key id                                                                        |
+| `R2_SECRET_ACCESS_KEY`      | R2 secret access key                                                                    |
+| `R2_BUCKET`                 | R2 bucket name (e.g. `easeia`)                                                          |
+| `R2_PUBLIC_BASE_URL`        | Public read URL base: `r2.dev` subdomain or custom domain bound to the bucket           |
 
 Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
@@ -211,7 +212,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
 - **Path aliases:** `@/*` maps to `src/*` in all apps and packages.
 - **Auth password minimum:** 12 characters. Sessions expire after 7 days.
-- **`requireEmailVerification`** is gated on email-infra presence (Resend configured): never bare `true`. See the `auth-config` check.
+- **Mail is a port.** `createTransport` in `@repo/transactional/transport` returns the Resend transport, and throws without `RESEND_API_KEY`, unless `MAIL_TRANSPORT=outbox` selects the outbox, which writes each message to a file that `readOutbox` and the e2e `waitForEmail` helper read. Web builds it once in `apps/web/src/lib/auth.ts`, at boot through `instrumentation.ts`; nothing else constructs a Resend client. `requireEmailVerification` is always `true`. The API only reads sessions, through `createSessionReader`. `pnpm db:seed` creates its administrator already verified. `packages/transactional/src/transport.ts` and the e2e `helpers/mail.ts`, `helpers/test-email.ts` and `fixtures/verification.fixture.ts` are written by `standy sync`; change them in the standard.
 - **Forms:** `@tanstack/react-form` (NOT react-hook-form), field components from `@repo/ui`. NEVER use `field.handleChange` inside `useEffect`/`useCallback` with `field` in deps; use `field.form.setFieldValue(field.name, value)` with stable refs. Schemas are the single source of validation: no HTML `required`, `min`, `max`, `pattern` or `maxLength`, `noValidate` on any form with `type="email"`, `type="url"` or `type="datetime-local"`, and `aria-required` on fields the schema requires. A form with editable fields renders as a client TanStack form and calls its server action from `onSubmit`, which returns the failure for `FormAlert`; never a server-action `<form action>` with native validation and an `?error=` banner. A button-only `<form action>` (publish, delete, revoke) is an action outside a form. Validation follows six rules:
   1. Validate on submit, then on every change: `validationLogic: revalidateLogic()` with `validators: { onDynamic: schema }`. Put every rule in that one form-level Zod schema, cross-field checks included (attached to their field through `path`), never in field-level `validators`: TanStack runs form-level validators on submit only after field-level ones pass, so mixing them shows partial errors. No error shows before the first submit attempt; after a failed one, an error clears on the keystroke that fixes it. Never validate on blur.
   2. Show a field's error, `aria-invalid` and `data-invalid` whenever `!field.state.meta.isValid`. Don't add an `isTouched`, `isBlurred`, `isDirty` or `submissionAttempts` check: rule 1 already holds errors back until submit. `AuthPasswordField` and `CountField` do this.

@@ -14,6 +14,7 @@
     "@repo/jobs": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",
+    "@repo/transactional": "workspace:*",
     "dotenv": "^17.4.2",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"

@@ -1,10 +1,8 @@
 import { test, expect } from "@playwright/test";
 
+import { verificationLink } from "./fixtures/verification.fixture";
 import { recordCleanup } from "./helpers/cleanup-record";
 import { holdScripts } from "./helpers/hold-scripts";
-import { extractLink, waitForEmail } from "./helpers/resend";
-
-const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
 
 // SIGNUP_MODE=open in the isolated E2E instance permits independent runs.
 // The first-user race is separately exercised against a fresh self-host stack.
@@ -38,11 +36,8 @@ test("register, add a site, save a draft, then configure publishing", async ({ p
   await page.getByLabel("Confirm Password").fill("DemoPassword123!");
   await page.getByRole("button", { name: "Create account" }).click();
 
-  if (emailVerificationRequired) {
-    await expect(page.getByText(/check your email/i)).toBeVisible();
-    const mail = await waitForEmail({ sinceMs: since, subject: /verify/i, to: email });
-    await page.goto(extractLink(mail, /\/api\/auth\/verify-email\?token=/));
-  }
+  await expect(page.getByText(/check your email/i)).toBeVisible();
+  await page.goto(await verificationLink({ sinceMs: since, subject: /verify/i, to: email }));
 
   await page.waitForURL("/dashboard");
   await page.goto("/dashboard/sites");

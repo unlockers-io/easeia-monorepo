@@ -1,10 +1,13 @@
 import { render } from "react-email";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Transport } from "../transport";
+
 import type { sendEmail } from "./send-email";
 import { createSendTransactionalEmail } from "./senders";
 
 const sendEmailMock = vi.fn<typeof sendEmail>();
+const transport = vi.fn<Transport>();
 const sendTransactionalEmail = createSendTransactionalEmail(sendEmailMock);
 
 describe("sendTransactionalEmail", () => {
@@ -13,7 +16,7 @@ describe("sendTransactionalEmail", () => {
     sendEmailMock.mockResolvedValue({ id: "test" });
   });
 
-  const mailer = { apiKey: "re_test", from: "Easeia <noreply@easeia.dev>" };
+  const mailer = { from: "Easeia <noreply@easeia.dev>", transport };
 
   it("routes welcome payloads to the user email with type/userId tags", async () => {
     await sendTransactionalEmail(
@@ -30,7 +33,6 @@ describe("sendTransactionalEmail", () => {
 
     expect(sendEmailMock).toHaveBeenCalledOnce();
     expect(sendEmailMock.mock.calls[0]?.[0]).toMatchObject({
-      apiKey: "re_test",
       from: "Easeia <noreply@easeia.dev>",
       subject: "Welcome to Easeia, Ana! Please verify your email",
       tags: [
@@ -109,7 +111,7 @@ describe("sendTransactionalEmail", () => {
         userId: "u1",
         verificationUrl: "https://example.com/verify",
       },
-      { apiKey: "re_test", from: "Support <support@easeia.com>" },
+      { from: "Support <support@easeia.com>", transport },
     );
 
     expect(sendEmailMock.mock.calls[0]?.[0]).toMatchObject({

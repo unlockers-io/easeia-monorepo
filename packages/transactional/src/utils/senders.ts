@@ -4,12 +4,13 @@ import { ChangeEmail } from "../emails/change-email";
 import { PasswordResetEmail } from "../emails/password-reset";
 import { SignUpAttemptEmail } from "../emails/sign-up-attempt";
 import { WelcomeEmail } from "../emails/welcome";
+import type { Transport } from "../transport";
 
 import { sendEmail } from "./send-email";
 
 type MailerConfig = {
-  apiKey: string;
   from: string;
+  transport: Transport;
 };
 
 type WelcomePayload = {
@@ -157,7 +158,6 @@ const createSendTransactionalEmail =
     const { subject, template, to } = buildEmail(email);
 
     return send({
-      apiKey: config.apiKey,
       from: config.from,
       subject,
       tags: [
@@ -166,6 +166,7 @@ const createSendTransactionalEmail =
       ],
       template,
       to,
+      transport: config.transport,
     });
   };
 

@@ -1,41 +1,6 @@
 import { test, expect } from "../fixtures/auth.fixture";
-import { recordCleanup } from "../helpers/cleanup-record";
-import { TEST_USER } from "../helpers/test-user";
-
-const skipUnderResend = Boolean(process.env.RESEND_API_KEY);
 
 test.describe("Register", () => {
-  test("registers with valid data", async ({ page, registerPage }) => {
-    test.skip(skipUnderResend, "Resend-enabled flow is covered by auth-email/* specs");
-
-    const uniqueEmail = recordCleanup("user", `e2e-register-${crypto.randomUUID()}@example.com`);
-
-    await page.context().clearCookies();
-
-    await registerPage.goto();
-    await registerPage.register("New User", uniqueEmail, "SecurePassword1!", "SecurePassword1!");
-
-    await page.waitForURL("/dashboard");
-    await expect(page.getByRole("heading", { name: "Network report" })).toBeVisible();
-  });
-
-  test("shows error for existing email", async ({ page, registerPage }) => {
-    test.skip(skipUnderResend, "Resend-enabled flow is covered by auth-email/* specs");
-
-    await page.context().clearCookies();
-
-    await registerPage.goto();
-    await registerPage.register(
-      "Duplicate User",
-      TEST_USER.email,
-      "SecurePassword1!",
-      "SecurePassword1!",
-    );
-
-    await registerPage.expectErrorVisible();
-    expect(page.url()).toContain("/register");
-  });
-
   test("shows error for short password", async ({ page, registerPage }) => {
     await page.context().clearCookies();
 
