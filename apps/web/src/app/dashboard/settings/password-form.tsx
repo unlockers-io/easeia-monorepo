@@ -1,6 +1,6 @@
 "use client";
 
-import { PASSWORD_MIN_LENGTH } from "@repo/auth/limits";
+import { PASSWORD_LENGTH } from "@repo/auth/policy";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -96,7 +96,7 @@ export const PasswordForm = () => {
               {(field) => (
                 <AuthPasswordField
                   autoComplete="new-password"
-                  description={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+                  description={`At least ${PASSWORD_LENGTH.min} characters.`}
                   field={field}
                   label="New password"
                 />

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   autoPublishSchema,
+  changePasswordSchema,
   loginSchema,
   networkDefaultsSchema,
   newPostSchema,
+  profileSchema,
   recoverSchema,
   registerSchema,
   resetPasswordSchema,
@@ -303,5 +305,84 @@ describe("newPostSchema", () => {
       { message: "Write the post body.", path: ["body"] },
       { message: "Enter a title.", path: ["title"] },
     ]);
+  });
+});
+
+const filled = (length: number) => "a".repeat(length);
+
+const registerMessagesFor = (value: { name: string; password: string }) =>
+  registerSchema
+    .safeParse({ confirmPassword: value.password, email: "user@example.com", ...value })
+    .error?.issues.map((issue) => issue.message);
+
+describe("bounds the forms read from the auth policy", () => {
+  it.each([
+    [11, false],
+    [12, true],
+    [128, true],
+    [129, false],
+  ])("should judge a %i-character password the same in every form: %s", (length, accepted) => {
+    const password = filled(length);
+
+    expect(loginSchema.safeParse({ email: "user@example.com", password }).success).toBe(accepted);
+    expect(
+      registerSchema.safeParse({
+        confirmPassword: password,
+        email: "user@example.com",
+        name: "Ada",
+        password,
+      }).success,
+    ).toBe(accepted);
+    expect(resetPasswordSchema.safeParse({ confirmPassword: password, password }).success).toBe(
+      accepted,
+    );
+    expect(
+      changePasswordSchema.safeParse({
+        confirmPassword: password,
+        currentPassword: "current",
+        newPassword: password,
+      }).success,
+    ).toBe(accepted);
+  });
+
+  it.each([
+    [2, false],
+    [3, true],
+    [32, true],
+    [33, false],
+  ])("should judge a %i-character name: %s", (length, accepted) => {
+    const password = filled(12);
+
+    expect(profileSchema.safeParse({ name: filled(length) }).success).toBe(accepted);
+    expect(
+      registerSchema.safeParse({
+        confirmPassword: password,
+        email: "user@example.com",
+        name: filled(length),
+        password,
+      }).success,
+    ).toBe(accepted);
+  });
+
+  it("should word the bounds as before", () => {
+    expect(registerMessagesFor({ name: "Ada", password: filled(11) })).toStrictEqual([
+      "Password must be at least 12 characters",
+      "Password must be at least 12 characters",
+    ]);
+    expect(registerMessagesFor({ name: "Ada", password: filled(129) })).toStrictEqual([
+      "Password must be at most 128 characters",
+      "Password must be at most 128 characters",
+    ]);
+    expect(registerMessagesFor({ name: "Al", password: filled(12) })).toStrictEqual([
+      "Name must be at least 3 characters",
+    ]);
+    expect(registerMessagesFor({ name: filled(33), password: filled(12) })).toStrictEqual([
+      "Name must be at most 32 characters",
+    ]);
+    expect(
+      changePasswordSchema
+        .safeParse({ confirmPassword: "short", currentPassword: "current", newPassword: "short" })
+        .error?.issues.map((issue) => issue.message),
+    ).toStrictEqual(["Confirm your new password", "Password must be at least 12 characters"]);
   });
 });

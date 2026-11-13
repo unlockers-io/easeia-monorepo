@@ -10,7 +10,7 @@
     "./env": "./src/env.ts",
     "./env-config": "./src/env-config.ts",
     "./signup": "./src/signup.ts",
-    "./limits": "./src/limits.ts"
+    "./policy": "./src/policy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
