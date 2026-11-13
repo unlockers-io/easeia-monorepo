@@ -1,5 +1,5 @@
 import { JobKind, type Prisma, prisma } from "@repo/db";
-import { enqueue } from "@repo/jobs";
+import { enqueue, JobSkippedError } from "@repo/jobs";
 import { forSite } from "@repo/search-console";
 
 import type { JobContext } from "../lib/job-log";
@@ -39,9 +39,7 @@ export const handleBackfillGscLinks = async ({
     });
 
     if (!site) {
-      log.warn("backfill-gsc-links: site not found");
-
-      return;
+      throw new JobSkippedError("Site no longer exists");
     }
 
     const searchConsole = await forSite(site.domain);

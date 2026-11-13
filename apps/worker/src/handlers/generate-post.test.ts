@@ -1,3 +1,4 @@
+import { JobSkippedError } from "@repo/jobs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => {
@@ -197,10 +198,12 @@ describe("handleGeneratePost", () => {
     );
   });
 
-  it("returns early when the site is missing or disabled", async () => {
+  it("skips the job when the site is missing or disabled", async () => {
     findSite.mockResolvedValue(null);
 
-    await handleGeneratePost({ jobId: "job_2", log, payload: { siteId: "ghost" } });
+    await expect(
+      handleGeneratePost({ jobId: "job_2", log, payload: { siteId: "ghost" } }),
+    ).rejects.toBeInstanceOf(JobSkippedError);
 
     expect(generatePost).not.toHaveBeenCalled();
     expect(createPost).not.toHaveBeenCalled();

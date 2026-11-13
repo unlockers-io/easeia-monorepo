@@ -1,4 +1,5 @@
 import { prisma } from "@repo/db";
+import { JobSkippedError } from "@repo/jobs";
 import { recordGscBacklinks } from "@repo/links";
 import { forSite } from "@repo/search-console";
 import { postPublicUrl } from "@repo/sites";
@@ -23,9 +24,7 @@ export const handleCrawlGscLinks = async ({
   });
 
   if (!post) {
-    log.warn("crawl-gsc-links: post missing, skipping");
-
-    return;
+    throw new JobSkippedError("Post no longer exists");
   }
 
   const searchConsole = await forSite(post.site.domain);
