@@ -15,13 +15,13 @@
     "@repo/links": "workspace:*",
     "@repo/posts": "workspace:*",
     "dotenv": "^17.4.2",
-    "tsx": "^4.23.11",
+    "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.6.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   }
