@@ -189,6 +189,23 @@ docker compose --env-file .env.selfhost -f compose.selfhost.yml up -d
 
 A new installation skips this section.
 
+### Hero column (November 2026)
+
+The hero image of a Post is its `PostImage` row, and `Post.featuredImage`, a copy of that row's URL, is gone. `db push` does not drop a column that holds data, so an existing installation drops it once, with the apps stopped as above and before the schema service runs:
+
+```sh
+docker compose --env-file .env.selfhost -f compose.selfhost.yml exec -T postgres \
+  psql -U easeia -d easeia -v ON_ERROR_STOP=1 -c 'ALTER TABLE "Post" DROP COLUMN "featuredImage"'
+```
+
+A Post whose `featuredImage` named an image outside the bucket, with no hero row, publishes with a generated hero. List them first if any matter:
+
+```sql
+SELECT p.id, p."featuredImage" FROM "Post" p
+WHERE p."featuredImage" <> ''
+  AND NOT EXISTS (SELECT 1 FROM "PostImage" i WHERE i."postId" = p.id AND i."isHero");
+```
+
 ## Backups
 
 ```sh
