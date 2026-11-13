@@ -1,15 +1,14 @@
 import { prisma } from "@repo/db";
-import type { ConsumerContext } from "@repo/jobs";
 import { recordGscBacklinks } from "@repo/links";
-import { createJobLogger } from "@repo/observability/worker";
 import { forSite } from "@repo/search-console";
 import { postPublicUrl } from "@repo/sites";
 
-export const handleCrawlGscLinks = async (
-  ctx: ConsumerContext<"CRAWL_GSC_LINKS">,
-): Promise<void> => {
-  const { jobId, payload } = ctx;
-  const log = createJobLogger({ jobId, queue: "crawl-gsc-links" });
+import type { JobContext } from "../lib/job-log";
+
+export const handleCrawlGscLinks = async ({
+  log,
+  payload,
+}: JobContext<"CRAWL_GSC_LINKS">): Promise<void> => {
   log.set({ postId: payload.postId });
 
   const post = await prisma.post.findUnique({
@@ -25,7 +24,6 @@ export const handleCrawlGscLinks = async (
 
   if (!post) {
     log.warn("crawl-gsc-links: post missing, skipping");
-    log.emit();
 
     return;
   }
@@ -35,7 +33,6 @@ export const handleCrawlGscLinks = async (
   if (searchConsole.status !== "ok") {
     log.set({ searchConsole: searchConsole.status });
     log.warn("crawl-gsc-links: Search Console unavailable, skipping");
-    log.emit();
 
     return;
   }
@@ -50,5 +47,4 @@ export const handleCrawlGscLinks = async (
     siteId: post.siteId,
   });
   log.info("crawl-gsc-links: done");
-  log.emit();
 };

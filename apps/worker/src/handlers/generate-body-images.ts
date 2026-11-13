@@ -1,11 +1,10 @@
 import { prisma, type SiteLanguage } from "@repo/db";
 import { generatePostImage as realGeneratePostImage, buildBodyImagePrompt } from "@repo/hero";
-import type { ConsumerContext } from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
 import { type BodyImage, illustrate as realIllustrate } from "@repo/posts";
 import { planBodyImages as realPlanBodyImages } from "@repo/rewrite";
 
 import { env } from "../lib/env";
+import type { JobContext } from "../lib/job-log";
 
 type PostForBodyImages = {
   body: string;
@@ -43,20 +42,17 @@ const defaultFindPost = (postId: string): Promise<PostForBodyImages | null> =>
 
 export const makeHandleGenerateBodyImages =
   (deps: Deps = {}) =>
-  async (ctx: ConsumerContext<"GENERATE_BODY_IMAGES">): Promise<void> => {
-    const { jobId, payload } = ctx;
+  async ({ log, payload }: JobContext<"GENERATE_BODY_IMAGES">): Promise<void> => {
     const { postId } = payload;
     const enabled = deps.enabled ?? env.BODY_IMAGES_ENABLED;
     const findPost = deps.findPost ?? defaultFindPost;
     const planBodyImages = deps.planBodyImages ?? realPlanBodyImages;
     const generatePostImage = deps.generatePostImage ?? realGeneratePostImage;
     const illustrate = deps.illustrate ?? realIllustrate;
-    const log = createJobLogger({ jobId, queue: "generate-body-images" });
     log.set({ postId });
 
     if (!enabled) {
       log.info("generate-body-images: disabled by BODY_IMAGES_ENABLED, skip");
-      log.emit();
 
       return;
     }
@@ -65,7 +61,6 @@ export const makeHandleGenerateBodyImages =
 
     if (!post) {
       log.warn("generate-body-images: post not found; skipping");
-      log.emit();
 
       return;
     }
@@ -74,7 +69,6 @@ export const makeHandleGenerateBodyImages =
     // makes a retry after a partial run a no-op instead of a second set.
     if (MARKDOWN_IMAGE.test(post.body)) {
       log.info("generate-body-images: body already has images; skipping");
-      log.emit();
 
       return;
     }
@@ -87,7 +81,6 @@ export const makeHandleGenerateBodyImages =
 
     if (plan.length === 0) {
       log.info("generate-body-images: planner found no spots; skipping");
-      log.emit();
 
       return;
     }
@@ -127,7 +120,6 @@ export const makeHandleGenerateBodyImages =
     await illustrate(post.id, { from: post.body, images: inserted });
     log.set({ insertedImages: inserted.length });
     log.info("generate-body-images: done");
-    log.emit();
   };
 
 export const handleGenerateBodyImages = makeHandleGenerateBodyImages();

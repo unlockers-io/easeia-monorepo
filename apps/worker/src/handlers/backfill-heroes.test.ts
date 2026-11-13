@@ -1,6 +1,6 @@
 import { JobKind, PostStatus, prisma } from "@repo/db";
 import { countJobs } from "@repo/jobs";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import { handleBackfillHeroes } from "./backfill-heroes";
 
@@ -39,7 +39,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("handleBackfillHeroes", () 
       },
     });
 
-    await handleBackfillHeroes();
+    const log = { info: vi.fn(), set: vi.fn(), warn: vi.fn() };
+
+    await handleBackfillHeroes({ jobId: "j", log, payload: {} });
 
     expect(await countJobs({ kinds: [JobKind.GENERATE_IMAGE], postId: heroless.id })).toBe(1);
     expect(await countJobs({ kinds: [JobKind.GENERATE_IMAGE], siteId })).toBe(1);

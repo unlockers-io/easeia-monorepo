@@ -27,10 +27,11 @@ import { handleSuggestLinks } from "./handlers/suggest-links";
 import { handleTriggerDeploy } from "./handlers/trigger-deploy";
 import { skipWhenAiUnconfigured } from "./lib/ai-unavailable";
 import { env } from "./lib/env";
+import { type Handler, withJobLog } from "./lib/job-log";
 
 const HOUR_MS = 60 * 60 * 1000;
 
-type Handler<K extends JobKind> = (ctx: ConsumerContext<K>) => Promise<void>;
+type FailureHandler<K extends JobKind> = (ctx: ConsumerContext<K>) => Promise<void>;
 
 type JobDefinition<K extends JobKind> = {
   aiOptional?: true;
@@ -40,7 +41,7 @@ type JobDefinition<K extends JobKind> = {
 };
 
 const loggingFailures =
-  <K extends JobKind>(onFailure: Handler<K>): Handler<K> =>
+  <K extends JobKind>(onFailure: FailureHandler<K>): FailureHandler<K> =>
   async (ctx) => {
     try {
       await onFailure(ctx);
@@ -49,9 +50,9 @@ const loggingFailures =
     }
   };
 
-const FAILURES: { [K in JobKind]?: Handler<K> } = { PUBLISH: failPublish };
+const FAILURES: { [K in JobKind]?: FailureHandler<K> } = { PUBLISH: failPublish };
 
-const failureOf = <K extends JobKind>(kind: K): Handler<K> | undefined => {
+const failureOf = <K extends JobKind>(kind: K): FailureHandler<K> | undefined => {
   const onFailure = FAILURES[kind];
 
   return onFailure === undefined ? undefined : loggingFailures(onFailure);
@@ -85,7 +86,7 @@ const JOBS: { [K in JobKind]: JobDefinition<K> } = {
   GENERATE_POST: { handle: handleGeneratePost, serial: true },
   PUBLISH: { handle: handlePublish },
   REAP_STUCK_JOBS: {
-    handle: () => handleReapStuckJobs(failReaped),
+    handle: ({ log: jobLog }) => handleReapStuckJobs(jobLog, failReaped),
     serial: true,
     tick: { everyMs: HOUR_MS / 6 },
   },
@@ -102,9 +103,9 @@ const JOBS: { [K in JobKind]: JobDefinition<K> } = {
 
 export type JobRegistration<K extends JobKind = JobKind> = {
   concurrency: number;
-  handle: Handler<K>;
+  handle: (ctx: ConsumerContext<K>) => Promise<void>;
   kind: K;
-  onFailure?: Handler<K>;
+  onFailure?: FailureHandler<K>;
   tick?: { enabled: boolean; everyMs: number };
 };
 
@@ -117,7 +118,7 @@ const register = <K extends JobKind>(kind: K): JobRegistration<K> => {
 
   return {
     concurrency: serial ? 1 : env.WORKER_CONCURRENCY,
-    handle: aiOptional ? skipWhenAiUnconfigured(published) : published,
+    handle: withJobLog(kind, aiOptional ? skipWhenAiUnconfigured(published) : published),
     kind,
     onFailure: failureOf(kind),
     tick: scheduleOf(tick),

@@ -26,8 +26,8 @@ export const enqueuePostMember = async (
 };
 
 export const forPublishedMember =
-  <K extends JobKind>(handler: (ctx: ConsumerContext<K>) => Promise<void>) =>
-  async (ctx: ConsumerContext<K>): Promise<void> => {
+  <Context extends ConsumerContext<JobKind>>(handler: (ctx: Context) => Promise<void>) =>
+  async (ctx: Context): Promise<void> => {
     if (ctx.run !== undefined && "postId" in ctx.payload) {
       const post = await prisma.post.findUnique({ where: { id: ctx.payload.postId } });
 

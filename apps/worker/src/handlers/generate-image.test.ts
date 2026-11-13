@@ -19,6 +19,12 @@ const post = {
   title: "T",
 };
 
+const ctx = {
+  jobId: "j",
+  log: { info: vi.fn(), set: vi.fn(), warn: vi.fn() },
+  payload: { postId: "p1" },
+};
+
 describe("handleGenerateImage", () => {
   it("generates a hero when none exists", async () => {
     const generateHero = vi.fn().mockResolvedValue(undefined);
@@ -29,7 +35,7 @@ describe("handleGenerateImage", () => {
       heroOf: () => Promise.resolve(null),
     });
 
-    await handle({ jobId: "j", payload: { postId: "p1" } });
+    await handle(ctx);
     expect(generateHero).toHaveBeenCalledExactlyOnceWith({
       post: expect.objectContaining({ id: "p1" }),
       site: { imageStyle: post.site.imageStyle },
@@ -45,7 +51,7 @@ describe("handleGenerateImage", () => {
       heroOf: () => Promise.resolve({ blobUrl: "https://img.test/h.jpg", filename: "h.jpg" }),
     });
 
-    await handle({ jobId: "j", payload: { postId: "p1" } });
+    await handle(ctx);
     expect(generateHero).not.toHaveBeenCalled();
   });
 });

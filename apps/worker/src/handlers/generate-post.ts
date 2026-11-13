@@ -1,8 +1,7 @@
 import { dataForSeo } from "@repo/dataforseo";
 import { JobKind, type Prisma, prisma, type SiteLanguage } from "@repo/db";
-import { type ConsumerContext, enqueue } from "@repo/jobs";
+import { enqueue } from "@repo/jobs";
 import { log as workerLog } from "@repo/observability";
-import { createJobLogger } from "@repo/observability/worker";
 import * as Posts from "@repo/posts";
 import {
   generateNewPost,
@@ -12,6 +11,7 @@ import {
 } from "@repo/rewrite";
 
 import { fetchTopSearchQueries } from "../lib/gsc-queries";
+import type { JobContext } from "../lib/job-log";
 
 type SiteForGeneration = Pick<
   Prisma.SiteGetPayload<{
@@ -20,8 +20,6 @@ type SiteForGeneration = Pick<
   "domain" | "id" | "isEnabled" | "language" | "moneySite" | "niches" | "topicHints"
 >;
 
-type GeneratePostLog = Pick<ReturnType<typeof createJobLogger>, "emit" | "info" | "set" | "warn">;
-
 type SerpLookup = {
   domain: string;
   keyword: string;
@@ -29,7 +27,6 @@ type SerpLookup = {
 };
 
 type GeneratePostDependencies = {
-  createLogger: (context: Parameters<typeof createJobLogger>[0]) => GeneratePostLog;
   createPost: typeof Posts.create;
   enqueueJob: typeof enqueue;
   fetchSearchQueries: (domain: string) => Promise<ReadonlyArray<string>>;
@@ -59,17 +56,14 @@ const fetchSerpCompetitors = async (input: SerpLookup): Promise<ReadonlyArray<Se
 };
 
 const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
-  async function handleGeneratePost(ctx: ConsumerContext<"GENERATE_POST">): Promise<void> {
-    const { jobId, payload } = ctx;
+  async function handleGeneratePost({ log, payload }: JobContext<"GENERATE_POST">): Promise<void> {
     const { siteId } = payload;
-    const log = dependencies.createLogger({ jobId, queue: "generate-post" });
     log.set({ siteId });
 
     const site = await dependencies.findSite(siteId);
 
     if (!site || !site.isEnabled) {
       log.warn("generate-post: site missing or disabled");
-      log.emit();
 
       return;
     }
@@ -139,11 +133,9 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
 
     log.set({ postSlug: generated.slug, postTitle: generated.title });
     log.info("generate-post: draft added to bucket");
-    log.emit();
   };
 
 const handleGeneratePost = createHandleGeneratePost({
-  createLogger: createJobLogger,
   createPost: Posts.create,
   enqueueJob: enqueue,
   fetchSearchQueries: fetchTopSearchQueries,

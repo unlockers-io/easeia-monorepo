@@ -20,13 +20,7 @@ const fetchSerpCompetitors = vi.fn<GeneratePostDependencies["fetchSerpCompetitor
 const findRecentTitles = vi.fn<GeneratePostDependencies["findRecentTitles"]>();
 const proposeTopic = vi.fn<GeneratePostDependencies["proposeTopic"]>();
 
-const log = {
-  emit: vi.fn(),
-  error: vi.fn(),
-  info: vi.fn(),
-  set: vi.fn(),
-  warn: vi.fn(),
-};
+const log = { info: vi.fn(), set: vi.fn(), warn: vi.fn() };
 
 const createdPost = { post: { id: "post_1" } } as Awaited<
   ReturnType<GeneratePostDependencies["createPost"]>
@@ -35,7 +29,6 @@ const createdPost = { post: { id: "post_1" } } as Awaited<
 const enqueuedJob = { id: "job_bi" } as Awaited<ReturnType<GeneratePostDependencies["enqueueJob"]>>;
 
 const dependencies: GeneratePostDependencies = {
-  createLogger: () => log,
   createPost,
   enqueueJob,
   fetchSearchQueries,
@@ -89,7 +82,7 @@ describe("handleGeneratePost", () => {
       title: "Title",
     });
 
-    await handleGeneratePost({ jobId: "job_1", payload: { siteId: "site_a" } });
+    await handleGeneratePost({ jobId: "job_1", log, payload: { siteId: "site_a" } });
 
     expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ publish: false }));
   });
@@ -114,7 +107,7 @@ describe("handleGeneratePost", () => {
       title: "Title",
     });
 
-    await handleGeneratePost({ jobId: "job_1", payload: { siteId: "site_a" } });
+    await handleGeneratePost({ jobId: "job_1", log, payload: { siteId: "site_a" } });
 
     expect(enqueueJob).toHaveBeenCalledExactlyOnceWith({
       kind: "GENERATE_BODY_IMAGES",
@@ -147,7 +140,7 @@ describe("handleGeneratePost", () => {
     enqueueJob.mockRejectedValue(new Error("redis down"));
 
     await expect(
-      handleGeneratePost({ jobId: "job_1", payload: { siteId: "site_a" } }),
+      handleGeneratePost({ jobId: "job_1", log, payload: { siteId: "site_a" } }),
     ).resolves.toBeUndefined();
     expect(createPost).toHaveBeenCalledOnce();
   });
@@ -179,7 +172,7 @@ describe("handleGeneratePost", () => {
       title: "Title",
     });
 
-    await handleGeneratePost({ jobId: "job_3", payload: { siteId: "site_a" } });
+    await handleGeneratePost({ jobId: "job_3", log, payload: { siteId: "site_a" } });
 
     expect(proposeTopic).toHaveBeenCalledWith({
       language: "PT",
@@ -207,7 +200,7 @@ describe("handleGeneratePost", () => {
   it("returns early when the site is missing or disabled", async () => {
     findSite.mockResolvedValue(null);
 
-    await handleGeneratePost({ jobId: "job_2", payload: { siteId: "ghost" } });
+    await handleGeneratePost({ jobId: "job_2", log, payload: { siteId: "ghost" } });
 
     expect(generatePost).not.toHaveBeenCalled();
     expect(createPost).not.toHaveBeenCalled();
