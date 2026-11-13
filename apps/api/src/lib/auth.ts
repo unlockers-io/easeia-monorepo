@@ -5,7 +5,7 @@ import { prisma } from "@repo/db";
 import { env } from "./env";
 
 export const sessions = createSessionReader({
-  ...envAuthConfig(),
+  ...envAuthConfig(env),
   prisma,
   secret: env.BETTER_AUTH_SECRET,
 });

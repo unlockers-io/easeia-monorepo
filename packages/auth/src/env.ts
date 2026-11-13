@@ -1,6 +1,7 @@
 import { senderAddressSchema } from "@repo/transactional";
 import { z } from "zod";
 
+import { authEnv } from "./env-config";
 import { DEFAULT_SIGNUP_MODE, SIGNUP_MODES } from "./signup";
 
 export const authSecretSchema = z
@@ -8,6 +9,7 @@ export const authSecretSchema = z
   .min(32, "BETTER_AUTH_SECRET must be at least 32 characters (openssl rand -base64 32)");
 
 export const authEnvSchema = z.object({
+  ...authEnv.shape,
   BETTER_AUTH_SECRET: authSecretSchema,
   FROM_EMAIL: senderAddressSchema,
   MAIL_TRANSPORT: z.string().optional(),
