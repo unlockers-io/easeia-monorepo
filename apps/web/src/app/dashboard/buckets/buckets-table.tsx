@@ -55,10 +55,6 @@ const fillRatio = (supply: number, target: number | null): number => {
   return Math.min(1, supply / target);
 };
 
-// isLow comes from the row's already-derived `needsRefill` rather than being
-// re-derived from refillAt: the local rule omitted the config-validity check,
-// so a site with refillAt > target rendered a red bar next to a missing badge
-// and an enabled Refill button that could only ever queue zero.
 const BucketBar = ({
   isLow,
   supply,

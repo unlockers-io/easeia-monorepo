@@ -5,11 +5,6 @@ import * as Posts from "@repo/posts";
 
 import { type HeroRow, planHero } from "./hero-plan";
 
-/**
- * Every collaborator is required. Resolving them with `??` against a default
- * made the production wiring invisible: a caller that forgot one, or a test
- * that misspelled a field, silently ran the real Prisma/R2/OpenAI path.
- */
 export type EnsureHeroDeps = {
   blob: Pick<typeof Blob, "upload">;
   fetchImage: (url: string) => Promise<Uint8Array>;

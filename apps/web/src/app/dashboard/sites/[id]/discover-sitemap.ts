@@ -94,7 +94,6 @@ const probeOne = async (url: string, origin: string): Promise<string> => {
   }
 };
 
-/** Checks robots.txt first, then common Astro/static sitemap paths. */
 export const discoverSitemap = async (siteUrl: string): Promise<string | null> => {
   const base = siteUrl.replace(/\/?$/v, "");
   let origin: string;

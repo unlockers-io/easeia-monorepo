@@ -339,8 +339,7 @@ model Post {
   // non-null unless `force: true` is passed.
   rewrittenAt DateTime?
 
-  // Stored for DataForSEO SERP rank tracking. Not pushed to WordPress;
-  // each WP site's SEO plugin handles its own meta locally.
+  // Stored for DataForSEO SERP rank tracking.
   focusKeyword String?
 
   featuredImage String?
@@ -496,8 +495,8 @@ model AuditLog {
 }
 
 // Google OAuth tokens stored per User. Currently used for Search Console
-// (scope: webmasters.readonly). Tokens are encrypted at rest with the same
-// libsodium key as Site credentials (`WP_ENCRYPTION_KEY`).
+// (scope: webmasters.readonly). Tokens are encrypted at rest with
+// `WP_ENCRYPTION_KEY` (AES-256-GCM).
 model GoogleConnection {
   id     String @id @default(cuid())
   userId String @unique
