@@ -1,5 +1,4 @@
 import { AI_ENV_VARS } from "@repo/ai";
-import { MAIL_ENV_VARS } from "@repo/auth/env";
 import { R2_ENV_VARS } from "@repo/blob";
 import { DATAFORSEO_ENV_VARS } from "@repo/dataforseo";
 import { GOOGLE_ENV_VARS } from "@repo/search-console";
@@ -18,9 +17,9 @@ const PROVIDERS = {
     vars: GOOGLE_ENV_VARS,
   },
   mail: {
-    feature: "Email verification and password recovery",
-    name: "Email",
-    vars: MAIL_ENV_VARS,
+    feature: "Verification and recovery mail sent through Resend instead of the server outbox",
+    name: "Resend",
+    vars: ["RESEND_API_KEY"],
   },
   openai: {
     feature: "AI drafts, rewrites, image prompts, and similar posts",

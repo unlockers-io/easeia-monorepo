@@ -30,8 +30,8 @@ describe("getEnv", () => {
     expect(getEnv().FROM_EMAIL).toBe("noreply@easeia.com");
   });
 
-  it("should require FROM_EMAIL only when Resend is enabled", async () => {
-    const getEnv = await loadGetEnv({ FROM_EMAIL: undefined, RESEND_API_KEY: "re_test" });
+  it("should require FROM_EMAIL", async () => {
+    const getEnv = await loadGetEnv({ FROM_EMAIL: undefined });
     expect(() => getEnv()).toThrow(/FROM_EMAIL/v);
   });
 
@@ -53,8 +53,9 @@ describe("getEnv", () => {
     expect(() => getEnv()).toThrow(/BETTER_AUTH_SECRET/v);
   });
 
-  it("should leave RESEND_API_KEY optional", async () => {
-    const getEnv = await loadGetEnv();
+  it("should leave RESEND_API_KEY out when mail goes to the outbox", async () => {
+    const getEnv = await loadGetEnv({ MAIL_TRANSPORT: "outbox" });
+    expect(getEnv()).toMatchObject({ MAIL_TRANSPORT: "outbox" });
     expect(getEnv().RESEND_API_KEY).toBeUndefined();
   });
 

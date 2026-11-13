@@ -1,10 +1,11 @@
 import { LinkSource, LinkType, prisma } from "@repo/db";
+import { normalizeBody } from "@repo/posts";
 
 import { editPostBody } from "./body";
 import { classifyLinks, type ClassifiedLink, type ResolvedLink } from "./classify";
 import { extractLinks } from "./extract";
 import { liveLinkWhere } from "./live";
-import { fabricatedHrefs, stripAnchors } from "./prune";
+import { fabricatedHrefs, stripLinks } from "./prune";
 
 export type CrawlSummary = {
   external: number;
@@ -135,7 +136,11 @@ export const pruneFabricatedLinks = async (
 
     const bad = fabricatedHrefs(await resolveBodyLinks(post));
 
-    return { body: stripAnchors(post.body, bad), result: [...bad] };
+    if (bad.size === 0) {
+      return { body: post.body, result: [] };
+    }
+
+    return { body: stripLinks(normalizeBody(post.body, post.language), bad), result: [...bad] };
   });
 
   return { stripped: stripped ?? [] };

@@ -54,6 +54,7 @@
     "@repo/jobs": "workspace:*",
     "@repo/portless-env": "workspace:*",
     "@repo/sites": "workspace:*",
+    "@repo/transactional": "workspace:*",
     "@shadcn/lint": "0.2.0",
     "better-auth": "^1.7.20",
     "fallow": "^3.28.0",

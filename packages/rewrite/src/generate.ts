@@ -89,7 +89,7 @@ const buildAnchorsSection = (anchors: ReadonlyArray<AnchorSpec>): string => {
   );
 
   return [
-    'LINKS TO INSERT (each exactly once, as inline `<a href="…">anchor text</a>` tags at natural spots in the body):',
+    "LINKS TO INSERT (each exactly once, as inline Markdown links `[anchor text](URL)` at natural spots in the body):",
     ...lines,
   ].join("\n");
 };
@@ -163,7 +163,7 @@ export const generateNewPost = async (input: GeneratePostInput): Promise<Generat
   } = await generateWithAnchors({
     anchors: input.anchors,
     insertInstruction:
-      'Insert each one inline at a natural spot in the body as <a href="URL">anchor</a>, leaving the rest of the body as Markdown with its blank-line paragraph breaks intact.',
+      "Insert each one inline at a natural spot in the body as a Markdown link [anchor](URL), leaving the rest of the body as Markdown with its blank-line paragraph breaks intact.",
     prompt: buildGeneratePrompt(input),
     schema: generatedPostSchema,
   });

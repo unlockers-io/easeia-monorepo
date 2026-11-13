@@ -81,15 +81,29 @@ describe("toMarkdown", () => {
     expect(toMarkdown(md)).toBe(md);
   });
 
-  it("leaves Markdown with an inline HTML anchor unchanged", () => {
+  it("turns an inline HTML anchor in Markdown into a Markdown link and leaves the rest alone", () => {
     const md =
       "## Filmagem\n\nUse locais com luz natural, como a " +
-      '<a href="https://example.com/spaces/galeria">Galeria</a>.\n\n- primeiro\n- segundo';
+      '<a href="https://example.com/spaces/galeria?a=1&amp;b=2" rel="noopener">Galeria</a>.\n\n- primeiro\n- segundo';
 
-    const out = toMarkdown(md);
-    expect(out).toBe(md);
-    expect(out).not.toContain(String.raw`\#`);
-    expect(out).toContain("\n\n");
+    expect(toMarkdown(md)).toBe(
+      "## Filmagem\n\nUse locais com luz natural, como a " +
+        "[Galeria](https://example.com/spaces/galeria?a=1&b=2).\n\n- primeiro\n- segundo",
+    );
+  });
+
+  it("keeps an anchor that is shown as code", () => {
+    const md =
+      'Escreva `<a href="https://example.com">site</a>` no editor.\n\n```html\n<a href="/x">x</a>\n```';
+
+    expect(toMarkdown(md)).toBe(md);
+  });
+
+  it("is stable once anchors are links", () => {
+    const once = toMarkdown('Veja <a href="https://example.com/guia">o guia</a> completo.');
+
+    expect(once).toBe("Veja [o guia](https://example.com/guia) completo.");
+    expect(toMarkdown(once)).toBe(once);
   });
 
   it("leaves Markdown with inline emphasis tags unchanged", () => {

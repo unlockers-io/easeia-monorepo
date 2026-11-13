@@ -60,14 +60,8 @@ export default defineConfig({
   webServer: process.env.CI
     ? [
         {
-          command: "node tests/e2e/support/resend-stub.ts",
-          stderr: "pipe",
-          stdout: "pipe",
-          url: `${process.env.RESEND_BASE_URL}/emails`,
-        },
-        {
           command: `node_modules/.bin/next start apps/web --port ${apps.web.port}`,
-          env: { PGAPPNAME: "easeia:ci:web" },
+          env: { AUTH_RATE_LIMIT: "off", MAIL_TRANSPORT: "outbox", PGAPPNAME: "easeia:ci:web" },
           stderr: "pipe",
           stdout: "pipe",
           timeout: 120_000,

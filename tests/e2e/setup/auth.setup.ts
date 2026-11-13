@@ -1,8 +1,9 @@
 import { mkdir } from "node:fs/promises";
 
 import { expect, test as setup } from "@playwright/test";
+import { prisma } from "@repo/db";
 
-import { verification } from "../fixtures/verification.fixture";
+import { verificationLink } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
 import { TEST_USER } from "../helpers/test-user";
 import { webUrl } from "../urls";
@@ -12,6 +13,8 @@ setup("create and authenticate test user", async ({ page, request }) => {
 
   recordCleanup("user", TEST_USER.email);
 
+  const signedUpAt = Date.now();
+
   const signUpResponse = await request.post(`${webUrl}/api/auth/sign-up/email`, {
     data: {
       email: TEST_USER.email,
@@ -20,11 +23,18 @@ setup("create and authenticate test user", async ({ page, request }) => {
     },
   });
 
-  expect([200, 201, 409, 422]).toContain(signUpResponse.status());
+  expect([200, 201]).toContain(signUpResponse.status());
 
-  if (process.env.RESEND_API_KEY) {
-    const { url } = await verification.forVerifyEmail(TEST_USER.email);
-    const verified = await request.get(url);
+  const user = await prisma.user.findUniqueOrThrow({
+    select: { emailVerified: true },
+    where: { email: TEST_USER.email },
+  });
+
+  if (!user.emailVerified) {
+    const verified = await request.get(
+      await verificationLink({ sinceMs: signedUpAt, subject: /verify/i, to: TEST_USER.email }),
+    );
+
     expect(verified.ok()).toBe(true);
   }
 

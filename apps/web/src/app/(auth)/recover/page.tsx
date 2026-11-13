@@ -1,4 +1,3 @@
-import { isMailConfigured, MAIL_ENV_VARS } from "@repo/auth/env";
 import {
   Card,
   CardContent,
@@ -7,33 +6,11 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { connection } from "next/server";
-import { Suspense } from "react";
 
 import RecoverForm from "@/app/(auth)/recover/form";
-import { getEnv } from "@/lib/env";
 
 const metadata: Metadata = {
   title: "Recover your account",
-};
-
-const Recovery = async () => {
-  await connection();
-
-  return isMailConfigured(getEnv()) ? (
-    <RecoverForm />
-  ) : (
-    <div className="space-y-4 text-sm">
-      <p>
-        Password reset requires {MAIL_ENV_VARS.join(" and ")} on this server. Contact your instance
-        administrator.
-      </p>
-      <Link className="underline underline-offset-4" href="/login">
-        Back to sign in
-      </Link>
-    </div>
-  );
 };
 
 const Page = () => {
@@ -48,9 +25,7 @@ const Page = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Suspense fallback={<p>Loading recovery options…</p>}>
-          <Recovery />
-        </Suspense>
+        <RecoverForm />
       </CardContent>
     </Card>
   );
