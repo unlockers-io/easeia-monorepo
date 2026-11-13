@@ -39,5 +39,3 @@ export const extractPageContent = (html: string): PageContent => {
 
   return { bodyText: buckets.join("\n\n"), metaDescription, title };
 };
-
-export const extractVisibleText = (html: string): string => extractPageContent(html).bodyText;
