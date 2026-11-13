@@ -1,5 +1,45 @@
 {
   "version": 1,
   "profile": "saas",
-  "mode": "affected"
+  "mode": "affected",
+  "check": {
+    "services": {
+      "postgres": {
+        "image": "pgvector/pgvector:pg18",
+        "env": {
+          "POSTGRES_PASSWORD": "easeia_test",
+          "POSTGRES_DB": "easeia_test"
+        },
+        "ports": ["5432:5432"],
+        "options": "--health-cmd \"pg_isready -U postgres -d easeia_test\" --health-interval 5s --health-timeout 5s --health-retries 10"
+      },
+      "redis": {
+        "image": "redis:7-alpine",
+        "ports": ["6379:6379"],
+        "options": "--health-cmd \"redis-cli ping\" --health-interval 5s --health-timeout 5s --health-retries 10"
+      }
+    },
+    "setup": [
+      {
+        "name": "Build @easeia/astro-content for type-aware linting",
+        "run": "pnpm turbo build --filter=@easeia/astro-content"
+      },
+      {
+        "name": "Push the schema to the test database",
+        "env": {
+          "DATABASE_URL": "postgresql://postgres:easeia_test@localhost:5432/easeia_test",
+          "PGAPPNAME": "easeia:ci:test"
+        },
+        "run": "pnpm --filter @repo/db db:push"
+      }
+    ],
+    "testEnv": {
+      "DATABASE_URL": "postgresql://postgres:easeia_test@localhost:5432/easeia_test",
+      "REDIS_URL": "redis://localhost:6379",
+      "PGAPPNAME": "easeia:ci:test",
+      "TEST_DATABASE": "true",
+      "TEST_REDIS": "true",
+      "TURBO_CONCURRENCY": "1"
+    }
+  }
 }
