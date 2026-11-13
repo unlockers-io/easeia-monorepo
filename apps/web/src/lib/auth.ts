@@ -19,7 +19,7 @@ const createGetAuth = <AuthResult>(
 
     const env = readEnv();
     cachedAuth = create({
-      ...envAuthConfig(),
+      ...envAuthConfig(env),
       extraPlugins: [nextCookies()],
       mailer: {
         from: env.FROM_EMAIL,

@@ -61,7 +61,7 @@ export default defineConfig({
     ? [
         {
           command: `node_modules/.bin/next start apps/web --port ${apps.web.port}`,
-          env: { MAIL_TRANSPORT: "outbox", PGAPPNAME: "easeia:ci:web" },
+          env: { AUTH_RATE_LIMIT: "off", MAIL_TRANSPORT: "outbox", PGAPPNAME: "easeia:ci:web" },
           stderr: "pipe",
           stdout: "pipe",
           timeout: 120_000,
