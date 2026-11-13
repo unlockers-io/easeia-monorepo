@@ -1,10 +1,9 @@
 import "./fields";
 
-import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
+import type { identifyUser } from "evlog/better-auth";
 
-const createIdentify = (auth: BetterAuthInstance, opts?: { exclude?: Array<string> }) =>
-  createAuthMiddleware(auth, { exclude: opts?.exclude ?? ["/api/auth/**"] });
+type ResolvedSession = Parameters<typeof identifyUser>[1];
 
 export { identifyUser } from "evlog/better-auth";
 
-export { createIdentify };
+export type { ResolvedSession };
