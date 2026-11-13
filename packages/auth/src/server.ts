@@ -11,7 +11,7 @@ import { username } from "better-auth/plugins/username";
 import type { BetterAuthPlugin } from "better-auth/types";
 
 import { isMailConfigured } from "./env";
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits";
+import { PASSWORD_LENGTH } from "./policy";
 import { createSignupGuard, DEFAULT_SIGNUP_MODE, type SignupMode } from "./signup";
 
 const HOUR_SECONDS = 60 * 60;
@@ -105,8 +105,8 @@ export const createAuth = (config: AuthConfig) => {
     emailAndPassword: {
       disableSignUp: signupMode === "closed",
       enabled: true,
-      maxPasswordLength: PASSWORD_MAX_LENGTH,
-      minPasswordLength: PASSWORD_MIN_LENGTH,
+      maxPasswordLength: PASSWORD_LENGTH.max,
+      minPasswordLength: PASSWORD_LENGTH.min,
       onExistingUserSignUp: mailer
         ? async ({ user }, request) => {
             const origin = request?.headers.get("origin") ?? "";

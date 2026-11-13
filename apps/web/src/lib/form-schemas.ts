@@ -4,12 +4,7 @@ import {
   POST_SLUG_PATTERN,
   POST_TITLE_MAX_LENGTH,
 } from "@repo/api-types";
-import {
-  NAME_MAX_LENGTH,
-  NAME_MIN_LENGTH,
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
-} from "@repo/auth/limits";
+import { NAME_LENGTH, PASSWORD_LENGTH } from "@repo/auth/policy";
 import {
   configIssues,
   networkDefaultsIssues,
@@ -26,14 +21,14 @@ const emailSchema = z.email("Invalid email address");
 
 const passwordSchema = z
   .string()
-  .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
-  .max(PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} characters`);
+  .min(PASSWORD_LENGTH.min, `Password must be at least ${PASSWORD_LENGTH.min} characters`)
+  .max(PASSWORD_LENGTH.max, `Password must be at most ${PASSWORD_LENGTH.max} characters`);
 
 const nameSchema = z
   .string()
   .trim()
-  .min(NAME_MIN_LENGTH, `Name must be at least ${NAME_MIN_LENGTH} characters`)
-  .max(NAME_MAX_LENGTH, `Name must be at most ${NAME_MAX_LENGTH} characters`);
+  .min(NAME_LENGTH.min, `Name must be at least ${NAME_LENGTH.min} characters`)
+  .max(NAME_LENGTH.max, `Name must be at most ${NAME_LENGTH.max} characters`);
 
 const passwordsMatch = {
   message: "Passwords do not match",
@@ -71,7 +66,7 @@ export const profileSchema = z.object({
 
 export const changePasswordSchema = z
   .object({
-    confirmPassword: z.string().min(PASSWORD_MIN_LENGTH, "Confirm your new password"),
+    confirmPassword: z.string().min(PASSWORD_LENGTH.min, "Confirm your new password"),
     currentPassword: z.string().min(1, "Enter your current password"),
     newPassword: passwordSchema,
   })
