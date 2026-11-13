@@ -31,8 +31,6 @@ jobs:
       PGAPPNAME: easeia:ci:e2e
       BETTER_AUTH_SECRET: test-secret-minimum-32-characters-long-for-e2e
       EXPOSE_TESTING_API: 1
-      RESEND_API_KEY: re_e2e_stub
-      RESEND_BASE_URL: http://127.0.0.1:3999
       FROM_EMAIL: "Easeia <noreply@email.easeia.com>"
     services:
       postgres:

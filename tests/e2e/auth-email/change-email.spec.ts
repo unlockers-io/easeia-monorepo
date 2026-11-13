@@ -1,36 +1,35 @@
 import { expect, test } from "@playwright/test";
 import { prisma } from "@repo/db";
 
-import { verification } from "../fixtures/verification.fixture";
+import { verificationLink } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
-import { extractLink, waitForEmail } from "../helpers/resend";
-import { makeTestEmail, makeTestUsername } from "../helpers/test-email";
+import { makeTestEmail } from "../helpers/test-email";
+import { makeTestUsername } from "../helpers/test-user";
 import { webUrl } from "../urls";
-
-test.skip(!process.env.RESEND_API_KEY, "needs RESEND_API_KEY (test mode)");
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe("Change email (two-stage confirmation + verification)", () => {
-  test("user changes email — both stage-1 and stage-2 mails leave Resend, new email signs in", async ({
+  test("user changes email: both stage-1 and stage-2 mails are delivered, new email signs in", async ({
     page,
     request,
   }, testInfo) => {
     await page.context().clearCookies();
 
-    const currentEmail = makeTestEmail(testInfo).toLowerCase();
-    const newEmail = makeTestEmail(testInfo).toLowerCase().replace("delivered+", "delivered+new-");
-    recordCleanup("user", newEmail);
+    const currentEmail = recordCleanup("user", makeTestEmail(testInfo));
+    const newEmail = recordCleanup("user", currentEmail.replace("delivered+", "delivered+new-"));
     const username = makeTestUsername(currentEmail);
     const password = "ChangeEmailPwd1!";
+    const signedUpAt = Date.now();
 
     const signUp = await request.post(`${webUrl}/api/auth/sign-up/email`, {
       data: { email: currentEmail, name: "Change Me", password, username },
     });
 
     expect([200, 201]).toContain(signUp.status());
-    const verify = await verification.forVerifyEmail(currentEmail);
-    await page.goto(verify.url);
+    await page.goto(
+      await verificationLink({ sinceMs: signedUpAt, subject: /verify/i, to: currentEmail }),
+    );
     await page.waitForURL(/\/dashboard$/);
 
     const signIn = await request.post(`${webUrl}/api/auth/sign-in/email`, {
@@ -92,27 +91,12 @@ test.describe("Change email (two-stage confirmation + verification)", () => {
 
     expect(change.status()).toBe(200);
 
-    const stage1Mail = await waitForEmail({
-      sinceMs: since,
-      subject: /confirm|change/i,
-      to: currentEmail,
-    });
-
-    expect(stage1Mail.last_event).not.toBe("bounced");
-    const stage1Url = extractLink(stage1Mail, /\/api\/auth\/verify-email\?token=/);
-
-    await page.goto(stage1Url);
+    await page.goto(
+      await verificationLink({ sinceMs: since, subject: /confirm|change/i, to: currentEmail }),
+    );
     await page.waitForURL("/dashboard");
 
-    const stage2Mail = await waitForEmail({
-      sinceMs: since,
-      to: newEmail,
-    });
-
-    expect(stage2Mail.last_event).not.toBe("bounced");
-    const stage2Url = extractLink(stage2Mail, /\/api\/auth\/verify-email\?token=/);
-
-    await page.goto(stage2Url);
+    await page.goto(await verificationLink({ sinceMs: since, to: newEmail }));
     await page.waitForURL("/dashboard");
 
     const updated = await prisma.user.findUnique({ where: { email: newEmail } });

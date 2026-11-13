@@ -70,7 +70,7 @@ pnpm fallow:dead
 pnpm test:e2e
 ```
 
-Browser tests create full administrator accounts and synthetic sites. Use a dedicated test instance with `SIGNUP_MODE=open`; cleanup deletes only recorded synthetic test entries. Set `E2E_WEB_URL`, `E2E_API_URL`, and `E2E_LANDING_URL` to override automatic local URL discovery.
+Browser tests create full administrator accounts and synthetic sites. Use a dedicated test instance with `SIGNUP_MODE=open`; cleanup deletes only recorded synthetic test entries. Set `E2E_WEB_URL`, `E2E_API_URL`, and `E2E_LANDING_URL` to override automatic local URL discovery. The specs read verification and reset mail from the outbox, so web must run with `MAIL_TRANSPORT=outbox` on the machine that runs the suite.
 
 ## Architecture
 
@@ -103,7 +103,7 @@ flowchart LR
 | `@repo/ai`, `@repo/hero`, `@repo/rewrite`, `@repo/classify`            | Text, image, rewrite, and categorization pipelines          |
 | `@repo/links`, `@repo/money-sites`                                     | Link lifecycle and commercial targets                       |
 | `@repo/dataforseo`, `@repo/search-console`, `@repo/health`             | Provider clients and on-page SEO checks                     |
-| `@repo/blob`, `@repo/transactional`                                    | R2 storage and optional Resend mail                         |
+| `@repo/blob`, `@repo/transactional`                                    | R2 storage, and mail through Resend or the local outbox     |
 | `@repo/api-types`, `@repo/errors`, `@repo/ui`, `@repo/observability`   | Shared schemas, domain errors, components, and logging      |
 | `@repo/typescript-config`, `@repo/config-vitest`, `@repo/portless-env` | Shared development configuration                            |
 | `@easeia/astro-content`                                                | Published Astro loader and image-prefetch CLI               |
@@ -121,7 +121,7 @@ Every app needs `DATABASE_URL`; web and the API also need `BETTER_AUTH_SECRET`. 
 | R2 image storage                   | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL` |
 | Rankings and audits                | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`                                                    |
 | Search Console                     | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`                                       |
-| Verification and password recovery | `RESEND_API_KEY`, `FROM_EMAIL`                                                               |
+| Verification and password recovery | `FROM_EMAIL`, plus `RESEND_API_KEY` or `MAIL_TRANSPORT=outbox`                               |
 | Registration                       | `SIGNUP_MODE=first-user` (default), `closed`, or `open`                                      |
 
 See [.env.example](.env.example) for the full set. The dashboard’s **Settings → Integrations** identifies missing variables without showing their values. Models and their prices are fixed in `packages/ai/src/models.ts`. Embeddings use 1536 dimensions; changing that requires a schema change and re-embedding.

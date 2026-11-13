@@ -23,11 +23,7 @@ type Props = {
   searchParams: Promise<{ from?: string }>;
 };
 
-const LoginForm = ({
-  mailConfigured,
-  searchParams,
-  signupOpen,
-}: Props & { mailConfigured: boolean; signupOpen: boolean }) => {
+const LoginForm = ({ searchParams, signupOpen }: Props & { signupOpen: boolean }) => {
   const { push, refresh } = useRouter();
   const [showUnverifiedNotice, setShowUnverifiedNotice] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,14 +92,12 @@ const LoginForm = ({
               <Field data-invalid={isInvalid || undefined}>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  {mailConfigured && (
-                    <Link
-                      className="ml-auto text-sm text-foreground underline underline-offset-4"
-                      href="/recover"
-                    >
-                      Forgot your password?
-                    </Link>
-                  )}
+                  <Link
+                    className="ml-auto text-sm text-foreground underline underline-offset-4"
+                    href="/recover"
+                  >
+                    Forgot your password?
+                  </Link>
                 </div>
                 <Input
                   aria-describedby={isInvalid ? "password-error" : undefined}

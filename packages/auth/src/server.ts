@@ -7,9 +7,8 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bearer } from "better-auth/plugins/bearer";
 import { username } from "better-auth/plugins/username";
-import type { BetterAuthPlugin } from "better-auth/types";
+import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth/types";
 
-import { isMailConfigured } from "./env";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits";
 import { createSignupGuard, DEFAULT_SIGNUP_MODE, type SignupMode } from "./signup";
 
@@ -19,65 +18,33 @@ const HOUR_SECONDS = 60 * 60;
 const VERIFICATION_LINK_HOURS = 24;
 const RESET_LINK_HOURS = 1;
 
-type AuthConfig = {
+type SessionConfig = {
   allowedHosts: Array<string>;
   extraPlugins?: Array<BetterAuthPlugin>;
-  fromEmail?: string;
   prisma: PrismaClient;
   rateLimitEnabled?: boolean;
-  resendApiKey?: string;
   secret: string;
-  signupMode?: SignupMode;
   trustedOrigins?: Array<string>;
   useSecureCookies?: boolean;
 };
 
-export const createAuth = (config: AuthConfig) => {
-  const {
+type AuthConfig = SessionConfig & {
+  mailer: MailerConfig;
+  signupMode?: SignupMode;
+};
+
+const sessionOptions = (
+  {
     allowedHosts,
     extraPlugins = [],
-    fromEmail,
-    prisma,
     rateLimitEnabled = false,
-    resendApiKey,
     secret,
-    signupMode = DEFAULT_SIGNUP_MODE,
     trustedOrigins = [],
     useSecureCookies = false,
-  } = config;
-
-  const mailEnv = { FROM_EMAIL: fromEmail, RESEND_API_KEY: resendApiKey };
-
-  const mailer: MailerConfig | null = isMailConfigured(mailEnv)
-    ? { apiKey: mailEnv.RESEND_API_KEY, from: mailEnv.FROM_EMAIL }
-    : null;
-
-  // Keep the count and insert under one database lock across web replicas.
-  const guardedPrisma =
-    signupMode === "open"
-      ? prisma
-      : prisma.$extends({
-          query: {
-            user: {
-              create: ({ args }) =>
-                prisma.$transaction(async (tx) => {
-                  await tx.$executeRaw`SELECT pg_advisory_xact_lock(1701199301)`;
-                  await createSignupGuard(signupMode, () => tx.user.count())();
-
-                  return tx.user.create(args);
-                }),
-            },
-          },
-        });
-
-  return betterAuth({
-    account: {
-      accountLinking: {
-        enabled: true,
-        trustedProviders: ["email"],
-      },
-    },
-
+  }: Omit<SessionConfig, "prisma">,
+  database: Parameters<typeof prismaAdapter>[0],
+) =>
+  ({
     advanced: {
       cookiePrefix: COOKIE_PREFIX,
       defaultCookieAttributes: {
@@ -99,79 +66,9 @@ export const createAuth = (config: AuthConfig) => {
       protocol: "auto",
     },
 
-    database: prismaAdapter(guardedPrisma, {
+    database: prismaAdapter(database, {
       provider: "postgresql",
     }),
-
-    emailAndPassword: {
-      disableSignUp: signupMode === "closed",
-      enabled: true,
-      maxPasswordLength: PASSWORD_MAX_LENGTH,
-      minPasswordLength: PASSWORD_MIN_LENGTH,
-      onExistingUserSignUp: mailer
-        ? async ({ user }, request) => {
-            const origin = request?.headers.get("origin") ?? "";
-
-            // Swallowed on purpose: surfacing this failure to the client would
-            // reveal whether the address already has an account. Now that
-            // sendEmail rejects, the catch is what keeps that property.
-            try {
-              await sendTransactionalEmail(
-                {
-                  resetPasswordUrl: `${origin}/recover`,
-                  signInUrl: `${origin}/login`,
-                  type: "sign-up-attempt",
-                  userEmail: user.email,
-                  userId: user.id,
-                  username: user.name,
-                },
-                mailer,
-              );
-            } catch (error) {
-              log.error({ err: error, message: "failed to send sign-up attempt email" });
-            }
-          }
-        : undefined,
-      requireEmailVerification: Boolean(mailer),
-      resetPasswordTokenExpiresIn: RESET_LINK_HOURS * HOUR_SECONDS,
-      sendResetPassword: mailer
-        ? async ({ url, user }) => {
-            await sendTransactionalEmail(
-              {
-                expiresInHours: RESET_LINK_HOURS,
-                resetUrl: url,
-                type: "password-reset",
-                userEmail: user.email,
-                userId: user.id,
-                username: user.name,
-              },
-              mailer,
-            );
-          }
-        : undefined,
-    },
-
-    emailVerification: {
-      autoSignInAfterVerification: true,
-      callbackURL: "/",
-      expiresIn: VERIFICATION_LINK_HOURS * HOUR_SECONDS,
-      sendOnSignIn: true,
-      sendVerificationEmail: mailer
-        ? async ({ url, user }) => {
-            await sendTransactionalEmail(
-              {
-                expiresInHours: VERIFICATION_LINK_HOURS,
-                type: "welcome",
-                userEmail: user.email,
-                userId: user.id,
-                username: user.name,
-                verificationUrl: url,
-              },
-              mailer,
-            );
-          }
-        : undefined,
-    },
 
     plugins: [username(), bearer(), ...extraPlugins],
 
@@ -202,24 +99,133 @@ export const createAuth = (config: AuthConfig) => {
           type: "string",
         },
       },
+    },
+  }) satisfies BetterAuthOptions;
+
+export const createSessionReader = ({ prisma, ...config }: SessionConfig) => {
+  const auth = betterAuth(sessionOptions(config, prisma));
+
+  return { getSession: auth.api.getSession };
+};
+
+export const createAuth = ({
+  mailer,
+  prisma,
+  signupMode = DEFAULT_SIGNUP_MODE,
+  ...config
+}: AuthConfig) => {
+  // Keep the count and insert under one database lock across web replicas.
+  const guardedPrisma =
+    signupMode === "open"
+      ? prisma
+      : prisma.$extends({
+          query: {
+            user: {
+              create: ({ args }) =>
+                prisma.$transaction(async (tx) => {
+                  await tx.$executeRaw`SELECT pg_advisory_xact_lock(1701199301)`;
+                  await createSignupGuard(signupMode, () => tx.user.count())();
+
+                  return tx.user.create(args);
+                }),
+            },
+          },
+        });
+
+  const session = sessionOptions(config, guardedPrisma);
+
+  return betterAuth({
+    ...session,
+
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["email"],
+      },
+    },
+
+    emailAndPassword: {
+      disableSignUp: signupMode === "closed",
+      enabled: true,
+      maxPasswordLength: PASSWORD_MAX_LENGTH,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
+      onExistingUserSignUp: async ({ user }, request) => {
+        const origin = request?.headers.get("origin") ?? "";
+
+        // Swallowed on purpose: surfacing this failure to the client would
+        // reveal whether the address already has an account. Now that
+        // sendEmail rejects, the catch is what keeps that property.
+        try {
+          await sendTransactionalEmail(
+            {
+              resetPasswordUrl: `${origin}/recover`,
+              signInUrl: `${origin}/login`,
+              type: "sign-up-attempt",
+              userEmail: user.email,
+              userId: user.id,
+              username: user.name,
+            },
+            mailer,
+          );
+        } catch (error) {
+          log.error({ err: error, message: "failed to send sign-up attempt email" });
+        }
+      },
+      requireEmailVerification: true,
+      resetPasswordTokenExpiresIn: RESET_LINK_HOURS * HOUR_SECONDS,
+      sendResetPassword: async ({ url, user }) => {
+        await sendTransactionalEmail(
+          {
+            expiresInHours: RESET_LINK_HOURS,
+            resetUrl: url,
+            type: "password-reset",
+            userEmail: user.email,
+            userId: user.id,
+            username: user.name,
+          },
+          mailer,
+        );
+      },
+    },
+
+    emailVerification: {
+      autoSignInAfterVerification: true,
+      callbackURL: "/",
+      expiresIn: VERIFICATION_LINK_HOURS * HOUR_SECONDS,
+      sendOnSignIn: true,
+      sendVerificationEmail: async ({ url, user }) => {
+        await sendTransactionalEmail(
+          {
+            expiresInHours: VERIFICATION_LINK_HOURS,
+            type: "welcome",
+            userEmail: user.email,
+            userId: user.id,
+            username: user.name,
+            verificationUrl: url,
+          },
+          mailer,
+        );
+      },
+    },
+
+    user: {
+      ...session.user,
       changeEmail: {
         enabled: true,
-        sendChangeEmailConfirmation: mailer
-          ? async ({ newEmail, url, user }) => {
-              await sendTransactionalEmail(
-                {
-                  changeUrl: url,
-                  currentEmail: user.email,
-                  expiresInHours: VERIFICATION_LINK_HOURS,
-                  newEmail,
-                  type: "change-email-confirmation",
-                  userId: user.id,
-                  username: user.name,
-                },
-                mailer,
-              );
-            }
-          : undefined,
+        sendChangeEmailConfirmation: async ({ newEmail, url, user }) => {
+          await sendTransactionalEmail(
+            {
+              changeUrl: url,
+              currentEmail: user.email,
+              expiresInHours: VERIFICATION_LINK_HOURS,
+              newEmail,
+              type: "change-email-confirmation",
+              userId: user.id,
+              username: user.name,
+            },
+            mailer,
+          );
+        },
       },
     },
   });

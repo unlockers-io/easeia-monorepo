@@ -17,14 +17,10 @@ describe("readIntegrations", () => {
     });
     expect(JSON.stringify(result)).not.toContain("secret");
   });
-  it("treats blank keys and a missing mail sender as unconfigured", () => {
-    const result = readIntegrations({
-      DATAFORSEO_LOGIN: "",
-      FROM_EMAIL: " ",
-      RESEND_API_KEY: "key",
-    });
+  it("treats blank keys as unconfigured", () => {
+    const result = readIntegrations({ DATAFORSEO_LOGIN: "", RESEND_API_KEY: " " });
 
     expect(result.dataforseo.configured).toBe(false);
-    expect(result.mail).toMatchObject({ configured: false, missing: ["FROM_EMAIL"] });
+    expect(result.mail).toMatchObject({ configured: false, missing: ["RESEND_API_KEY"] });
   });
 });

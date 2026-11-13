@@ -29,6 +29,7 @@
         "FROM_EMAIL",
         "GOOGLE_OAUTH_CLIENT_ID",
         "GOOGLE_OAUTH_CLIENT_SECRET",
+        "MAIL_TRANSPORT",
         "NEXT_PUBLIC_WEB_APP_URL",
         "OPENAI_API_KEY",
         "RESEND_API_KEY",

@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { COOKIE_PREFIX } from "@repo/auth/server";
 
-import { extractLink, waitForEmail } from "../helpers/resend";
+import { verificationLink } from "../fixtures/verification.fixture";
+import { recordCleanup } from "../helpers/cleanup-record";
 import { makeTestEmail } from "../helpers/test-email";
 import { webUrl } from "../urls";
-
-test.skip(!process.env.RESEND_API_KEY, "needs RESEND_API_KEY (test mode)");
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -15,7 +14,7 @@ test.describe("Sign-up with redirect context", () => {
     page,
   }, testInfo) => {
     const since = Date.now();
-    const email = makeTestEmail(testInfo);
+    const email = recordCleanup("user", makeTestEmail(testInfo));
     const redirectPath = "/dashboard/settings";
 
     await page.goto(`${webUrl}/register?from=${encodeURIComponent(redirectPath)}`);
@@ -33,15 +32,7 @@ test.describe("Sign-up with redirect context", () => {
 
     await expect(page.getByText(/check your email/i)).toBeVisible({ timeout: 10_000 });
 
-    const mail = await waitForEmail({
-      sinceMs: since,
-      subject: /verify/i,
-      to: email,
-    });
-
-    expect(mail.last_event).not.toBe("bounced");
-
-    const verifyUrl = extractLink(mail, /\/api\/auth\/verify-email\?token=/);
+    const verifyUrl = await verificationLink({ sinceMs: since, subject: /verify/i, to: email });
     const clickerContext = await browser.newContext();
     const clickerPage = await clickerContext.newPage();
     await clickerPage.goto(verifyUrl);
