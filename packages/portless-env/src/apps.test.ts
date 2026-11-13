@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { describe, expect, it } from "vitest";
 
-import { apps, canonicalHostname, canonicalUrl, canonicalUrls, loopbackUrl, urlEnv } from "./apps";
+import { apps, canonicalUrl, canonicalUrls, loopbackUrl, urlEnv } from "./apps";
 
 const appIds = ["api", "landing", "web"] as const;
 
@@ -44,14 +44,6 @@ describe("literals that cannot import the registry", () => {
     async (app) => {
       const { scripts } = JSON.parse(await repoFile(`apps/${app}/package.json`));
       expect(scripts["dev:plain"]).toMatch(new RegExp(`--port ${apps[app].port}$`));
-    },
-  );
-
-  it.each(["landing", "web"] as const)(
-    "allows the %s dev origins in next.config.ts",
-    async (app) => {
-      const config = await repoFile(`apps/${app}/next.config.ts`);
-      expect(config).toContain(`"${canonicalHostname(app)}", "*.${canonicalHostname(app)}"`);
     },
   );
 

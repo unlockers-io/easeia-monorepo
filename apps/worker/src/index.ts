@@ -34,9 +34,6 @@ for (const w of workers) {
       queue: w.name,
     });
   });
-  w.on("completed", (job) => {
-    log.info({ jobId: job.id, message: "job completed", queue: w.name });
-  });
 }
 
 log.info({ env: env.NODE_ENV, message: "🚀 Worker started", queues: workers.map((w) => w.name) });

@@ -1,3 +1,4 @@
+import { displayName } from "@repo/identity";
 import {
   Card,
   CardContent,
@@ -12,7 +13,7 @@ import LoginForm from "@/app/(auth)/login/form";
 import { getSignupState } from "@/lib/signup-state";
 
 const metadata: Metadata = {
-  description: "Sign in to your Easeia account to access your dashboard and manage your profile.",
+  description: `Sign in to your ${displayName} account to access your dashboard and manage your profile.`,
   title: "Sign in",
 };
 

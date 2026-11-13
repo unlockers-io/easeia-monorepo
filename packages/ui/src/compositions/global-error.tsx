@@ -1,13 +1,14 @@
 "use client";
 
-import { type ErrorBoundaryProps, type ErrorLog, useErrorReport } from "../hooks/use-error-report";
+import { useErrorReport } from "../hooks/use-error-report";
+import type { ErrorBoundaryProps, ReportError } from "../hooks/use-error-report";
 
 import styles from "./global-error.module.css";
 
-type GlobalErrorContentProps = ErrorBoundaryProps & { log: ErrorLog };
+type GlobalErrorContentProps = ErrorBoundaryProps & { report: ReportError };
 
-const GlobalErrorContent = ({ error, log, retry }: GlobalErrorContentProps) => {
-  const headingRef = useErrorReport(error, log, "Global error boundary");
+const GlobalErrorContent = ({ error, report, retry }: GlobalErrorContentProps) => {
+  const headingRef = useErrorReport(error, report);
 
   return (
     <>

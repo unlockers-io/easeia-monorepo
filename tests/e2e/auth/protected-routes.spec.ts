@@ -1,4 +1,4 @@
-import { COOKIE_PREFIX } from "@repo/auth/server";
+import { slug } from "@repo/identity";
 
 import { test, expect } from "../fixtures/auth.fixture";
 import { webUrl } from "../urls";
@@ -24,7 +24,7 @@ test.describe("Root redirect", () => {
     await page.context().clearCookies();
     await page.context().addCookies([
       {
-        name: `${COOKIE_PREFIX}.session_token`,
+        name: `${slug}.session_token`,
         url: webUrl,
         value: "stale-session-token-that-matches-no-session",
       },

@@ -1,11 +1,14 @@
 import { JobKind, prisma } from "@repo/db";
 import { enqueue } from "@repo/jobs";
-import { log } from "@repo/observability";
 import * as Posts from "@repo/posts";
+
+import type { JobContext } from "../lib/job-log";
 
 const CAP = 25;
 
-export const handleBackfillHeroes = async (): Promise<void> => {
+export const handleBackfillHeroes = async ({
+  log,
+}: JobContext<"BACKFILL_HEROES">): Promise<void> => {
   const posts = await Posts.listHeroless(CAP);
 
   await prisma.$transaction(async (tx) => {
@@ -22,9 +25,6 @@ export const handleBackfillHeroes = async (): Promise<void> => {
     }
   });
 
-  log.info({
-    enqueued: posts.length,
-    message: "hero-backfill: swept",
-    truncated: posts.length === CAP,
-  });
+  log.set({ enqueued: posts.length, truncated: posts.length === CAP });
+  log.info("hero-backfill: swept");
 };

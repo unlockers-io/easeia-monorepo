@@ -52,8 +52,6 @@ const REPUBLISHABLE: ReadonlyArray<PostStatus> = [
   PostStatus.PUBLISHED,
 ];
 
-const AWAITING_PUBLISH: ReadonlyArray<PostStatus> = [PostStatus.SCHEDULED];
-
 export const bucketDraftWhere = {
   scheduledAt: null,
   status: PostStatus.DRAFT,
@@ -302,7 +300,7 @@ export const requestRewrite = async (
 export const startPublish = async (id: string): Promise<{ post: Post; site: Site } | null> => {
   const post = await prisma.post.findUnique({ where: { id } });
 
-  if (post === null || !AWAITING_PUBLISH.includes(post.status)) {
+  if (post?.status !== PostStatus.SCHEDULED) {
     return null;
   }
 
@@ -323,7 +321,7 @@ export const completePublish = (id: string): Promise<void> =>
 
     const [post] = await tx.post.updateManyAndReturn({
       data: { publishedAt: new Date(), status: PostStatus.PUBLISHED },
-      where: { id, status: { in: [...AWAITING_PUBLISH] } },
+      where: { id, status: PostStatus.SCHEDULED },
     });
 
     if (post === undefined) {

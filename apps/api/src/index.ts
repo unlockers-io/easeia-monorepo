@@ -4,7 +4,8 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { createRoute, z } from "@hono/zod-openapi";
 import { prisma } from "@repo/db";
-import { honoEvlog, initApiLogger, log } from "@repo/observability/hono";
+import { log } from "@repo/observability";
+import { honoEvlog, initApiLogger } from "@repo/observability/hono";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
@@ -154,9 +155,6 @@ app.route("/api/suggestions", suggestionRoutes);
 
 app.route("/api/waitlist", waitlistRoutes);
 
-// Same metadata as /openapi.json; only the spec version differs. Duplicating the
-// literal had already cost /llms.txt its servers, description and tag glossary,
-// which is exactly the orientation an automated client needs.
 const openApiContent = app.getOpenAPI31Document({ ...apiDocConfig, openapi: "3.1.0" });
 
 const llmsMarkdown = await createMarkdownFromOpenApi(JSON.stringify(openApiContent));

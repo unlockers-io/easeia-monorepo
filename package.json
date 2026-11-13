@@ -46,10 +46,11 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.0",
-    "@next/playwright": "^16.3.0",
+    "@next/playwright": "^16.3.6",
     "@playwright/test": "^1.63.0",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/identity": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/portless-env": "workspace:*",
     "@repo/sites": "workspace:*",

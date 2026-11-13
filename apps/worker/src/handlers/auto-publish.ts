@@ -1,9 +1,8 @@
 import * as AutoPublish from "@repo/auto-publish";
-import type { ConsumerContext } from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
 
-export const handleAutoPublish = async ({ jobId }: ConsumerContext<"AUTO_PUBLISH">) => {
-  const log = createJobLogger({ jobId, queue: "auto-publish" });
+import type { JobContext } from "../lib/job-log";
+
+export const handleAutoPublish = async ({ log }: JobContext<"AUTO_PUBLISH">): Promise<void> => {
   const { published, refills, skipped } = await AutoPublish.tick();
   log.set({
     published,
@@ -11,5 +10,4 @@ export const handleAutoPublish = async ({ jobId }: ConsumerContext<"AUTO_PUBLISH
     skipped,
   });
   log.info("auto-publish: tick");
-  log.emit();
 };

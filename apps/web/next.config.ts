@@ -1,35 +1,19 @@
 import path from "node:path";
 
+import { baseNextConfig } from "@repo/config-next";
 import { applyPortlessUrls } from "@repo/portless-env";
 import type { NextConfig } from "next";
 
 applyPortlessUrls(["WEB_APP_URL"]);
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["easeia.web.localhost", "*.easeia.web.localhost", "*.vercel.app"],
-  cacheComponents: true,
-  experimental: {
+  ...baseNextConfig("web", {
     exposeTestingApiInProductionBuild: process.env.EXPOSE_TESTING_API === "1",
     instantInsights: { validationLevel: "manual-warning" },
-    turbopackRustReactCompiler: true,
-  },
-  headers: () =>
-    Promise.resolve([
-      {
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        ],
-        source: "/:path*",
-      },
-    ]),
+  }),
   // Vercel packages its own functions; standalone output is for self-hosting.
   output: process.env.VERCEL === "1" ? undefined : "standalone",
   outputFileTracingRoot: path.resolve(import.meta.dirname, "../.."),
-  partialPrefetching: true,
-  reactCompiler: true,
-  reactStrictMode: true,
   serverExternalPackages: [
     "@prisma/client",
     "@repo/auto-publish",

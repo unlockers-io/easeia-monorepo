@@ -38,10 +38,6 @@ export const selectAnchorsForNewPost = async (
         slug: true,
         title: true,
       },
-      // Site.domain is @unique and Post is @@unique([siteId, slug]), so two
-      // rows cannot yield the same public URL. The old 4x overfetch existed to
-      // give a dedupe headroom, but the slice ran before the dedupe, so it only
-      // ever fetched and discarded peer posts.
       take: TOP_INTERNAL_PBN,
       where: {
         niches: input.niches.length > 0 ? { hasSome: [...input.niches] } : undefined,

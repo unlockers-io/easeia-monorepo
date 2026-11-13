@@ -1,7 +1,6 @@
+import { origins } from "@repo/identity";
 import type { MetadataRoute } from "next";
 
-import { SITE_URL } from "@/lib/urls";
-
 export default function sitemap(): MetadataRoute.Sitemap {
-  return ["", "/privacy", "/terms"].map((path) => ({ url: `${SITE_URL}${path}` }));
+  return ["", "/privacy", "/terms"].map((path) => ({ url: `${origins.landing}${path}` }));
 }

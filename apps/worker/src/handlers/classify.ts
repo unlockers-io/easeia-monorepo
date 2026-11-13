@@ -1,12 +1,9 @@
 import { classifyPost } from "@repo/classify";
-import type { ConsumerContext } from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
 
-export const handleClassify = async (ctx: ConsumerContext<"CLASSIFY">): Promise<void> => {
-  const { jobId, payload } = ctx;
-  const log = createJobLogger({ jobId, queue: "classify" });
+import type { JobContext } from "../lib/job-log";
+
+export const handleClassify = async ({ log, payload }: JobContext<"CLASSIFY">): Promise<void> => {
   log.set({ postId: payload.postId });
   await classifyPost(payload.postId);
   log.info("classify: done");
-  log.emit();
 };

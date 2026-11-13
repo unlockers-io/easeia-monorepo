@@ -10,7 +10,7 @@
     "./env": "./src/env.ts",
     "./env-config": "./src/env-config.ts",
     "./signup": "./src/signup.ts",
-    "./limits": "./src/limits.ts"
+    "./policy": "./src/policy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@repo/db": "workspace:*",
+    "@repo/identity": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/portless-env": "workspace:*",
     "@repo/transactional": "workspace:*",
@@ -29,7 +30,7 @@
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "react": "^19.3.0",
     "typescript": "^7.0.2",

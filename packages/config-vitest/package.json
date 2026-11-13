@@ -7,6 +7,7 @@
   "exports": {
     "./react": "./react.ts",
     "./node": "./node.ts",
+    "./database": "./database.ts",
     "./setup-react": "./setup-react.ts"
   },
   "scripts": {
@@ -15,15 +16,15 @@
   "dependencies": {
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^5.0.1",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.1",
     "vitest": "^5.0.1",
     "zod-compiler": "^1.27.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.6.2",
     "typescript": "^7.0.2"
   }
 }

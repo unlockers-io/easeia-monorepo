@@ -1,6 +1,6 @@
 "use client";
 
-import { NAME_MAX_LENGTH, NAME_MIN_LENGTH } from "@repo/auth/limits";
+import { NAME_LENGTH } from "@repo/auth/policy";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -99,7 +99,7 @@ export const ProfileForm = ({ email, name }: { email: string; name: string }) =>
                       value={field.state.value}
                     />
                     <FieldDescription id="account-name-description">
-                      {NAME_MIN_LENGTH} to {NAME_MAX_LENGTH} characters.
+                      {NAME_LENGTH.min} to {NAME_LENGTH.max} characters.
                     </FieldDescription>
                     {isInvalid && (
                       <FormFieldError errors={field.state.meta.errors} id="account-name-error" />

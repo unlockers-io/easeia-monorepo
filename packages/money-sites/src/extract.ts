@@ -6,11 +6,6 @@ export type PageContent = {
   title: string | null;
 };
 
-/**
- * One parse per page. `crawlPage` used to build its own DOM for `<title>` and
- * the meta description and then call `extractVisibleText`, which parsed the same
- * HTML a second time; DOM construction is the dominant CPU cost per crawled page.
- */
 export const extractPageContent = (html: string): PageContent => {
   const { document } = parseHTML(html);
 
@@ -39,5 +34,3 @@ export const extractPageContent = (html: string): PageContent => {
 
   return { bodyText: buckets.join("\n\n"), metaDescription, title };
 };
-
-export const extractVisibleText = (html: string): string => extractPageContent(html).bodyText;

@@ -1,10 +1,6 @@
 const LOC_RE = /<loc>(?<loc>[^<]+)<\/loc>/giv;
 
-/**
- * Distinct locs. A sitemap listing a URL twice previously produced two write
- * attempts and inflated both counters, and duplicates within one batch would
- * break the batched insert that consumes this.
- */
+/** Distinct: a duplicate within one batch breaks the batched insert that consumes this. */
 export const extractLocs = (xml: string): Array<string> => {
   const out = new Set<string>();
 

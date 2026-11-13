@@ -8,6 +8,7 @@ import zodCompiler from "zod-compiler/rolldown";
 applyPortlessUrls(["CORS_ORIGINS", "WEB_APP_URL"]);
 
 const srcDir = path.resolve(process.cwd(), "src");
+const astroContentEntry = path.resolve(process.cwd(), "../../packages/astro-content/src/index.ts");
 
 export default defineConfig({
   clean: true,
@@ -22,12 +23,16 @@ export default defineConfig({
       // Hono spreads safeParse results; compiled lazy errors are non-enumerable.
       exclude: [
         "**/packages/api-types/**",
+        "**/packages/astro-content/**",
         "**/apps/api/src/lib/openapi-schemas.ts",
         "**/apps/api/src/routes/**",
       ],
     }),
     alias({
-      entries: [{ find: "@", replacement: srcDir }],
+      entries: [
+        { find: "@easeia/astro-content", replacement: astroContentEntry },
+        { find: "@", replacement: srcDir },
+      ],
     }),
   ],
   sourcemap: true,

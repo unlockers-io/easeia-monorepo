@@ -1,12 +1,12 @@
-import type { ConsumerContext } from "@repo/jobs";
 import { suggestForPost } from "@repo/links";
-import { createJobLogger } from "@repo/observability/worker";
 
-export const handleSuggestLinks = async (ctx: ConsumerContext<"SUGGEST_LINKS">): Promise<void> => {
-  const { jobId, payload } = ctx;
-  const log = createJobLogger({ jobId, queue: "suggest-links" });
+import type { JobContext } from "../lib/job-log";
+
+export const handleSuggestLinks = async ({
+  log,
+  payload,
+}: JobContext<"SUGGEST_LINKS">): Promise<void> => {
   const summary = await suggestForPost(payload.postId);
   log.set({ postId: payload.postId, ...summary });
   log.info("suggest-links: done");
-  log.emit();
 };

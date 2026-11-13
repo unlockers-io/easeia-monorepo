@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@repo/db";
+import { slug } from "@repo/identity";
 import { log } from "@repo/observability";
 import { loopbackUrl } from "@repo/portless-env/apps";
 import type { MailerConfig } from "@repo/transactional";
@@ -9,10 +10,8 @@ import { bearer } from "better-auth/plugins/bearer";
 import { username } from "better-auth/plugins/username";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth/types";
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits";
+import { PASSWORD_LENGTH } from "./policy";
 import { createSignupGuard, DEFAULT_SIGNUP_MODE, type SignupMode } from "./signup";
-
-export const COOKIE_PREFIX = "easeia";
 
 const HOUR_SECONDS = 60 * 60;
 const VERIFICATION_LINK_HOURS = 24;
@@ -46,7 +45,7 @@ const sessionOptions = (
 ) =>
   ({
     advanced: {
-      cookiePrefix: COOKIE_PREFIX,
+      cookiePrefix: slug,
       defaultCookieAttributes: {
         httpOnly: true,
         sameSite: "lax" as const,
@@ -147,8 +146,8 @@ export const createAuth = ({
     emailAndPassword: {
       disableSignUp: signupMode === "closed",
       enabled: true,
-      maxPasswordLength: PASSWORD_MAX_LENGTH,
-      minPasswordLength: PASSWORD_MIN_LENGTH,
+      maxPasswordLength: PASSWORD_LENGTH.max,
+      minPasswordLength: PASSWORD_LENGTH.min,
       onExistingUserSignUp: async ({ user }, request) => {
         const origin = request?.headers.get("origin") ?? "";
 

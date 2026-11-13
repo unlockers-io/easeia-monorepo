@@ -1,6 +1,6 @@
 "use client";
 
-import { PASSWORD_MIN_LENGTH } from "@repo/auth/limits";
+import { PASSWORD_LENGTH } from "@repo/auth/policy";
 import { Button } from "@repo/ui/components/button";
 import { Field, FieldDescription, FieldGroup } from "@repo/ui/components/field";
 import { ClientReadyForm } from "@repo/ui/compositions/client-ready-form";
@@ -68,7 +68,7 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
             {(field) => (
               <AuthPasswordField
                 autoComplete="new-password"
-                description={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+                description={`At least ${PASSWORD_LENGTH.min} characters.`}
                 disabled={isLoading}
                 field={field}
                 label="New password"

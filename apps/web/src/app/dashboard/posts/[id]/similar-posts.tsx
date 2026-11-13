@@ -1,7 +1,3 @@
-/**
- * Similar-posts card: driven by `Posts.findSimilar`. The pgvector
- * cosine query lives in `@repo/posts`; this Channel only renders.
- */
 import * as Posts from "@repo/posts";
 import { Badge } from "@repo/ui/components/badge";
 import {

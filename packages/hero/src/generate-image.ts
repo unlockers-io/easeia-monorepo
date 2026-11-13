@@ -34,9 +34,6 @@ const defaultToJpeg = async (
   return { bytes: new Uint8Array(out.data), height: out.info.height, width: out.info.width };
 };
 
-/**
- * Prompt in, uploaded JPEG out. Each caller persists its own image record.
- */
 export const generatePostImage = async (
   input: GeneratePostImageInput,
   deps: GeneratePostImageDeps = {},

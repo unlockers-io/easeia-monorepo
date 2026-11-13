@@ -13,7 +13,7 @@
   "globalPassThroughEnv": ["PGAPPNAME"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "db:generate"],
+      "dependsOn": ["^build", "^db:generate", "db:generate"],
       "outputs": ["dist/**", "LICENSE", ".next/**", "!.next/cache/**"],
       "env": [
         "API_URL",
@@ -42,13 +42,13 @@
       ]
     },
     "typecheck": {
-      "dependsOn": ["^build", "db:generate"]
+      "dependsOn": ["^build", "^db:generate", "db:generate"]
     },
     "format:check": {
       "cache": false
     },
     "dev": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^db:generate"],
       "cache": false,
       "persistent": true
     },
@@ -57,18 +57,18 @@
       "cache": false
     },
     "test": {
-      "dependsOn": ["^build", "db:generate"],
+      "dependsOn": ["^build", "^db:generate", "db:generate"],
       "outputs": ["coverage/**"],
       "passThroughEnv": ["DATABASE_URL", "REDIS_URL", "TEST_DATABASE", "TEST_REDIS"],
       "cache": false
     },
     "test:watch": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^db:generate"],
       "cache": false,
       "persistent": true
     },
     "test:coverage": {
-      "dependsOn": ["^build", "db:generate"],
+      "dependsOn": ["^build", "^db:generate", "db:generate"],
       "outputs": ["coverage/**"],
       "cache": false
     },
@@ -85,7 +85,7 @@
     },
     "dev:plain": {
       "cache": false,
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^db:generate"],
       "persistent": true
     }
   }
