@@ -342,6 +342,9 @@ model Post {
   // Stored for DataForSEO SERP rank tracking.
   focusKeyword String?
 
+  // shortcut: unread copy of the hero URL, declared so `db push` leaves the column alone; delete once production has dropped the column
+  featuredImage String? @ignore
+
   categories String[] @default([])
   tags       String[] @default([])
   niches     Niche[]  @default([])
