@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@repo/db";
+import { slug } from "@repo/identity";
 import { log } from "@repo/observability";
 import { loopbackUrl } from "@repo/portless-env/apps";
 import type { MailerConfig } from "@repo/transactional";
@@ -12,8 +13,6 @@ import type { BetterAuthPlugin } from "better-auth/types";
 import { isMailConfigured } from "./env";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "./limits";
 import { createSignupGuard, DEFAULT_SIGNUP_MODE, type SignupMode } from "./signup";
-
-export const COOKIE_PREFIX = "easeia";
 
 const HOUR_SECONDS = 60 * 60;
 const VERIFICATION_LINK_HOURS = 24;
@@ -79,7 +78,7 @@ export const createAuth = (config: AuthConfig) => {
     },
 
     advanced: {
-      cookiePrefix: COOKIE_PREFIX,
+      cookiePrefix: slug,
       defaultCookieAttributes: {
         httpOnly: true,
         sameSite: "lax" as const,

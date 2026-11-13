@@ -1,3 +1,4 @@
+import { displayName } from "@repo/identity";
 import { Img } from "react-email";
 
 type LogoProps = {
@@ -8,7 +9,7 @@ type LogoProps = {
 const Logo = ({ height = 32, width = 120 }: LogoProps) => {
   return (
     <Img
-      alt="Easeia"
+      alt={displayName}
       height={height}
       src="https://www.easeia.dev/logo-wordmark.svg"
       width={width}

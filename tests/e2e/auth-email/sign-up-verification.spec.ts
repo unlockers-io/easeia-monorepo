@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { COOKIE_PREFIX } from "@repo/auth/server";
+import { slug } from "@repo/identity";
 
 import { extractLink, waitForEmail } from "../helpers/resend";
 import { makeTestEmail, makeTestUsername } from "../helpers/test-email";
@@ -51,7 +51,7 @@ test.describe("Sign-up email verification", () => {
     await clickerPage.goto(verifyUrl);
     await expect(clickerPage).toHaveURL(/\/dashboard$/);
     const clickerCookies = await clickerContext.cookies(webUrl);
-    expect(clickerCookies.find((c) => c.name.startsWith(`${COOKIE_PREFIX}.`))).toBeDefined();
+    expect(clickerCookies.find((c) => c.name.startsWith(`${slug}.`))).toBeDefined();
     await clickerContext.close();
 
     const postSignIn = await request.post(`${webUrl}/api/auth/sign-in/email`, {

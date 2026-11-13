@@ -1,9 +1,10 @@
+import { displayName } from "@repo/identity";
 import { BRAND_IMAGE_SIZE, brandImage } from "@repo/social-image/brand";
 import { ImageResponse } from "next/og";
 
-import { DESCRIPTION, SITE_NAME } from "@/lib/site";
+import { DESCRIPTION } from "@/lib/site";
 
-const alt = `${SITE_NAME} · ${DESCRIPTION}`;
+const alt = `${displayName} · ${DESCRIPTION}`;
 const size = BRAND_IMAGE_SIZE;
 const contentType = "image/png";
 

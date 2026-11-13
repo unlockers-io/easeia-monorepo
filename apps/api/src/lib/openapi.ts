@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { contacts, displayName, origins } from "@repo/identity";
 import type { EvlogVariables } from "@repo/observability/hono";
 import { loopbackUrl } from "@repo/portless-env/apps";
 import { Scalar } from "@scalar/hono-api-reference";
@@ -29,19 +30,19 @@ const createRouter = <E extends Env>() =>
 const apiDocConfig = {
   info: {
     contact: {
-      email: "hello@easeia.com",
+      email: contacts.support,
       name: "API Support",
     },
     description:
       "Easeia is an open-source dashboard and API for operating a private blog network. Create sites and Markdown posts, publish to Astro through deploy hooks, and manage cross-site links to money sites.\n\nSelf-host with Postgres and Redis. Scoped bearer API keys support external workflows; background jobs handle publishing, crawling, AI rewrites, and link suggestions. OpenAI, DataForSEO, Google Search Console, email, and R2 are optional integrations.",
     license: { name: "MIT", url: "https://opensource.org/license/mit" },
-    title: "Easeia API",
+    title: `${displayName} API`,
     version: "1.0.0",
   },
   servers: [
     { description: "This instance", url: "/" },
     { description: "Local development server", url: loopbackUrl("api", "localhost") },
-    { description: "Production server", url: "https://api.easeia.com" },
+    { description: "Production server", url: origins.api },
   ],
   tags: [
     { description: "Service health and readiness", name: "System" },

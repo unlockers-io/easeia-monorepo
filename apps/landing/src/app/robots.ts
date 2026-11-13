@@ -1,7 +1,6 @@
+import { origins } from "@repo/identity";
 import type { MetadataRoute } from "next";
 
-import { SITE_URL } from "@/lib/urls";
-
 export default function robots(): MetadataRoute.Robots {
-  return { rules: { allow: "/", userAgent: "*" }, sitemap: `${SITE_URL}/sitemap.xml` };
+  return { rules: { allow: "/", userAgent: "*" }, sitemap: `${origins.landing}/sitemap.xml` };
 }

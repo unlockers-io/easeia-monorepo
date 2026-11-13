@@ -1,6 +1,6 @@
 const FALLBACK_PATH = "/dashboard";
 
-const ANCHOR_ORIGIN = "https://easeia.invalid";
+const ANCHOR_ORIGIN = "https://anchor.invalid";
 
 const safeRedirectPath = (value: string | null | undefined): string => {
   if (

@@ -24,6 +24,7 @@
     "@repo/backfill": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/errors": "workspace:*",
+    "@repo/identity": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/links": "workspace:*",
     "@repo/money-sites": "workspace:*",
