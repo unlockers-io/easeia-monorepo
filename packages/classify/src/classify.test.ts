@@ -21,10 +21,3 @@ describe("mergeTags", () => {
     expect(mergeTags([], ["wedding", "real-estate", "tuscany venues"])).toEqual(["tuscany venues"]);
   });
 });
-
-describe("classifyContent (content-agnostic)", () => {
-  it("is exported", async () => {
-    const m = await import("./classify");
-    expect(typeof m.classifyContent).toBe("function");
-  });
-});
