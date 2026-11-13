@@ -22,6 +22,7 @@
     "@repo/auto-publish": "workspace:*",
     "@repo/backfill": "workspace:*",
     "@repo/blob": "workspace:*",
+    "@repo/config-next": "workspace:*",
     "@repo/dataforseo": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/errors": "workspace:*",
