@@ -1,14 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import {
-  buildBlobKey,
-  createBlobStore,
-  hashBytes,
-  isBlobUrl,
-  mimeFor,
-  R2_ENV_VARS,
-  readConfig,
-} from "./index";
+import { buildBlobKey, createBlobStore, hashBytes, R2_ENV_VARS, readConfig } from "./index";
 import type { BlobBackend, R2Config } from "./index";
 
 describe("buildBlobKey", () => {
@@ -143,21 +135,5 @@ describe("R2 client operations", () => {
     expect(() =>
       readConfig({ ...validEnvironment, R2_PUBLIC_BASE_URL: "images.example.com" }),
     ).toThrow(/not a parseable absolute URL/v);
-  });
-});
-
-describe("blob URLs and types", () => {
-  it("recognizes URLs under the configured public base only", () => {
-    const environment = { R2_PUBLIC_BASE_URL: "https://images.example.com/" };
-
-    expect(isBlobUrl("https://images.example.com/sites/s1/a.jpg", environment)).toBe(true);
-    expect(isBlobUrl("https://cdn.other.test/a.jpg", environment)).toBe(false);
-    expect(isBlobUrl("https://images.example.com/a.jpg", {})).toBe(false);
-  });
-
-  it("infers the image type from the filename", () => {
-    expect(mimeFor("hero.PNG")).toBe("image/png");
-    expect(mimeFor("hero.webp")).toBe("image/webp");
-    expect(mimeFor("hero")).toBe("image/jpeg");
   });
 });

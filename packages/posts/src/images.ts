@@ -26,6 +26,15 @@ export const heroOf = async (
     where: { isHero: true, postId },
   });
 
+export const heroUrls = async (postIds: ReadonlyArray<string>): Promise<Map<string, string>> => {
+  const heroes = await prisma.postImage.findMany({
+    select: { blobUrl: true, postId: true },
+    where: { isHero: true, postId: { in: [...postIds] } },
+  });
+
+  return new Map(heroes.map((hero) => [hero.postId, hero.blobUrl]));
+};
+
 export const listHeroless = (limit: number) =>
   prisma.post.findMany({
     orderBy: [{ publishedAt: "asc" }, { createdAt: "asc" }],
@@ -53,10 +62,7 @@ export const setHero = (postId: string, image: StoredImage): Promise<void> =>
     });
     await storeImage(tx, postId, { ...image, alt: null, isHero: true });
 
-    const post = await tx.post.update({
-      data: { featuredImage: image.blobUrl },
-      where: { id: postId },
-    });
+    const post = await tx.post.update({ data: { updatedAt: new Date() }, where: { id: postId } });
 
     await settleLiveChange(post, false, tx);
   });

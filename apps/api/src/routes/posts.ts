@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { postCreateSchema, postListQuerySchema, postUpdateSchema } from "@repo/api-types";
-import { Niche, PostStatus } from "@repo/db";
+import { Niche, type Post, PostStatus } from "@repo/db";
 import * as Posts from "@repo/posts";
 
 import { errorResponse, idParamSchema, jsonResponse, okSchema } from "@/lib/openapi-schemas";
@@ -9,7 +9,7 @@ import { createProtectedRouter, guards, type Guards } from "@/lib/protected-rout
 type RouteDependencies = Guards & {
   posts: Pick<
     typeof Posts,
-    "list" | "get" | "create" | "update" | "remove" | "publish" | "unpublish"
+    "list" | "get" | "create" | "update" | "remove" | "publish" | "unpublish" | "heroUrls"
   >;
 };
 
@@ -36,6 +36,11 @@ const createPostRoutes = (deps: RouteDependencies) => {
       updatedAt: z.date(),
     })
     .openapi("Post");
+
+  const withHero = (post: Post, heroes: ReadonlyMap<string, string>) =>
+    postSchema.parse({ ...post, featuredImage: heroes.get(post.id) ?? null });
+
+  const present = async (post: Post) => withHero(post, await deps.posts.heroUrls([post.id]));
 
   const listResponseSchema = z
     .object({
@@ -86,7 +91,12 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(listPostsRoute, async (c) => {
     const result = await deps.posts.list(c.req.valid("query"));
 
-    return c.json({ data: z.array(postSchema).parse(result.data), meta: result.meta }, 200);
+    const heroes = await deps.posts.heroUrls(result.data.map((post) => post.id));
+
+    return c.json(
+      { data: result.data.map((post) => withHero(post, heroes)), meta: result.meta },
+      200,
+    );
   });
 
   const createPostRoute = createRoute({
@@ -123,7 +133,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     const result = await deps.posts.create(c.req.valid("json"));
     await deps.audit(c, { action: "post.create", target: `post:${result.post.id}` });
 
-    return c.json({ data: postSchema.parse(result.post), job: result.job }, 201);
+    return c.json({ data: await present(result.post), job: result.job }, 201);
   });
 
   const getPostRoute = createRoute({
@@ -149,7 +159,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   postRoutes.openapi(getPostRoute, async (c) => {
     const post = await deps.posts.get(c.req.valid("param").id);
 
-    return c.json({ data: postSchema.parse(post) }, 200);
+    return c.json({ data: await present(post) }, 200);
   });
 
   const updatePostRoute = createRoute({
@@ -186,7 +196,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
     const post = await deps.posts.update(c.req.valid("param").id, c.req.valid("json"));
     await deps.audit(c, { action: "post.update", target: `post:${post.id}` });
 
-    return c.json({ data: postSchema.parse(post) }, 200);
+    return c.json({ data: await present(post) }, 200);
   });
 
   const deletePostRoute = createRoute({

@@ -22,15 +22,6 @@ const extensionOf = (filename: string): string => {
   return filename.slice(idx + 1).toLowerCase();
 };
 
-const MIME_BY_EXTENSION = new Map([
-  ["gif", "image/gif"],
-  ["png", "image/png"],
-  ["webp", "image/webp"],
-]);
-
-export const mimeFor = (filename: string): string =>
-  MIME_BY_EXTENSION.get(extensionOf(filename)) ?? "image/jpeg";
-
 export const buildBlobKey = (input: BuildBlobKeyInput): string => {
   const hash = hashBytes(input.bytes);
   const ext = extensionOf(input.filename);
@@ -86,12 +77,6 @@ const readConfig = (environment: NodeJS.ProcessEnv = process.env): R2Config => {
     publicBaseUrl,
     secretAccessKey: value("R2_SECRET_ACCESS_KEY"),
   };
-};
-
-export const isBlobUrl = (url: string, environment: NodeJS.ProcessEnv = process.env): boolean => {
-  const base = environment.R2_PUBLIC_BASE_URL ?? "";
-
-  return base !== "" && url.startsWith(base);
 };
 
 type BlobBackend = {

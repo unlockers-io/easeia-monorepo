@@ -28,7 +28,6 @@ const post: Post = {
   categories: [],
   createdAt: new Date(),
   excerpt: null,
-  featuredImage: null,
   focusKeyword: null,
   id: "p1",
   niches: [],
@@ -46,6 +45,7 @@ const post: Post = {
 const writers = {
   create: vi.fn<typeof Posts.create>().mockResolvedValue({ post }),
   get: vi.fn<typeof Posts.get>().mockResolvedValue(post),
+  heroUrls: vi.fn<typeof Posts.heroUrls>().mockResolvedValue(new Map()),
   list: vi.fn<typeof Posts.list>().mockResolvedValue({ data: [], meta: { nextCursor: undefined } }),
   publish: vi.fn<typeof Posts.publish>().mockResolvedValue({ job: { id: "j1" }, post }),
   remove: vi.fn<typeof Posts.remove>().mockResolvedValue(post),
