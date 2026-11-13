@@ -31,7 +31,7 @@ This repo follows the fleet's shared standards, checked by `standy` (`~/dev/stan
 - **Auth:** Better Auth (admin sessions) + bearer API keys (public API)
 - **Queue:** BullMQ on Redis (hosted instance uses Upstash); durable `Job` row in Postgres + queue behind one interface (`@repo/jobs`)
 - **Object store:** Cloudflare R2 (S3-compatible) via `@repo/blob`
-- **Email:** Resend (optional; `@repo/transactional`)
+- **Email:** required; Resend, or the local outbox with `MAIL_TRANSPORT=outbox` (`@repo/transactional`)
 - **AI:** `@repo/ai` (post generation, rewrites), `@repo/hero` (images), `@repo/classify` (categorization)
 - **Worker host:** Node.js (hosted instance uses Railway)
 - **Monorepo:** Turborepo + pnpm workspaces, Node 24, pnpm 11
@@ -171,23 +171,24 @@ The `dev` and `dev:plain` scripts and the e2e workflow's URL env vars must stay 
 
 Copy `.env.example` to `.env` at root. Per-app envs live in `apps/web/.env`, `apps/api/.env`, and `apps/worker/.env`.
 
-| Var                         | Purpose                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | PostgreSQL with `pgvector` enabled (hosted instance uses Neon)                         |
-| `REDIS_URL`                 | Redis URL for BullMQ (hosted instance uses Upstash)                                    |
-| `BETTER_AUTH_SECRET`        | min 32 chars; identical across api + web                                               |
-| `AUTH_ALLOWED_HOSTS`        | comma-separated host patterns trusted by Better Auth dynamic baseURL                   |
-| `TRUSTED_ORIGINS`           | comma-separated exact origins for non-`.localhost` requests                            |
-| `CORS_ORIGINS`              | comma-separated origins allowed by Hono CORS                                           |
-| `WP_ENCRYPTION_KEY`         | AES-256-GCM key (32 bytes, base64): encrypts Google OAuth tokens at rest               |
-| `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO API credentials (password = generated API key, not account password)        |
-| `RESEND_API_KEY`            | Optional. When unset, signup falls back to no-verification mode (see auth-config gate) |
-| `FROM_EMAIL`                | Required. Sender address for all auth/transactional mail; no default                   |
-| `R2_ENDPOINT`               | Cloudflare R2 S3 endpoint (`https://<account>.r2.cloudflarestorage.com`)               |
-| `R2_ACCESS_KEY_ID`          | R2 access key id                                                                       |
-| `R2_SECRET_ACCESS_KEY`      | R2 secret access key                                                                   |
-| `R2_BUCKET`                 | R2 bucket name (e.g. `easeia`)                                                         |
-| `R2_PUBLIC_BASE_URL`        | Public read URL base: `r2.dev` subdomain or custom domain bound to the bucket          |
+| Var                         | Purpose                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | PostgreSQL with `pgvector` enabled (hosted instance uses Neon)                          |
+| `REDIS_URL`                 | Redis URL for BullMQ (hosted instance uses Upstash)                                     |
+| `BETTER_AUTH_SECRET`        | min 32 chars; identical across api + web                                                |
+| `AUTH_ALLOWED_HOSTS`        | comma-separated host patterns trusted by Better Auth dynamic baseURL                    |
+| `TRUSTED_ORIGINS`           | comma-separated exact origins for non-`.localhost` requests                             |
+| `CORS_ORIGINS`              | comma-separated origins allowed by Hono CORS                                            |
+| `WP_ENCRYPTION_KEY`         | AES-256-GCM key (32 bytes, base64): encrypts Google OAuth tokens at rest                |
+| `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO API credentials (password = generated API key, not account password)         |
+| `MAIL_TRANSPORT`            | `outbox` writes mail to `<temp dir>/easeia-outbox` (dev, e2e, self-host without Resend) |
+| `RESEND_API_KEY`            | Required unless `MAIL_TRANSPORT=outbox`; web refuses to boot without it                 |
+| `FROM_EMAIL`                | Required. Sender address for all auth/transactional mail; no default                    |
+| `R2_ENDPOINT`               | Cloudflare R2 S3 endpoint (`https://<account>.r2.cloudflarestorage.com`)                |
+| `R2_ACCESS_KEY_ID`          | R2 access key id                                                                        |
+| `R2_SECRET_ACCESS_KEY`      | R2 secret access key                                                                    |
+| `R2_BUCKET`                 | R2 bucket name (e.g. `easeia`)                                                          |
+| `R2_PUBLIC_BASE_URL`        | Public read URL base: `r2.dev` subdomain or custom domain bound to the bucket           |
 
 Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
@@ -201,7 +202,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **Worker registry:** `apps/worker/src/jobs.ts` is the one Job registry: per kind its handler, `serial`, `aiOptional`, `onFailure` and `tick`. Every handler, ticks included, lives in `apps/worker/src/handlers`. The registry wraps each handler in `withJobLog`, which creates the Job's logger, passes it as `log` in the context and emits its one wide event on every exit, a throw included; handlers only `set`, `info` and `warn`. The worker's one-second loop runs `dispatchPendingJobs` and each backfill's `tick` from `backfills` in `@repo/backfill`.
 - **Ticks and auto-publish:** the worker registers each `tick` in the registry as a BullMQ job scheduler (`REAP_STUCK_JOBS`, `REQUEST_SNAPSHOTS`, `AUTO_PUBLISH`, `BACKFILL_HEROES`, `AUDIT_SLUG_DRIFT`); each run is one Job row and runs once whatever the replica count. `AUTO_PUBLISH` calls `AutoPublish.tick`: it claims the oldest bucket draft (`Posts.bucketDraftWhere`: DRAFT without `scheduledAt`) of each due Site through `Posts.publishBucketDraft`, which stamps `lastAutoPublishedAt` in the claim transaction, then refills buckets with GENERATE_POST Jobs, one refill per Site at a time. Schedule columns are written only through `Sites.updateSchedule` and `Sites.updateEnabledSchedules`. Web actions call `@repo/auto-publish` for schedule config and manual refills; forms validate with `@repo/auto-publish/rules`. ADR-0010.
 - **Backfills:** a `BackfillRun` (`kind` NETWORK or REWRITE) freezes its members and advances phase by phase once the phase's child Jobs are terminal. There is no backfill Job kind. ADR-0011.
-- **Post body:** every body write goes through `@repo/posts` (`create`, `update`, `reviseBody`), which stores `normalizeBody(raw, site.language)`: control characters stripped, HTML to Markdown, repeated versions collapsed, em-dash rules by language. Titles, excerpts and focus keywords get the em-dash rules on every write too. `reviseBody` is a compare-and-set on the body the writer read. ADR-0009.
+- **Post body:** every body write goes through `@repo/posts` (`create`, `update`, `reviseBody`), which stores `normalizeBody(raw, site.language)`: control characters stripped, HTML to Markdown, inline `<a>` anchors to Markdown links, repeated versions collapsed, em-dash rules by language. Titles, excerpts and focus keywords get the em-dash rules on every write too. `reviseBody` is a compare-and-set on the body the writer read. ADR-0009.
 - **Post images and build feed:** `@repo/posts` is the only `PostImage` writer: `setHero` replaces the previous hero, `illustrate` stores body images and the body in one transaction. The build routes serve `Posts.listForBuild` and `listBuildImages`. A Post is in its Site's build when it is PUBLISHED, or was published and is not ARCHIVED (`deployedWhere`), so a live post being republished stays in builds; the redeploy projection derives from the same build mapping.
 - **Backlinks:** `@repo/links` owns `ExternalBacklink` and `GscReferringUrl`: `importCsvBacklinks`, `recordGscBacklinks`, `requestGscBacklinkBackfill` (one chain per Site) and `externalBacklinkSummary`. Approve-and-apply writes the body and approves the Link in one transaction.
 - **AI:** `@repo/ai` is the only module that calls OpenAI: `generateStructured` (one retry on a schema failure), `generateImage`, `embedText`, all through the budgeted transport priced from `packages/ai/src/models.ts`. `AiNotConfiguredError` and `AiBudgetExceededError` (both `AiUnavailableError`, a `DomainError` mapped to 503) end a Job FAILED without retry; when AI is unconfigured, the kinds marked `aiOptional` in `apps/worker/src/jobs.ts` (CLASSIFY, EMBED, GENERATE_IMAGE, GENERATE_BODY_IMAGES) complete instead. Tests drive the real interface through `createFakeOpenAi` from `@repo/ai/testing`.
@@ -211,7 +212,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
 - **Path aliases:** `@/*` maps to `src/*` in all apps and packages.
 - **Auth password minimum:** 12 characters. Sessions expire after 7 days.
-- **`requireEmailVerification`** is gated on email-infra presence (Resend configured): never bare `true`. See the `auth-config` check.
+- **Mail is a port.** `createTransport` in `@repo/transactional/transport` returns the Resend transport, and throws without `RESEND_API_KEY`, unless `MAIL_TRANSPORT=outbox` selects the outbox, which writes each message to a file that `readOutbox` and the e2e `waitForEmail` helper read. Web builds it once in `apps/web/src/lib/auth.ts`, at boot through `instrumentation.ts`; nothing else constructs a Resend client. `requireEmailVerification` is always `true`. The API only reads sessions, through `createSessionReader`. `pnpm db:seed` creates its administrator already verified. `packages/transactional/src/transport.ts` and the e2e `helpers/mail.ts`, `helpers/test-email.ts` and `fixtures/verification.fixture.ts` are written by `standy sync`; change them in the standard.
 - **Forms:** `@tanstack/react-form` (NOT react-hook-form), field components from `@repo/ui`. NEVER use `field.handleChange` inside `useEffect`/`useCallback` with `field` in deps; use `field.form.setFieldValue(field.name, value)` with stable refs. Schemas are the single source of validation: no HTML `required`, `min`, `max`, `pattern` or `maxLength`, `noValidate` on any form with `type="email"`, `type="url"` or `type="datetime-local"`, and `aria-required` on fields the schema requires. A form with editable fields renders as a client TanStack form and calls its server action from `onSubmit`, which returns the failure for `FormAlert`; never a server-action `<form action>` with native validation and an `?error=` banner. A button-only `<form action>` (publish, delete, revoke) is an action outside a form. Validation follows six rules:
   1. Validate on submit, then on every change: `validationLogic: revalidateLogic()` with `validators: { onDynamic: schema }`. Put every rule in that one form-level Zod schema, cross-field checks included (attached to their field through `path`), never in field-level `validators`: TanStack runs form-level validators on submit only after field-level ones pass, so mixing them shows partial errors. No error shows before the first submit attempt; after a failed one, an error clears on the keystroke that fixes it. Never validate on blur.
   2. Show a field's error, `aria-invalid` and `data-invalid` whenever `!field.state.meta.isValid`. Don't add an `isTouched`, `isBlurred`, `isDirty` or `submissionAttempts` check: rule 1 already holds errors back until submit. `AuthPasswordField` and `CountField` do this.

@@ -1,6 +1,7 @@
 import { prisma } from "@repo/db";
 import { loopbackUrl } from "@repo/portless-env/apps";
-import { beforeAll, describe, expect, it } from "vitest";
+import type { Transport } from "@repo/transactional/transport";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createAuth } from "./server";
 import type { AuthConfig } from "./server";
@@ -9,7 +10,7 @@ type Plugin = NonNullable<AuthConfig["extraPlugins"]>[number];
 
 const baseConfig = {
   allowedHosts: ["**.localhost"],
-  fromEmail: "noreply@easeia.com",
+  mailer: { from: "noreply@easeia.com", transport: vi.fn<Transport>() },
   prisma,
   secret: "test-secret-minimum-32-characters-long",
 } satisfies AuthConfig;
@@ -84,14 +85,8 @@ describe("Auth Server Configuration", () => {
     );
   });
 
-  it("should require email verification when Resend is configured", () => {
-    const verifyingAuth = createAuth({ ...baseConfig, resendApiKey: "re_test_key" });
-    expect(verifyingAuth.options.emailAndPassword?.requireEmailVerification).toBe(true);
-  });
-
-  it("should NOT require email verification when Resend is absent", () => {
-    const noResendAuth = createAuth(baseConfig);
-    expect(noResendAuth.options.emailAndPassword?.requireEmailVerification).toBe(false);
+  it("should require email verification", () => {
+    expect(auth.options.emailAndPassword?.requireEmailVerification).toBe(true);
   });
 
   it("should have bearer token plugin enabled", () => {
@@ -143,13 +138,8 @@ describe("Auth Server Configuration", () => {
     expect(trusted).toContain("http://localhost:3000");
   });
 
-  it("should leave password reset off without a mailer", () => {
-    expect(auth.options.emailAndPassword?.sendResetPassword).toBeUndefined();
-  });
-
-  it("should configure reset password email when resendApiKey is provided", () => {
-    const emailAuth = createAuth({ ...baseConfig, resendApiKey: "re_test_key" });
-    expect(emailAuth.options.emailAndPassword?.sendResetPassword).toBeDefined();
+  it("should configure reset password email", () => {
+    expect(auth.options.emailAndPassword?.sendResetPassword).toBeDefined();
   });
 
   it("should expire sessions after 7 days", () => {
@@ -167,19 +157,14 @@ describe("Auth Server Configuration", () => {
     expect(plugins.some((p) => p.id === "test-plugin")).toBe(true);
   });
 
-  it("should leave verification and change-email mail off without a mailer", () => {
-    expect(auth.options.emailVerification?.sendVerificationEmail).toBeUndefined();
-    expect(auth.options.user?.changeEmail?.sendChangeEmailConfirmation).toBeUndefined();
-  });
-
   it("should expire verification links after 24 hours and reset links after 1 hour", () => {
     expect(auth.options.emailVerification?.expiresIn).toBe(60 * 60 * 24);
     expect(auth.options.emailAndPassword?.resetPasswordTokenExpiresIn).toBe(60 * 60);
   });
 
-  it("should configure verification email when resendApiKey is provided", () => {
-    const emailAuth = createAuth({ ...baseConfig, resendApiKey: "re_test_key" });
-    expect(emailAuth.options.emailVerification?.sendVerificationEmail).toBeDefined();
+  it("should configure verification and change-email mail", () => {
+    expect(auth.options.emailVerification?.sendVerificationEmail).toBeDefined();
+    expect(auth.options.user?.changeEmail?.sendChangeEmailConfirmation).toBeDefined();
   });
 
   it("sets emailVerification.callbackURL to the app root", () => {

@@ -1,6 +1,6 @@
 import { dataForSeo } from "@repo/dataforseo";
 import { JobKind, type Prisma, prisma, type SiteLanguage } from "@repo/db";
-import { enqueue } from "@repo/jobs";
+import { enqueue, JobSkippedError } from "@repo/jobs";
 import { log as workerLog } from "@repo/observability";
 import * as Posts from "@repo/posts";
 import {
@@ -63,9 +63,7 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
     const site = await dependencies.findSite(siteId);
 
     if (!site || !site.isEnabled) {
-      log.warn("generate-post: site missing or disabled");
-
-      return;
+      throw new JobSkippedError("Site is missing or disabled");
     }
 
     const [anchors, recentTitles, searchQueries] = await Promise.all([

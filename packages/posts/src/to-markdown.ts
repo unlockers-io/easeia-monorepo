@@ -68,17 +68,27 @@ const htmlToMarkdown = (html: string): string =>
     )
     .trim();
 
+const CODE = /(?<code>```[\s\S]*?```|`[^`\n]*`)/v;
+
+const INLINE_ANCHOR = /<a\s[^>]*>[\s\S]*?<\/a>/giv;
+
+const anchorsToLinks = (markdown: string): string =>
+  markdown
+    .split(CODE)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part.replaceAll(INLINE_ANCHOR, (anchor) => turndown.turndown(anchor)),
+    )
+    .join("");
+
 export const toMarkdown = (raw: string): string => {
   if (GUTENBERG.test(raw)) {
     return htmlToMarkdown(stripGutenbergFences(raw));
   }
 
-  if (!HTML_STRUCTURE.test(raw)) {
-    return raw;
-  }
-
-  if (MARKDOWN_BLOCK.test(raw) && raw.includes("\n\n")) {
-    return raw;
+  if (!HTML_STRUCTURE.test(raw) || (MARKDOWN_BLOCK.test(raw) && raw.includes("\n\n"))) {
+    return anchorsToLinks(raw);
   }
 
   return htmlToMarkdown(raw);

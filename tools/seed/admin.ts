@@ -1,5 +1,6 @@
 import { createAuth } from "@repo/auth/server";
 import { prisma } from "@repo/db";
+import { createTransport } from "@repo/transactional/transport";
 
 const SEED_FROM_EMAIL = "Easeia <noreply@email.easeia.com>";
 
@@ -63,11 +64,15 @@ export const seedAdmin = createSeedAdmin({
   signUp: async ({ secret, ...body }) => {
     const auth = createAuth({
       allowedHosts: ["localhost:*"],
-      fromEmail: SEED_FROM_EMAIL,
+      mailer: {
+        from: SEED_FROM_EMAIL,
+        transport: createTransport({ apiKey: undefined, transport: "outbox" }),
+      },
       prisma,
       secret,
     });
 
     await auth.api.signUpEmail({ body });
+    await prisma.user.update({ data: { emailVerified: true }, where: { email: body.email } });
   },
 });

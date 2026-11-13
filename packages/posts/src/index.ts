@@ -2,6 +2,8 @@ export { stripHtml } from "./strip-html";
 
 export { analyzeBody } from "./dedupe-body";
 
+export { normalizeBody } from "./normalize-body";
+
 export {
   PostNotFoundError,
   PostSlugTakenError,

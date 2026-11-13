@@ -33,7 +33,8 @@ recordSeedPost(post); // demo fixtures
   Otherwise it throws `PostStateError` (HTTP 409; the worker retries the Job).
 - `normalizeBody` strips control characters (Cc other than tab, LF and CR, lone surrogates,
   noncharacters), converts HTML and Gutenberg blocks to Markdown (Markdown links inside HTML stay
-  links), collapses a body stored as repeated versions when no prose is lost, then applies the
+  links), turns an inline `<a>` anchor in a Markdown body into a Markdown link (code spans and
+  fences excepted), collapses a body stored as repeated versions when no prose is lost, then applies the
   em-dash rules.
 - Em-dash rules by Site language. Every language: numeric ranges, paired dashes, dangling dashes,
   subtitle colons in titles. PT only: the connector, label, enumeration and clause rules, which

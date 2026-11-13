@@ -1,3 +1,4 @@
+import { JobSkippedError } from "@repo/jobs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => {
@@ -40,6 +41,19 @@ describe("handleGenerateImage", () => {
       post: expect.objectContaining({ id: "p1" }),
       site: { imageStyle: post.site.imageStyle },
     });
+  });
+
+  it("skips the job when the post is gone", async () => {
+    const generateHero = vi.fn();
+
+    const handle = makeHandleGenerateImage({
+      findPost: () => Promise.resolve(null),
+      generateHero,
+      heroOf: () => Promise.resolve(null),
+    });
+
+    await expect(handle(ctx)).rejects.toBeInstanceOf(JobSkippedError);
+    expect(generateHero).not.toHaveBeenCalled();
   });
 
   it("is idempotent: skips generation when a hero already exists", async () => {

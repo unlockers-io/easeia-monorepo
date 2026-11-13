@@ -40,7 +40,7 @@ export const buildRewritePrompt = (input: RewritePromptInput): string => {
       : "",
     "Apply ALL of the rules above (voice, anti-AI, SEO, copywriting).",
     "",
-    'You MUST insert each of these links as <a href="URL">anchor</a> tags somewhere in the rewritten body, at a natural location relevant to the surrounding text. Do not bunch them together; spread them across the post.',
+    "You MUST insert each of these links as a Markdown link [anchor](URL) somewhere in the rewritten body, at a natural location relevant to the surrounding text. Do not bunch them together; spread them across the post.",
     "",
     ...input.anchors.map(
       (a, i) => `Link ${i + 1}: ${a.url} (anchor "${a.anchor}", context: ${a.reason})`,

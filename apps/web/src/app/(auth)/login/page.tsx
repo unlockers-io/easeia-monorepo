@@ -1,4 +1,3 @@
-import { isMailConfigured } from "@repo/auth/env";
 import { displayName } from "@repo/identity";
 import {
   Card,
@@ -11,7 +10,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import LoginForm from "@/app/(auth)/login/form";
-import { getEnv } from "@/lib/env";
 import { getSignupState } from "@/lib/signup-state";
 
 const metadata: Metadata = {
@@ -26,13 +24,7 @@ type Props = {
 const GatedLoginForm = async ({ searchParams }: Props) => {
   const signup = await getSignupState();
 
-  return (
-    <LoginForm
-      mailConfigured={isMailConfigured(getEnv())}
-      searchParams={searchParams}
-      signupOpen={signup.open}
-    />
-  );
+  return <LoginForm searchParams={searchParams} signupOpen={signup.open} />;
 };
 
 const Page = ({ searchParams }: Props) => (

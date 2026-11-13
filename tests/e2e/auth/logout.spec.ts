@@ -1,12 +1,10 @@
 import type { APIRequestContext } from "@playwright/test";
 
 import { expect, test } from "../fixtures/auth.fixture";
+import { verificationLink } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
-import { extractLink, waitForEmail } from "../helpers/resend";
 import { TEST_USER } from "../helpers/test-user";
 import { webUrl } from "../urls";
-
-const emailVerificationRequired = Boolean(process.env.RESEND_API_KEY);
 
 const createIsolatedUser = async (request: APIRequestContext): Promise<string> => {
   const email = recordCleanup("user", `delivered+logout-${crypto.randomUUID()}@resend.dev`);
@@ -18,11 +16,11 @@ const createIsolatedUser = async (request: APIRequestContext): Promise<string> =
 
   expect([200, 201]).toContain(response.status());
 
-  if (emailVerificationRequired) {
-    const mail = await waitForEmail({ sinceMs: since, subject: /verify/i, to: email });
-    const verified = await request.get(extractLink(mail, /\/api\/auth\/verify-email\?token=/));
-    expect(verified.ok()).toBe(true);
-  }
+  const verified = await request.get(
+    await verificationLink({ sinceMs: since, subject: /verify/i, to: email }),
+  );
+
+  expect(verified.ok()).toBe(true);
 
   return email;
 };

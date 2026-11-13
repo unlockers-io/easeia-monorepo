@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { render } from "react-email";
 import { z } from "zod";
 
-import { createResendClient } from "../client";
+import type { Transport } from "../transport";
 
 // Resend accepts either a bare email or RFC 5322 "Display Name <email>" form
 // for from / reply-to. `z.email()` only matches bare addresses, so
@@ -44,54 +44,36 @@ const resendErrorSchema = z.object({
 type EmailConfig = z.infer<typeof emailConfigSchema>;
 
 type SendEmailOptions = EmailConfig & {
-  apiKey: string;
   template: ReactElement;
+  transport: Transport;
 };
 
-type ResendEmailClient = {
-  emails: {
-    send: ReturnType<typeof createResendClient>["emails"]["send"];
-  };
+const sendEmail = async ({ template, transport, ...config }: SendEmailOptions) => {
+  const validatedConfig = emailConfigSchema.parse(config);
+
+  const [html, text] = await Promise.all([render(template), render(template, { plainText: true })]);
+
+  const result = await transport({
+    bcc: validatedConfig.bcc,
+    cc: validatedConfig.cc,
+    from: validatedConfig.from,
+    html,
+    replyTo: validatedConfig.replyTo,
+    subject: validatedConfig.subject,
+    tags: validatedConfig.tags,
+    text,
+    to: validatedConfig.to,
+  });
+
+  if (result.error) {
+    const error = resendErrorSchema.safeParse(result.error).data;
+    throw new Error(
+      `Failed to queue email: ${error?.name ?? "unknown_error"} - ${error?.message ?? "No message"}`,
+      { cause: result.error },
+    );
+  }
+
+  return result.data;
 };
 
-type ResendClientFactory = (apiKey: string) => ResendEmailClient;
-
-const createSendEmail =
-  (createClient: ResendClientFactory) =>
-  async ({ apiKey, template, ...config }: SendEmailOptions) => {
-    const validatedConfig = emailConfigSchema.parse(config);
-    const resend = createClient(apiKey);
-
-    const [html, text] = await Promise.all([
-      render(template),
-      render(template, { plainText: true }),
-    ]);
-
-    const result = await resend.emails.send({
-      bcc: validatedConfig.bcc,
-      cc: validatedConfig.cc,
-      from: validatedConfig.from,
-      html,
-      replyTo: validatedConfig.replyTo,
-      subject: validatedConfig.subject,
-      tags: validatedConfig.tags,
-      text,
-      to: validatedConfig.to,
-    });
-
-    if (result.error) {
-      const error = resendErrorSchema.safeParse(result.error).data;
-      throw new Error(
-        `Resend failed to queue email: ${error?.name ?? "unknown_error"} - ${error?.message ?? "No message"}`,
-        { cause: result.error },
-      );
-    }
-
-    return result.data;
-  };
-
-const sendEmail = createSendEmail(createResendClient);
-
-export { createSendEmail, sendEmail, senderAddressSchema };
-
-export type { ResendClientFactory };
+export { sendEmail, senderAddressSchema };

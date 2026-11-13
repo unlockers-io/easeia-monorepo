@@ -20,25 +20,13 @@ export const fabricatedHrefs = (resolved: ReadonlyArray<ResolvedLink>): Set<stri
   return out;
 };
 
-/**
- * Remove a single anchor (by exact href) from a body, keeping the anchor text
- * as plain prose. Handles markdown `[text](href)` and html `<a href=…>…</a>`.
- */
-const stripAnchor = (body: string, href: string): string => {
-  const h = RegExp.escape(href);
-  const mdRe = new RegExp(`\\[([^\\]]+)\\]\\(${h}(?:\\s+"[^"]*")?\\)`, "gv");
-  let out = body.replace(mdRe, (_full, anchor: string) => anchor);
-  const htmlRe = new RegExp(`<a\\s[^>]*href=["']${h}["'][^>]*>([\\s\\S]*?)</a>`, "giv");
-  out = out.replace(htmlRe, (_full, inner: string) => inner);
-
-  return out;
-};
-
-export const stripAnchors = (body: string, hrefs: Iterable<string>): string => {
-  let out = body;
+export const stripLinks = (markdown: string, hrefs: Iterable<string>): string => {
+  let out = markdown;
 
   for (const href of hrefs) {
-    out = stripAnchor(out, href);
+    const link = new RegExp(`\\[([^\\]]+)\\]\\(${RegExp.escape(href)}(?:\\s+"[^"]*")?\\)`, "gv");
+
+    out = out.replace(link, (_full, text: string) => text);
   }
 
   return out;

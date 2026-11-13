@@ -19,7 +19,7 @@ Review the full final tree and phase PRs first. The recommended path is a fresh 
 2. Back up Git refs and repository settings privately. Export **only the reviewed commit’s tracked files** to a separate directory. Run the scrub and secret scans against that export and verify it contains no env files, dependencies, build caches, private notes, or prior Git history.
 3. Create a new local Git repository from that export with exactly one commit, `Initial public release`. The working branch in the original checkout is not renamed or rewritten.
 4. **After explicit owner confirmation**, rename the old GitHub repository to `easeia-monorepo-archive` and keep it private. Create a new private `unlockers-io/easeia-monorepo`, initially with Actions disabled, and push only the prepared initial commit. Do not push old branches or tags.
-5. Restore CODEOWNERS review, branch protection/rulesets and required checks, Discussions, repository description/topics, and the optional `RESEND_API_KEY_TEST` secret. Do not copy obsolete production or npm-token secrets.
+5. Restore CODEOWNERS review, branch protection/rulesets and required checks, Discussions, and repository description/topics. Do not copy obsolete production or npm-token secrets.
 6. Review the GitHub source tree again, then make the fresh repository public. The old archive remains private. Enable Actions after configuring the publisher and reviewing the pending release.
 
 Changing names affects clones, open links, integrations, and repository settings. The archive is a backup, not a way to undo external exposure if history is published accidentally. A history-filtering approach would require a separate purge plan and is not part of this prepared flow.

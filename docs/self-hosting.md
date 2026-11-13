@@ -8,7 +8,7 @@ Easeia is a shared administrator dashboard for a private blog network of Astro s
 - At least 4 GB of memory available while building the images, and disk space for Postgres, Redis, and backups.
 - An Astro site with a deploy hook for publishing. You can create sites and drafts before connecting one.
 
-OpenAI, DataForSEO, Google, Resend, and Cloudflare R2 are optional. You can write Markdown and publish it without any of those accounts.
+OpenAI, DataForSEO, Google, Resend, and Cloudflare R2 are optional. You can write Markdown and publish it without any of those accounts. Without Resend, the instance writes its verification and recovery mail to a directory on the web container instead of sending it.
 
 ## Start with Docker Compose
 
@@ -22,9 +22,15 @@ docker compose --env-file .env.selfhost -f compose.selfhost.yml up --build -d
 
 Before the final command, set `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` to separate values generated with `openssl rand -hex 32`. Set `WP_ENCRYPTION_KEY` to the output of `openssl rand -base64 32`. Use a hexadecimal database password because Compose inserts it into a connection URL.
 
-Open <http://localhost:3000/register> and create the administrator. With the default `SIGNUP_MODE=first-user`, registration closes as soon as that account exists. Use `closed` on an existing hosted instance. `open` gives every new user full administrator access.
+Open <http://localhost:3000/register> and create the administrator. Registration answers "Check your email": the account signs in through the verification link. With the default `MAIL_TRANSPORT=outbox` that message is a JSON file on the web container, and its `text` field holds the link:
 
-The schema service creates the schema before the apps start. If you set all three `SEED_ADMIN_*` values, it also creates that administrator, preserving an existing account on reruns. Leave them unset to use registration.
+```sh
+docker compose --env-file .env.selfhost -f compose.selfhost.yml exec web sh -c 'cat /tmp/easeia-outbox/*.json'
+```
+
+With the default `SIGNUP_MODE=first-user`, registration closes as soon as that account exists. Use `closed` on an existing hosted instance. `open` gives every new user full administrator access.
+
+The schema service creates the schema before the apps start. If you set all three `SEED_ADMIN_*` values, it also creates that administrator with a verified address, preserving an existing account on reruns, so the seeded account signs in without a verification link. Leave them unset to use registration.
 
 Compose selects `Dockerfile.selfhost` explicitly. Hosted Railway services use their default Railpack builder; keeping the self-host Dockerfile under a distinct name prevents Railway from automatically selecting it for API/worker deployments.
 
@@ -41,7 +47,7 @@ The [root environment example](../.env.example) documents every supported settin
 | AI drafts, rewrites, embeddings    | `OPENAI_API_KEY`                                       | Manual writing and publishing remain available                    |
 | Live SEO insights                  | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`              | Configuration cards replace metered requests                      |
 | Search Console                     | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | Google connection is unavailable                                  |
-| Verification and recovery email    | `RESEND_API_KEY`, `FROM_EMAIL`                         | Registration needs no verification; email recovery is unavailable |
+| Verification and recovery email    | `FROM_EMAIL`, `RESEND_API_KEY`                         | Set `MAIL_TRANSPORT=outbox`: mail is written to the web container |
 | Image storage and generated images | All five `R2_*` variables                              | Image uploads are unavailable                                     |
 
 Embedding storage uses `text-embedding-3-small` with 1536 dimensions. Changing it requires a schema change and re-embedding existing content.
@@ -118,7 +124,7 @@ api.example.com {
 
 For IP-based rate limits behind a proxy, set `TRUSTED_PROXY_IPS` to its exact socket IP addresses as seen by the API. The proxy must append or replace `X-Forwarded-For`. Do not trust arbitrary client addresses. The built-in limits are per API process and reset on restart; use a shared edge limit when running multiple API replicas.
 
-Register the Google OAuth callback as `https://app.example.com/api/google/callback`. Configure a verified Resend sender before enabling email.
+Register the Google OAuth callback as `https://app.example.com/api/google/callback`. To send mail through Resend, remove `MAIL_TRANSPORT`, set `RESEND_API_KEY`, and set `FROM_EMAIL` to a sender on a domain Resend has verified. The web app does not start with neither `RESEND_API_KEY` nor `MAIL_TRANSPORT=outbox`.
 
 ## Upgrade
 
@@ -132,6 +138,15 @@ docker compose --env-file .env.selfhost -f compose.selfhost.yml up -d
 ```
 
 The schema service applies the schema with `db push`, so re-running it is safe. A failure prevents the first boot; inspect its logs and resolve the cause before starting the apps.
+
+### Email is required (November 2026)
+
+Every account now verifies its address, and the web app does not start without somewhere to send mail. Before upgrading, add to `.env.selfhost`:
+
+- `FROM_EMAIL`, the sender address. It was optional without Resend.
+- `MAIL_TRANSPORT=outbox`, unless `RESEND_API_KEY` is set. Mail is then written to `/tmp/easeia-outbox` on the web container.
+
+An account created while the instance ran without Resend has an unverified address and is refused at sign-in until it opens a verification link. Each refused sign-in sends a new link, to the inbox with Resend or to the outbox without it.
 
 ### Backfill kinds and unused columns (November 2026)
 
@@ -209,7 +224,7 @@ Test restoring to a separate instance before relying on a backup. `docker compos
 - **Cookies or OAuth fail:** check the public URL scheme, proxy headers, allowed hosts, and callback URL.
 - **Publish is disabled:** configure a deploy hook and enable the site. The hook must accept an HTTP POST and trigger the Astro build.
 - **Publish job fails:** inspect its message in Jobs; verify the deploy hook and Astro build API key. The content adapter needs `content:read` scoped to that site.
-- **Missing AI/SEO/email features:** Settings lists exactly which environment variables are missing. Plain drafts and publishing do not require those integrations.
+- **Missing AI/SEO features:** Settings lists exactly which environment variables are missing. Plain drafts and publishing do not require those integrations.
 - **Port conflicts:** use `WEB_PORT`/`API_PORT` and keep public URLs in sync. The development infra uses different ports from the self-host stack.
 
 ## Development without Docker app images

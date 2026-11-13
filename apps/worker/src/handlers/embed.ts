@@ -1,5 +1,6 @@
 import { embedDocument } from "@repo/ai";
 import { prisma } from "@repo/db";
+import { JobSkippedError } from "@repo/jobs";
 import * as Posts from "@repo/posts";
 
 import type { JobContext } from "../lib/job-log";
@@ -14,9 +15,7 @@ export const handleEmbed = async ({ log, payload }: JobContext<"EMBED">): Promis
   });
 
   if (!post) {
-    log.warn("embed: post missing, skip");
-
-    return;
+    throw new JobSkippedError("Post no longer exists");
   }
 
   await Posts.recordEmbedding(postId, await embedDocument(post.title, Posts.stripHtml(post.body)));

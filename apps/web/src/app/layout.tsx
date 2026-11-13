@@ -1,6 +1,5 @@
 import "@/styles/globals.css";
 
-import { webAppUrl } from "@repo/auth/env-config";
 import { displayName } from "@repo/identity";
 import { canonicalUrl } from "@repo/portless-env/apps";
 import { Toaster } from "@repo/ui/components/sonner";
@@ -11,6 +10,7 @@ import { Schibsted_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { QueryProvider } from "@/components/query-provider";
+import { webAppUrl } from "@/lib/env";
 
 const schibsted = Schibsted_Grotesk({
   display: "swap",
