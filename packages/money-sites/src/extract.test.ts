@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { extractVisibleText } from "./extract";
+import { extractPageContent } from "./extract";
 
-describe("extractVisibleText", () => {
+describe("extractPageContent", () => {
   it("returns text from headings, paragraphs, and list items", () => {
     const html = `<!doctype html><html><body>
       <header><nav>nav text</nav></header>
@@ -17,7 +17,7 @@ describe("extractVisibleText", () => {
       <style>body { color: red; }</style>
     </body></html>`;
 
-    const text = extractVisibleText(html);
+    const text = extractPageContent(html).bodyText;
     expect(text).toContain("Main heading");
     expect(text).toContain("Paragraph one.");
     expect(text).toContain("Item A");
@@ -29,6 +29,6 @@ describe("extractVisibleText", () => {
 
   it("handles documents with no main element", () => {
     const html = `<!doctype html><html><body><p>Hello</p></body></html>`;
-    expect(extractVisibleText(html)).toContain("Hello");
+    expect(extractPageContent(html).bodyText).toContain("Hello");
   });
 });
