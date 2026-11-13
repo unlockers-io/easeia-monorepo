@@ -1,7 +1,8 @@
 import { JobKind, type Prisma, prisma } from "@repo/db";
-import { enqueue, type ConsumerContext } from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
+import { enqueue } from "@repo/jobs";
 import { forSite } from "@repo/search-console";
+
+import type { JobContext } from "../lib/job-log";
 
 // Google's URL Inspection API allows ~600 calls/property/day; 500 is the
 // conservative ceiling this stagger is derived from.
@@ -15,7 +16,7 @@ const BATCH_SIZE = 50;
 // puts multiple batches in flight and multiplies the effective request rate.
 const TICK_DELAY_MS = BATCH_SIZE * STAGGER_MS;
 
-type Payload = ConsumerContext<"BACKFILL_GSC_LINKS">["payload"];
+type Payload = JobContext<"BACKFILL_GSC_LINKS">["payload"];
 
 const reEnqueueSelf = async (
   payload: Payload,
@@ -25,11 +26,10 @@ const reEnqueueSelf = async (
   await enqueue({ delayMs, kind: JobKind.BACKFILL_GSC_LINKS, payload, siteId: payload.siteId }, tx);
 };
 
-export const handleBackfillGscLinks = async (
-  ctx: ConsumerContext<"BACKFILL_GSC_LINKS">,
-): Promise<void> => {
-  const { jobId, payload } = ctx;
-  const log = createJobLogger({ jobId, queue: "backfill-gsc-links" });
+export const handleBackfillGscLinks = async ({
+  log,
+  payload,
+}: JobContext<"BACKFILL_GSC_LINKS">): Promise<void> => {
   log.set({ siteId: payload.siteId });
 
   if (payload.initialFanoutDone !== true) {
@@ -40,7 +40,6 @@ export const handleBackfillGscLinks = async (
 
     if (!site) {
       log.warn("backfill-gsc-links: site not found");
-      log.emit();
 
       return;
     }
@@ -49,7 +48,6 @@ export const handleBackfillGscLinks = async (
 
     if (searchConsole.status === "not_connected") {
       log.warn("backfill-gsc-links: no Google connection, aborting");
-      log.emit();
 
       return;
     }
@@ -57,7 +55,6 @@ export const handleBackfillGscLinks = async (
     if (searchConsole.status === "not_verified") {
       log.set({ domain: site.domain });
       log.warn("backfill-gsc-links: domain not verified in GSC, aborting");
-      log.emit();
 
       return;
     }
@@ -73,7 +70,6 @@ export const handleBackfillGscLinks = async (
 
     log.set({ posts: posts.length, sitePropertyUrl: searchConsole.property });
     log.info("backfill-gsc-links: initial fanout");
-    log.emit();
 
     await reEnqueueSelf(
       {
@@ -96,7 +92,6 @@ export const handleBackfillGscLinks = async (
   if (slice.length === 0) {
     log.set({ cursor, postIds: postIds.length });
     log.info("backfill-gsc-links: complete");
-    log.emit();
 
     return;
   }
@@ -120,5 +115,4 @@ export const handleBackfillGscLinks = async (
 
   log.set({ cursor, enqueued: slice.length, next: resumeAt, total: postIds.length });
   log.info("backfill-gsc-links: batch enqueued");
-  log.emit();
 };

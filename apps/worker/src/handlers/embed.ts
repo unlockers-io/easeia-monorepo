@@ -1,13 +1,11 @@
 import { embedDocument } from "@repo/ai";
 import { prisma } from "@repo/db";
-import type { ConsumerContext } from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
 import * as Posts from "@repo/posts";
 
-export const handleEmbed = async (ctx: ConsumerContext<"EMBED">): Promise<void> => {
-  const { jobId, payload } = ctx;
+import type { JobContext } from "../lib/job-log";
+
+export const handleEmbed = async ({ log, payload }: JobContext<"EMBED">): Promise<void> => {
   const { postId } = payload;
-  const log = createJobLogger({ jobId, queue: "embed" });
   log.set({ postId });
 
   const post = await prisma.post.findUnique({
@@ -17,7 +15,6 @@ export const handleEmbed = async (ctx: ConsumerContext<"EMBED">): Promise<void> 
 
   if (!post) {
     log.warn("embed: post missing, skip");
-    log.emit();
 
     return;
   }
@@ -25,5 +22,4 @@ export const handleEmbed = async (ctx: ConsumerContext<"EMBED">): Promise<void> 
   await Posts.recordEmbedding(postId, await embedDocument(post.title, Posts.stripHtml(post.body)));
 
   log.info("embed: done");
-  log.emit();
 };

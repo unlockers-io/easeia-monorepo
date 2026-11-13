@@ -1,10 +1,11 @@
-import type { ConsumerContext } from "@repo/jobs";
 import { crawlPost } from "@repo/links";
-import { createJobLogger } from "@repo/observability/worker";
 
-export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Promise<void> => {
-  const { jobId, payload } = ctx;
-  const log = createJobLogger({ jobId, queue: "crawl-links" });
+import type { JobContext } from "../lib/job-log";
+
+export const handleCrawlLinks = async ({
+  log,
+  payload,
+}: JobContext<"CRAWL_LINKS">): Promise<void> => {
   log.set({ postId: payload.postId });
   const summary = await crawlPost(payload.postId);
 
@@ -13,5 +14,4 @@ export const handleCrawlLinks = async (ctx: ConsumerContext<"CRAWL_LINKS">): Pro
   }
 
   log.info(summary ? "crawl-links: done" : "crawl-links: nothing to crawl");
-  log.emit();
 };

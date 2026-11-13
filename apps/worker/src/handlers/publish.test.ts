@@ -46,7 +46,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         title: "First post",
       });
 
-      await handlePublish({ jobId: job?.id ?? "", payload: { postId: post.id } });
+      const log = { info: vi.fn(), set: vi.fn(), warn: vi.fn() };
+
+      await handlePublish({ jobId: job?.id ?? "", log, payload: { postId: post.id } });
 
       const published = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
 

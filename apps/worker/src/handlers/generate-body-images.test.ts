@@ -22,7 +22,11 @@ const post = {
   title: "Guia de Microfones",
 };
 
-const ctx = { jobId: "j", payload: { postId: "p1" } };
+const ctx = {
+  jobId: "j",
+  log: { info: vi.fn(), set: vi.fn(), warn: vi.fn() },
+  payload: { postId: "p1" },
+};
 
 const plan = [
   { alt: "Um microfone", line: 3, prompt: "a condenser microphone on a stand" },

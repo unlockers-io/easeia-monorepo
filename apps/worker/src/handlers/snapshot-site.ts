@@ -1,11 +1,11 @@
 import { dataForSeo } from "@repo/dataforseo";
 import { prisma, type Prisma } from "@repo/db";
 import { computeHealthScore } from "@repo/health";
-import type { ConsumerContext } from "@repo/jobs";
 import { log } from "@repo/observability";
-import { createJobLogger } from "@repo/observability/worker";
 import { forSite } from "@repo/search-console";
 import * as Sites from "@repo/sites";
+
+import type { JobContext } from "../lib/job-log";
 
 type Outcome<T> = { kind: "ok"; value: T } | { error: string; kind: "err" };
 
@@ -127,15 +127,16 @@ const fetchGsc = async (
   };
 };
 
-const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promise<void> => {
-  const { siteId } = ctx.payload;
-  const jobLog = createJobLogger({ jobId: ctx.jobId, queue: "snapshot-site" });
+const handleSnapshotSite = async ({
+  log: jobLog,
+  payload,
+}: JobContext<"SNAPSHOT_SITE">): Promise<void> => {
+  const { siteId } = payload;
   jobLog.set({ siteId });
   const site = await Sites.find(siteId);
 
   if (!site) {
     jobLog.warn("snapshot: site not found, skipping");
-    jobLog.emit();
 
     return;
   }
@@ -226,7 +227,6 @@ const handleSnapshotSite = async (ctx: ConsumerContext<"SNAPSHOT_SITE">): Promis
 
   jobLog.set({ errors: Object.keys(errors), healthScore, reachable });
   jobLog.info("snapshot complete");
-  jobLog.emit();
 };
 
 export { handleSnapshotSite };

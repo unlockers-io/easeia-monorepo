@@ -1,8 +1,8 @@
 import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
-import type { ConsumerContext } from "@repo/jobs";
-import { createJobLogger } from "@repo/observability/worker";
 import * as Posts from "@repo/posts";
+
+import type { JobContext } from "../lib/job-log";
 
 type PostForHero = {
   id: string;
@@ -34,13 +34,11 @@ const defaultFindPost = (postId: string): Promise<PostForHero | null> =>
 
 export const makeHandleGenerateImage =
   (deps: Deps = {}) =>
-  async (ctx: ConsumerContext<"GENERATE_IMAGE">): Promise<void> => {
-    const { jobId, payload } = ctx;
+  async ({ log, payload }: JobContext<"GENERATE_IMAGE">): Promise<void> => {
     const { postId } = payload;
     const findPost = deps.findPost ?? defaultFindPost;
     const heroOf = deps.heroOf ?? Posts.heroOf;
     const generateHero = deps.generateHero ?? realGenerateHero;
-    const log = createJobLogger({ jobId, queue: "generate-image" });
     log.set({ postId });
 
     log.info("generate-image: start");
@@ -49,14 +47,12 @@ export const makeHandleGenerateImage =
 
     if (!post) {
       log.warn("generate-image: post not found; skipping");
-      log.emit();
 
       return;
     }
 
     if ((await heroOf(postId)) !== null) {
       log.info("generate-image: hero already exists; skipping");
-      log.emit();
 
       return;
     }
@@ -72,7 +68,6 @@ export const makeHandleGenerateImage =
       site: post.site,
     });
     log.info("generate-image: done");
-    log.emit();
   };
 
 export const handleGenerateImage = makeHandleGenerateImage();

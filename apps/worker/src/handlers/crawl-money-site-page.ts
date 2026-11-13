@@ -1,14 +1,12 @@
-import type { ConsumerContext } from "@repo/jobs";
 import { crawlPage } from "@repo/money-sites";
-import { createJobLogger } from "@repo/observability/worker";
 
-export const handleCrawlMoneySitePage = async (
-  ctx: ConsumerContext<"CRAWL_MONEY_SITE_PAGE">,
-): Promise<void> => {
-  const { jobId, payload } = ctx;
-  const log = createJobLogger({ jobId, queue: "crawl-money-site-page" });
+import type { JobContext } from "../lib/job-log";
+
+export const handleCrawlMoneySitePage = async ({
+  log,
+  payload,
+}: JobContext<"CRAWL_MONEY_SITE_PAGE">): Promise<void> => {
   const result = await crawlPage(payload.moneySitePageId);
   log.set({ moneySitePageId: payload.moneySitePageId, ...result });
   log.info("crawl-money-site-page: done");
-  log.emit();
 };
