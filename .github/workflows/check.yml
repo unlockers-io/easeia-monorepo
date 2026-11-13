@@ -1,9 +1,10 @@
+# Written by `standy sync` from the saas template and `.github/ci/policy.json`. Change those, never this file.
 name: Check
 on:
   pull_request:
   workflow_dispatch:
   schedule:
-    - cron: 43 4 * * 1
+    - cron: 49 4 * * 1
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -17,24 +18,16 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg18
         env:
-          POSTGRES_PASSWORD: easeia_test
           POSTGRES_DB: easeia_test
+          POSTGRES_PASSWORD: easeia_test
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d easeia_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+        options: --health-cmd "pg_isready -U postgres -d easeia_test" --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
         image: redis:7-alpine
         ports:
           - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,6 +67,15 @@ jobs:
       # Type-aware linting resolves generated Prisma client types.
       - if: ${{ !cancelled() }}
         run: pnpm turbo db:generate
+      - name: Build @easeia/astro-content for type-aware linting
+        if: ${{ !cancelled() }}
+        run: pnpm turbo build --filter=@easeia/astro-content
+      - name: Push the schema to the test database
+        if: ${{ !cancelled() }}
+        env:
+          DATABASE_URL: postgresql://postgres:easeia_test@localhost:5432/easeia_test
+          PGAPPNAME: easeia:ci:test
+        run: pnpm --filter @repo/db db:push
       - name: Check formatting
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run lint -- pnpm format:check
@@ -86,29 +88,22 @@ jobs:
       - name: Check shadcn components
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run lint -- pnpm check:shadcn
-      # @repo/posts, @repo/sites and the api import @easeia/astro-content, which exports only its build output.
-      - name: Build @easeia/astro-content for type-aware linting
-        if: ${{ !cancelled() }}
-        run: pnpm turbo build --filter=@easeia/astro-content
       - name: Lint
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run lint -- pnpm oxlint --format=github .
       - name: Typecheck
         if: ${{ !cancelled() }}
         run: node .github/ci/ci.mjs run typecheck -- pnpm typecheck
-      # Postgres- and Redis-backed suites share one database, so packages and their test files run serially.
-      - name: Tests
+      - name: Unit tests
         if: ${{ !cancelled() }}
         env:
           DATABASE_URL: postgresql://postgres:easeia_test@localhost:5432/easeia_test
-          REDIS_URL: redis://localhost:6379
           PGAPPNAME: easeia:ci:test
+          REDIS_URL: redis://localhost:6379
           TEST_DATABASE: "true"
           TEST_REDIS: "true"
           TURBO_CONCURRENCY: "1"
-        run: |
-          pnpm --filter @repo/db db:push
-          node .github/ci/ci.mjs run test -- pnpm test
+        run: node .github/ci/ci.mjs run test -- pnpm test
       - name: Install zizmor
         if: ${{ !cancelled() }}
         env:
