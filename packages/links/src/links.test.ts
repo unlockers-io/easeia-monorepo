@@ -362,8 +362,8 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     expect(await bodyOf(source)).toBe(
       [
         "See guia and guide.",
-        `[kept](${fakePrefix}) <a href="${urlOf("alpha", "sibling")}">real</a>`,
-        `<a href="https://elsewhere.tld/x">outside</a>`,
+        `[kept](${fakePrefix}) [real](${urlOf("alpha", "sibling")})`,
+        "[outside](https://elsewhere.tld/x)",
       ].join("\n"),
     );
   });
