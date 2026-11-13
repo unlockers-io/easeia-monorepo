@@ -38,7 +38,7 @@
     "prepare": "husky",
     "dev:plain": "node --env-file-if-exists=.env node_modules/turbo/bin/turbo run dev:plain --env-mode=loose",
     "seed:demo": "tsx tools/seed/demo.ts",
-    "check:shadcn": "node scripts/check-shadcn.mjs",
+    "check:shadcn": "node .github/ci/check-shadcn.mjs",
     "normalize:posts": "tsx tools/normalize-posts/index.ts"
   },
   "dependencies": {
