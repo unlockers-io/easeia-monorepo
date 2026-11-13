@@ -222,7 +222,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **Encryption at rest:** Google OAuth tokens (and WP app passwords) encrypted via `WP_ENCRYPTION_KEY`; never logged, never returned in API responses.
 - **Prisma config:** `prisma.config.ts` uses `process.env.DATABASE_URL ?? ""` so `prisma generate` works in CI without DB credentials.
 - **Linting:** oxlint (`oxlint.config.ts`). Husky + lint-staged on pre-commit (oxlint + oxfmt staged files).
-- **Bundler:** `tsdown` for `api` and `worker` (outputs `dist/`). Turbopack for Next.js dev (web + landing).
+- **Bundler:** `tsdown` for `api` and `worker` (outputs `dist/`). Each bundles its workspace packages from source, `@easeia/astro-content` included, so `pnpm --filter api build` needs no package built first. Turbopack for Next.js dev (web + landing).
 - **`pnpm-workspace.yaml`** uses `nodeLinker: hoisted`: needed by Prisma + sharp + msgpackr (`allowBuilds` list).
 - **Volume names:** both volumes are project-scoped (`easeia_postgres_data`, `easeia_redis_data`).
 - **Root `scripts/`** holds `docker-schema.sh`; it is not a workspace.
