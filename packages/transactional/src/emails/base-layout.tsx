@@ -1,3 +1,4 @@
+import { displayName } from "@repo/identity";
 import * as React from "react";
 import { Body, Container, Head, Html, Link, Preview, Section, Tailwind, Text } from "react-email";
 
@@ -13,7 +14,7 @@ type BaseLayoutProps = {
 
 const BaseLayout = ({
   children,
-  footerText = "You're receiving this email because you have an account with Easeia.",
+  footerText = `You're receiving this email because you have an account with ${displayName}.`,
   preview,
   unsubscribeUrl,
 }: BaseLayoutProps) => {
@@ -47,7 +48,7 @@ const BaseLayout = ({
                   className="text-sm font-semibold text-foreground no-underline"
                   href="https://easeia.dev"
                 >
-                  Visit Easeia
+                  {`Visit ${displayName}`}
                 </Link>
                 {unsubscribeUrl !== undefined && unsubscribeUrl !== "" && (
                   <>
@@ -63,7 +64,8 @@ const BaseLayout = ({
               </Text>
 
               <Text className="m-0 text-xs text-muted-foreground">
-                © {new Date().getFullYear()} Easeia. All rights reserved.
+                © {new Date().getFullYear()}
+                {` ${displayName}. All rights reserved.`}
               </Text>
             </Section>
           </Container>

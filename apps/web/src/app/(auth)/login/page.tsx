@@ -1,4 +1,5 @@
 import { isMailConfigured } from "@repo/auth/env";
+import { displayName } from "@repo/identity";
 import {
   Card,
   CardContent,
@@ -14,7 +15,7 @@ import { getEnv } from "@/lib/env";
 import { getSignupState } from "@/lib/signup-state";
 
 const metadata: Metadata = {
-  description: "Sign in to your Easeia account to access your dashboard and manage your profile.",
+  description: `Sign in to your ${displayName} account to access your dashboard and manage your profile.`,
   title: "Sign in",
 };
 

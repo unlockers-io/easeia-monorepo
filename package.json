@@ -50,6 +50,7 @@
     "@playwright/test": "^1.63.0",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/identity": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/portless-env": "workspace:*",
     "@repo/sites": "workspace:*",

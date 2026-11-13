@@ -26,6 +26,7 @@
     "@repo/db": "workspace:*",
     "@repo/errors": "workspace:*",
     "@repo/health": "workspace:*",
+    "@repo/identity": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/links": "workspace:*",
     "@repo/money-sites": "workspace:*",

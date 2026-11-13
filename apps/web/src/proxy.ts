@@ -1,4 +1,4 @@
-import { COOKIE_PREFIX } from "@repo/auth/server";
+import { slug } from "@repo/identity";
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -31,7 +31,7 @@ export const proxy = async (request: NextRequest) => {
 
   if (pathname === "/") {
     const destination =
-      getSessionCookie(request, { cookiePrefix: COOKIE_PREFIX }) === null ? "/login" : "/dashboard";
+      getSessionCookie(request, { cookiePrefix: slug }) === null ? "/login" : "/dashboard";
 
     return NextResponse.redirect(new URL(destination, request.url));
   }

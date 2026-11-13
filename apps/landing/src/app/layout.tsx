@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 
+import { displayName, origins } from "@repo/identity";
 import { BRAND_INK } from "@repo/ui/lib/brand";
 import { cn } from "@repo/ui/lib/utils";
 import type { Metadata, Viewport } from "next";
@@ -8,8 +9,8 @@ import { Schibsted_Grotesk } from "next/font/google";
 import { Analytics } from "@/components/analytics";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
-import { DESCRIPTION, SITE_NAME } from "@/lib/site";
-import { GITHUB_URL, SITE_URL } from "@/lib/urls";
+import { DESCRIPTION } from "@/lib/site";
+import { GITHUB_URL } from "@/lib/urls";
 
 const TAGLINE = "Open-source dashboard for private blog networks";
 
@@ -19,22 +20,22 @@ const LONG_DESCRIPTION =
 const metadata = {
   alternates: { canonical: "/" },
   description: LONG_DESCRIPTION,
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(origins.landing),
   openGraph: {
     description: DESCRIPTION,
     locale: "en-US",
-    siteName: SITE_NAME,
-    title: SITE_NAME,
+    siteName: displayName,
+    title: displayName,
     type: "website",
   },
   title: {
-    default: `${SITE_NAME} · ${TAGLINE}`,
-    template: `%s · ${SITE_NAME}`,
+    default: `${displayName} · ${TAGLINE}`,
+    template: `%s · ${displayName}`,
   },
   twitter: {
     card: "summary_large_image",
     description: DESCRIPTION,
-    title: `${SITE_NAME} · ${TAGLINE}`,
+    title: `${displayName} · ${TAGLINE}`,
   },
 } satisfies Metadata;
 
@@ -76,7 +77,7 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
             codeRepository: GITHUB_URL,
             description: LONG_DESCRIPTION,
             license: `${GITHUB_URL}/blob/main/LICENSE`,
-            name: SITE_NAME,
+            name: displayName,
             offers: {
               "@type": "Offer",
               description:
@@ -85,7 +86,7 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
               priceCurrency: "USD",
             },
             operatingSystem: "Linux, macOS, Windows (Docker)",
-            url: SITE_URL,
+            url: origins.landing,
           })}
         </script>
         <Analytics />

@@ -1,6 +1,7 @@
 import "@/styles/globals.css";
 
 import { webAppUrl } from "@repo/auth/env-config";
+import { displayName } from "@repo/identity";
 import { canonicalUrl } from "@repo/portless-env/apps";
 import { Toaster } from "@repo/ui/components/sonner";
 import { ThemeProvider } from "@repo/ui/compositions/theme-provider";
@@ -22,7 +23,7 @@ const metadataBase = new URL(webAppUrl() ?? canonicalUrl("web"));
 export const metadata: Metadata = {
   authors: [{ name: "Easeia Team" }],
   category: "technology",
-  creator: "Easeia",
+  creator: displayName,
   description:
     "Central admin for orchestrating posts across a network of Astro sites: multi-site publishing, a cross-site link graph, and a public REST API.",
   keywords: ["astro", "multi-site", "publishing", "rest api", "content orchestration"],
@@ -30,11 +31,11 @@ export const metadata: Metadata = {
   openGraph: {
     description: "Central admin for orchestrating posts across a network of Astro sites.",
     locale: "en_US",
-    siteName: "Easeia",
+    siteName: displayName,
     title: "Easeia · Multi-Site Astro Orchestrator",
     type: "website",
   },
-  publisher: "Easeia",
+  publisher: displayName,
   robots: {
     follow: false,
     index: false,

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { COOKIE_PREFIX } from "@repo/auth/server";
+import { slug } from "@repo/identity";
 
 import { extractLink, waitForEmail } from "../helpers/resend";
 import { makeTestEmail } from "../helpers/test-email";
@@ -47,7 +47,7 @@ test.describe("Sign-up with redirect context", () => {
     await clickerPage.goto(verifyUrl);
     await expect(clickerPage).toHaveURL(`${webUrl}${redirectPath}`);
     const clickerCookies = await clickerContext.cookies(webUrl);
-    expect(clickerCookies.find((c) => c.name.startsWith(`${COOKIE_PREFIX}.`))).toBeDefined();
+    expect(clickerCookies.find((c) => c.name.startsWith(`${slug}.`))).toBeDefined();
     await clickerContext.close();
   });
 });
