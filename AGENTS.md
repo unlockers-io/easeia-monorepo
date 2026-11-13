@@ -39,7 +39,7 @@ This repo follows the fleet's shared standards, checked by `standy` (`~/dev/stan
 - **Testing:** Vitest (unit), Playwright (e2e: chromium, firefox, webkit)
 - **Release:** Changesets (`pnpm changeset`, `pnpm release`)
 
-Domain terms are defined in `GLOSSARY.md`; architecture decisions are in `docs/adr/`.
+Domain terms are defined in `GLOSSARY.md`; architecture decisions are in `docs/adr/`, and the ones nobody has made yet in `docs/open-decisions.md`. `docs/hosted-deployment.md` lists the hosted build, pre-deploy and start commands and how a schema change reaches production.
 
 ## Layout
 
