@@ -3,19 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "files": [
-    "dist/**",
-    "src/**"
-  ],
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./browser": "./src/generated/prisma/browser.ts"
   },
   "scripts": {
-    "build": "prisma generate && tsdown",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
-    "dev": "tsdown --watch",
+    "clean": "rm -rf .turbo && rm -rf node_modules",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -34,7 +28,6 @@
     "@types/node": "^26.6.2",
     "dotenv": "^17.4.2",
     "prisma": "^7.10.0",
-    "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   }
