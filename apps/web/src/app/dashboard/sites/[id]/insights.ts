@@ -1,7 +1,3 @@
-/**
- * Server-side helpers that fetch live and local data for a Site.
- * Returns plain JSON-friendly shapes for async server components.
- */
 import { prisma, type Site } from "@repo/db";
 import { type OnPageCounts, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";

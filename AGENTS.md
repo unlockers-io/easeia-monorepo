@@ -171,23 +171,23 @@ The `dev` and `dev:plain` scripts and the e2e workflow's URL env vars must stay 
 
 Copy `.env.example` to `.env` at root. Per-app envs live in `apps/web/.env`, `apps/api/.env`, and `apps/worker/.env`.
 
-| Var                         | Purpose                                                                                 |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| `DATABASE_URL`              | PostgreSQL with `pgvector` enabled (hosted instance uses Neon)                          |
-| `REDIS_URL`                 | Redis URL for BullMQ (hosted instance uses Upstash)                                     |
-| `BETTER_AUTH_SECRET`        | min 32 chars; identical across api + web                                                |
-| `AUTH_ALLOWED_HOSTS`        | comma-separated host patterns trusted by Better Auth dynamic baseURL                    |
-| `TRUSTED_ORIGINS`           | comma-separated exact origins for non-`.localhost` requests                             |
-| `CORS_ORIGINS`              | comma-separated origins allowed by Hono CORS                                            |
-| `WP_ENCRYPTION_KEY`         | AES-256-GCM key (32 bytes, base64): encrypts Google OAuth tokens (and WP creds) at rest |
-| `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO API credentials (password = generated API key, not account password)         |
-| `RESEND_API_KEY`            | Optional. When unset, signup falls back to no-verification mode (see auth-config gate)  |
-| `FROM_EMAIL`                | Required. Sender address for all auth/transactional mail; no default                    |
-| `R2_ENDPOINT`               | Cloudflare R2 S3 endpoint (`https://<account>.r2.cloudflarestorage.com`)                |
-| `R2_ACCESS_KEY_ID`          | R2 access key id                                                                        |
-| `R2_SECRET_ACCESS_KEY`      | R2 secret access key                                                                    |
-| `R2_BUCKET`                 | R2 bucket name (e.g. `easeia`)                                                          |
-| `R2_PUBLIC_BASE_URL`        | Public read URL base: `r2.dev` subdomain or custom domain bound to the bucket           |
+| Var                         | Purpose                                                                                |
+| --------------------------- | -------------------------------------------------------------------------------------- |
+| `DATABASE_URL`              | PostgreSQL with `pgvector` enabled (hosted instance uses Neon)                         |
+| `REDIS_URL`                 | Redis URL for BullMQ (hosted instance uses Upstash)                                    |
+| `BETTER_AUTH_SECRET`        | min 32 chars; identical across api + web                                               |
+| `AUTH_ALLOWED_HOSTS`        | comma-separated host patterns trusted by Better Auth dynamic baseURL                   |
+| `TRUSTED_ORIGINS`           | comma-separated exact origins for non-`.localhost` requests                            |
+| `CORS_ORIGINS`              | comma-separated origins allowed by Hono CORS                                           |
+| `WP_ENCRYPTION_KEY`         | AES-256-GCM key (32 bytes, base64): encrypts Google OAuth tokens at rest               |
+| `DATAFORSEO_LOGIN/PASSWORD` | DataForSEO API credentials (password = generated API key, not account password)        |
+| `RESEND_API_KEY`            | Optional. When unset, signup falls back to no-verification mode (see auth-config gate) |
+| `FROM_EMAIL`                | Required. Sender address for all auth/transactional mail; no default                   |
+| `R2_ENDPOINT`               | Cloudflare R2 S3 endpoint (`https://<account>.r2.cloudflarestorage.com`)               |
+| `R2_ACCESS_KEY_ID`          | R2 access key id                                                                       |
+| `R2_SECRET_ACCESS_KEY`      | R2 secret access key                                                                   |
+| `R2_BUCKET`                 | R2 bucket name (e.g. `easeia`)                                                         |
+| `R2_PUBLIC_BASE_URL`        | Public read URL base: `r2.dev` subdomain or custom domain bound to the bucket          |
 
 Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 
@@ -219,7 +219,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
   4. Explain any rule people can't guess (password length, name length, slug characters, number ranges, character limits) with a `FieldDescription` under the field from the start, linked through `aria-describedby`; `AuthPasswordField` takes a `description` and `CountField` a `descriptionId`. Live hints derive from the value; they are not validation errors.
   5. Server-only failures (wrong password, taken slug, rate limits) arrive on submit. Attach each one to its field, or render it in `FormAlert` from `@repo/ui/compositions/form-alert` at the top of the form, set when the submit fails and cleared by the form's `listeners: { onChange }` (or every change handler, in forms without TanStack). Never report a submit failure in a toast: it disappears on its own, sits apart from the form, and doesn't clear on change. Toasts are for successes and for actions outside a form (sign out, delete, re-crawl, copy). Keep auth failures generic.
   6. Keep the submit button enabled, and disable it only while submitting (`isSubmitting` or the pending flag). Never disable it on `!canSubmit`, `!isValid` or a missing value: a disabled button can't say which field is wrong. The one exception is a form with exactly one editable field, which may also disable submit while that field is empty or unchanged, where empty is the obvious error (the backlinks CSV import). A form with more than one editable field never disables submit while unchanged: an unchanged submit sends nothing and says so in `FormAlert`. A client-side throttle never disables submit either: a submit inside the window is refused with a `FormAlert` that says when to retry.
-- **Encryption at rest:** Google OAuth tokens (and WP app passwords) encrypted via `WP_ENCRYPTION_KEY`; never logged, never returned in API responses.
+- **Encryption at rest:** Google OAuth tokens encrypted via `WP_ENCRYPTION_KEY`; never logged, never returned in API responses.
 - **Prisma config:** `prisma.config.ts` uses `process.env.DATABASE_URL ?? ""` so `prisma generate` works in CI without DB credentials.
 - **Linting:** oxlint (`oxlint.config.ts`). Husky + lint-staged on pre-commit (oxlint + oxfmt staged files).
 - **Bundler:** `tsdown` for `api` and `worker` (outputs `dist/`). Each bundles its workspace packages from source, `@easeia/astro-content` included, so `pnpm --filter api build` needs no package built first. Turbopack for Next.js dev (web + landing).

@@ -166,9 +166,6 @@ const handleSnapshotSite = async ({
     impressions: gscImpressions,
   } = gscMetrics;
 
-  // One key per fetcher. The two DataForSEO calls previously shared a single
-  // `dataforseo` key on a first-wins basis, so whenever both failed the second
-  // message was dropped.
   const errors: Record<string, string> = Object.fromEntries(
     [
       ["dataforseo.domainRank", dfsRank.kind === "err" ? dfsRank.error : null],

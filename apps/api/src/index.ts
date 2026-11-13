@@ -155,9 +155,6 @@ app.route("/api/suggestions", suggestionRoutes);
 
 app.route("/api/waitlist", waitlistRoutes);
 
-// Same metadata as /openapi.json; only the spec version differs. Duplicating the
-// literal had already cost /llms.txt its servers, description and tag glossary,
-// which is exactly the orientation an automated client needs.
 const openApiContent = app.getOpenAPI31Document({ ...apiDocConfig, openapi: "3.1.0" });
 
 const llmsMarkdown = await createMarkdownFromOpenApi(JSON.stringify(openApiContent));
