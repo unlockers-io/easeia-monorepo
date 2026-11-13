@@ -3,25 +3,24 @@
 import { AlertCircle, RefreshCw } from "lucide-react";
 
 import { Button } from "../components/button";
-import { type ErrorBoundaryProps, type ErrorLog, useErrorReport } from "../hooks/use-error-report";
+import { useErrorReport } from "../hooks/use-error-report";
+import type { ErrorBoundaryProps, ReportError } from "../hooks/use-error-report";
 import { cn } from "../lib/utils";
 
 type RouteErrorProps = ErrorBoundaryProps & {
   as?: "main" | "section";
   className?: string;
-  log: ErrorLog;
-  message: string;
+  report: ReportError;
 };
 
 const RouteError = ({
   as: Container = "section",
   className,
   error,
-  log,
-  message,
+  report,
   retry,
 }: RouteErrorProps) => {
-  const headingRef = useErrorReport(error, log, message);
+  const headingRef = useErrorReport(error, report);
 
   return (
     <Container

@@ -1,8 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ErrorReport } from "../hooks/use-error-report";
-
 import { GlobalErrorContent } from "./global-error";
 
 const error = Object.assign(new Error("Render failed"), { digest: "abc123" });
@@ -12,7 +10,7 @@ describe("GlobalErrorContent", () => {
     const markup = renderToStaticMarkup(
       <GlobalErrorContent
         error={error}
-        log={{ error: vi.fn<(report: ErrorReport) => void>() }}
+        report={vi.fn<(reported: Error) => void>()}
         retry={vi.fn<() => void>()}
       />,
     );

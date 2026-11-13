@@ -2,26 +2,24 @@ import { useEffect, useRef } from "react";
 
 type BoundaryError = Error & { digest?: string };
 
-type ErrorReport = { digest: string | undefined; error: string; message: string };
-
-type ErrorLog = { error: (report: ErrorReport) => void };
-
 type ErrorBoundaryProps = {
   error: BoundaryError;
   retry: () => void;
 };
 
-const useErrorReport = (error: BoundaryError, log: ErrorLog, message: string) => {
+type ReportError = (error: BoundaryError) => void;
+
+const useErrorReport = (error: BoundaryError, report: ReportError) => {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    log.error({ digest: error.digest, error: error.message, message });
+    report(error);
     headingRef.current?.focus();
-  }, [error, log, message]);
+  }, [error, report]);
 
   return headingRef;
 };
 
 export { useErrorReport };
 
-export type { ErrorBoundaryProps, ErrorLog, ErrorReport };
+export type { BoundaryError, ErrorBoundaryProps, ReportError };
