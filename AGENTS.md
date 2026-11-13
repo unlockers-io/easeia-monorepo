@@ -225,7 +225,7 @@ Turbo caches track server URLs, authentication configuration, and DATABASE_URL.
 - **Bundler:** `tsdown` for `api` and `worker` (outputs `dist/`). Turbopack for Next.js dev (web + landing).
 - **`pnpm-workspace.yaml`** uses `nodeLinker: hoisted`: needed by Prisma + sharp + msgpackr (`allowBuilds` list).
 - **Volume names:** both volumes are project-scoped (`easeia_postgres_data`, `easeia_redis_data`).
-- **Root `scripts/`** holds `check-shadcn.mjs` and `docker-schema.sh`; it is not a workspace.
+- **Root `scripts/`** holds `docker-schema.sh`; it is not a workspace.
 - **Error pages:** each Next app's `error.tsx` and `global-error.tsx` wrap `RouteError` and `GlobalErrorContent` from `@repo/ui/compositions`, passing the app's client logger.
 
 ## CI (GitHub Actions)
