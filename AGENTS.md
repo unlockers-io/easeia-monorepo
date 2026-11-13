@@ -161,7 +161,7 @@ Worktree branch names auto-prefix the subdomain: branch `fix-styles` → `https:
 
 App configs call `applyPortlessUrls(["WEB_APP_URL", …])` from `@repo/portless-env` at the top of each `next.config.ts` / `tsdown.config.ts`. It runs `portless get` once per app and fills each env var only when it is unset or still holds its canonical default; a failed lookup throws. It is a no-op unless `PORTLESS_URL` is set, so CI and production keep their real values. Tests in `tests/e2e` import URLs from `tests/e2e/urls.ts`, which asks portless locally and uses loopback ports in CI. Import the package by bare specifier: a relative path resolves from the process cwd and breaks `next start apps/web` from the repo root.
 
-The `dev` and `dev:plain` scripts, `allowedDevOrigins` and the e2e workflow's URL env vars must stay literal; `packages/portless-env/src/apps.test.ts` asserts they match the registry.
+The `dev` and `dev:plain` scripts and the e2e workflow's URL env vars must stay literal; `packages/portless-env/src/apps.test.ts` asserts they match the registry.
 
 ## Docker (local infra)
 
