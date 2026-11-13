@@ -15,7 +15,7 @@ export { recordSeedPost } from "./seed";
 
 export { deployedWhere, listBuildImages, listForBuild } from "./build";
 
-export { heroOf, illustrate, listHeroless, setHero, type BodyImage } from "./images";
+export { heroOf, heroUrls, illustrate, listHeroless, setHero, type BodyImage } from "./images";
 
 export {
   bucketDraftWhere,

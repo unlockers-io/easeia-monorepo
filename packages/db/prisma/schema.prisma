@@ -342,8 +342,6 @@ model Post {
   // Stored for DataForSEO SERP rank tracking.
   focusKeyword String?
 
-  featuredImage String?
-
   categories String[] @default([])
   tags       String[] @default([])
   niches     Niche[]  @default([])

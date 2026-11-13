@@ -12,7 +12,6 @@ const row: Post = {
   categories: ["guides"],
   createdAt: new Date("2026-11-01T10:00:00.000Z"),
   excerpt: null,
-  featuredImage: null,
   focusKeyword: null,
   id: "p1",
   niches: [],
@@ -32,7 +31,7 @@ const declared = {
   categories: ["guides"],
   createdAt: "2026-11-01T10:00:00.000Z",
   excerpt: null,
-  featuredImage: null,
+  featuredImage: "https://img.example/hero.jpg",
   focusKeyword: null,
   id: "p1",
   niches: [],
@@ -46,12 +45,15 @@ const declared = {
   updatedAt: "2026-11-03T10:00:00.000Z",
 };
 
+const heroes = new Map([["p1", "https://img.example/hero.jpg"]]);
+
 const app = mountForTest(
   createPostRoutes({
     ...openGuards,
     posts: {
       create: vi.fn<typeof Posts.create>().mockResolvedValue({ job: { id: "j1" }, post: row }),
       get: vi.fn<typeof Posts.get>().mockResolvedValue(row),
+      heroUrls: vi.fn<typeof Posts.heroUrls>().mockResolvedValue(heroes),
       list: vi
         .fn<typeof Posts.list>()
         .mockResolvedValue({ data: [row], meta: { nextCursor: undefined } }),
