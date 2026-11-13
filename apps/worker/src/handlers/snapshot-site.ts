@@ -1,6 +1,7 @@
 import { dataForSeo } from "@repo/dataforseo";
 import { prisma, type Prisma } from "@repo/db";
 import { computeHealthScore } from "@repo/health";
+import { JobSkippedError } from "@repo/jobs";
 import { log } from "@repo/observability";
 import { forSite } from "@repo/search-console";
 import * as Sites from "@repo/sites";
@@ -136,9 +137,7 @@ const handleSnapshotSite = async ({
   const site = await Sites.find(siteId);
 
   if (!site) {
-    jobLog.warn("snapshot: site not found, skipping");
-
-    return;
+    throw new JobSkippedError("Site no longer exists");
   }
 
   const [reachable, publishing, dfsRank, dfsBacklinks, gsc] = await Promise.all([

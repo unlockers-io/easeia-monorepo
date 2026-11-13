@@ -1,5 +1,6 @@
 import { prisma, type SiteLanguage } from "@repo/db";
 import { generatePostImage as realGeneratePostImage, buildBodyImagePrompt } from "@repo/hero";
+import { JobSkippedError } from "@repo/jobs";
 import { type BodyImage, illustrate as realIllustrate } from "@repo/posts";
 import { planBodyImages as realPlanBodyImages } from "@repo/rewrite";
 
@@ -60,9 +61,7 @@ export const makeHandleGenerateBodyImages =
     const post = await findPost(postId);
 
     if (!post) {
-      log.warn("generate-body-images: post not found; skipping");
-
-      return;
+      throw new JobSkippedError("Post no longer exists");
     }
 
     // Also covers externally-authored posts that shipped their own images, and
