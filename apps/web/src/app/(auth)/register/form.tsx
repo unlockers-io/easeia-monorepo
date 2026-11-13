@@ -10,7 +10,6 @@ import { FormFieldError } from "@repo/ui/compositions/form-field-error";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AuthEmailField } from "@/components/auth-email-field";
@@ -25,7 +24,6 @@ type Props = {
 };
 
 const RegisterForm = ({ searchParams }: Props) => {
-  const { push, refresh } = useRouter();
   const [sentToEmail, setSentToEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,11 +36,10 @@ const RegisterForm = ({ searchParams }: Props) => {
     },
     onSubmit: async ({ value }) => {
       const { from } = await searchParams;
-      const safeTo = safeRedirectPath(from);
 
       const result = await runAuth(
         authClient.signUp.email({
-          callbackURL: safeTo,
+          callbackURL: safeRedirectPath(from),
           email: value.email,
           name: value.name,
           password: value.password,
@@ -56,14 +53,7 @@ const RegisterForm = ({ searchParams }: Props) => {
         return;
       }
 
-      if (result.data.token === null || result.data.token === "") {
-        setSentToEmail(value.email);
-
-        return;
-      }
-
-      push(safeTo);
-      refresh();
+      setSentToEmail(value.email);
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);

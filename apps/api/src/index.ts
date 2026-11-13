@@ -44,7 +44,7 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     credentials: true,
-    origin: env.CORS_ORIGINS.split(","),
+    origin: env.CORS_ORIGINS,
   }),
 );
 

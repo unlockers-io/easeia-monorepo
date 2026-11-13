@@ -4,15 +4,15 @@ import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 
-import { auth } from "../lib/auth";
+import { sessions } from "../lib/auth";
 
 export type AuthVariables = { actor: Actor };
 
 const sessionActor = async (c: Context): Promise<Actor | null> => {
-  let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+  let session: Awaited<ReturnType<typeof sessions.getSession>>;
 
   try {
-    session = await auth.api.getSession({ headers: c.req.raw.headers });
+    session = await sessions.getSession({ headers: c.req.raw.headers });
   } catch (error) {
     c.get("log").error(error instanceof Error ? error : "session lookup failed");
     throw new HTTPException(503, { message: "Authentication service unavailable" });
