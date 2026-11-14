@@ -1,6 +1,7 @@
 ---
 title: 'Hosted api and worker build, start and health-check commands are not in the repository'
 severity: 'major'
+issue: 'unlockers-io/easeia-monorepo#71'
 ---
 
 ### Expected Behavior
