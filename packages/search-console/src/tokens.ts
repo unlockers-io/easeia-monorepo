@@ -1,4 +1,4 @@
-import { prisma, type GoogleConnection } from "@repo/db";
+import type { PrismaClient, GoogleConnection } from "@repo/db";
 import type { Credentials } from "google-auth-library";
 
 import { encryptSecret } from "./crypto";
@@ -13,21 +13,27 @@ const stripTokens = (row: GoogleConnection): GoogleConnectionPublic => {
   return rest;
 };
 
-export const loadConnection = async (userId: string): Promise<GoogleConnectionPublic | null> => {
+export const loadConnection = async (
+  prisma: PrismaClient,
+  userId: string,
+): Promise<GoogleConnectionPublic | null> => {
   const row = await prisma.googleConnection.findUnique({ where: { userId } });
 
   return row ? stripTokens(row) : null;
 };
 
-export const disconnect = async (userId: string): Promise<void> => {
+export const disconnect = async (prisma: PrismaClient, userId: string): Promise<void> => {
   await prisma.googleConnection.deleteMany({ where: { userId } });
 };
 
-export const storeConnection = async (params: {
-  googleEmail: string | null;
-  tokens: Credentials;
-  userId: string;
-}): Promise<GoogleConnectionPublic> => {
+export const storeConnection = async (
+  prisma: PrismaClient,
+  params: {
+    googleEmail: string | null;
+    tokens: Credentials;
+    userId: string;
+  },
+): Promise<GoogleConnectionPublic> => {
   if (typeof params.tokens.access_token !== "string" || params.tokens.access_token === "") {
     throw new GoogleAuthError("Google did not return an access token");
   }

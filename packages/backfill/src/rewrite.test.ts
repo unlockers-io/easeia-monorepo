@@ -1,10 +1,12 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { listRunJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { enqueuePostMember } from "./members";
 
 import { rewriteBackfill } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped rewrite backfill", () => {
   let siteId = "";
@@ -31,10 +33,10 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped rewrite backfil
       data: { body: "Body", siteId, slug: "post", status: "PUBLISHED", title: "Post" },
     });
 
-    const started = await rewriteBackfill.start({ force: false });
+    const started = await rewriteBackfill.start(prisma, { force: false });
     runId = started.runId;
-    await rewriteBackfill.tick();
-    const jobs = await listRunJobs(runId);
+    await rewriteBackfill.tick(prisma);
+    const jobs = await listRunJobs(prisma, runId);
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({ kind: JobKind.REWRITE_POST, postId: post.id });
     await prisma.post.update({ data: { status: "ARCHIVED" }, where: { id: post.id } });
@@ -49,14 +51,14 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped rewrite backfil
         tx,
       ),
     );
-    const children = await listRunJobs(runId);
+    const children = await listRunJobs(prisma, runId);
     expect(children.some((job) => job.status === JobStatus.SKIPPED)).toBe(true);
     await prisma.job.updateMany({
       data: { status: JobStatus.DONE },
       where: { runId, status: JobStatus.QUEUED },
     });
-    await rewriteBackfill.tick();
-    expect(await rewriteBackfill.readStatus()).toMatchObject({
+    await rewriteBackfill.tick(prisma);
+    expect(await rewriteBackfill.readStatus(prisma)).toMatchObject({
       active: false,
       counts: { skipped: 1 },
       ended: "done",

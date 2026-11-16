@@ -1,5 +1,5 @@
 import { generateStructured } from "@repo/ai";
-import type { Niche, SiteLanguage } from "@repo/db";
+import type { Niche, SiteLanguage, PrismaClient } from "@repo/db";
 import { z } from "zod";
 
 import { SITE_LANGUAGE_HUMAN } from "./prompt-constants";
@@ -52,8 +52,8 @@ const buildProposeTopicPrompt = (input: ProposeTopicInput): string => {
   return lines.filter((l) => l !== "").join("\n");
 };
 
-const proposeTopic = (input: ProposeTopicInput): Promise<ProposedTopic> =>
-  generateStructured({
+const proposeTopic = (prisma: PrismaClient, input: ProposeTopicInput): Promise<ProposedTopic> =>
+  generateStructured(prisma, {
     prompt: buildProposeTopicPrompt(input),
     schema: proposedTopicSchema,
   });

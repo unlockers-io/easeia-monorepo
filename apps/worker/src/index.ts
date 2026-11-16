@@ -2,13 +2,13 @@ import "zod/compile";
 import "dotenv/config";
 
 import { backfills } from "@repo/backfill";
-import { prisma } from "@repo/db";
 import { consume, dispatchPendingJobs, schedule, unschedule } from "@repo/jobs/worker";
 import { log } from "@repo/observability";
 import { initWorkerLogger } from "@repo/observability/worker";
 
 import { registrations } from "./jobs";
 import { isRetryable } from "./lib/ai-unavailable";
+import { prisma } from "./lib/db";
 import { env } from "./lib/env";
 import { startMaintenance } from "./lib/maintenance";
 
@@ -17,7 +17,7 @@ initWorkerLogger({ service: "worker" });
 const jobs = registrations();
 
 const workers = jobs.map(({ concurrency, handle, kind, onFailure }) =>
-  consume({ concurrency, handler: handle, isRetryable, kind, onFailure }),
+  consume(prisma, { concurrency, handler: handle, isRetryable, kind, onFailure }),
 );
 
 for (const w of workers) {
@@ -50,9 +50,12 @@ await Promise.all(
 
 const stopMaintenance = startMaintenance(
   {
-    "job dispatch": dispatchPendingJobs,
+    "job dispatch": () => dispatchPendingJobs(prisma),
     ...Object.fromEntries(
-      Object.entries(backfills).map(([name, backfill]) => [`${name} backfill`, backfill.tick]),
+      Object.entries(backfills).map(([name, backfill]) => [
+        `${name} backfill`,
+        () => backfill.tick(prisma),
+      ]),
     ),
   },
   (activity, error) => {

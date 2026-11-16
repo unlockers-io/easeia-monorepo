@@ -1,4 +1,4 @@
-import { type JobKind, PostStatus, type Prisma, prisma } from "@repo/db";
+import { type JobKind, PostStatus, type Prisma, type PrismaClient } from "@repo/db";
 import {
   enqueue,
   skipJob,
@@ -18,15 +18,18 @@ export const enqueuePostMember = async (
 ): Promise<void> => {
   await tx.$executeRaw`SELECT id FROM "Post" WHERE id = ${input.postId} FOR SHARE`;
   const post = await tx.post.findUnique({ where: { id: input.postId } });
-  const job = await enqueue({ ...input, postId: post?.id }, tx);
+  const job = await enqueue(tx, { ...input, postId: post?.id });
 
   if (post?.status !== PostStatus.PUBLISHED) {
-    await skipJob(job.id, "Post is no longer published", tx);
+    await skipJob(tx, job.id, "Post is no longer published");
   }
 };
 
 export const forPublishedMember =
-  <Context extends ConsumerContext<JobKind>>(handler: (ctx: Context) => Promise<void>) =>
+  <Context extends ConsumerContext<JobKind>>(
+    prisma: PrismaClient,
+    handler: (ctx: Context) => Promise<void>,
+  ) =>
   async (ctx: Context): Promise<void> => {
     if (ctx.run !== undefined && "postId" in ctx.payload) {
       const post = await prisma.post.findUnique({ where: { id: ctx.payload.postId } });

@@ -7,6 +7,8 @@ import { HTTPException } from "hono/http-exception";
 import { errorResponse, idParamSchema } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 type JobRouteDependencies = Guards & {
   getJob: typeof getJob;
   listJobs: typeof listJobs;
@@ -87,7 +89,7 @@ const createJobRoutes = (deps: JobRouteDependencies) => {
   jobRoutes.openapi(listJobsRoute, async (c) => {
     const { cursor, kind, limit, postId, siteId, status } = c.req.valid("query");
 
-    const { data, nextCursor } = await deps.listJobs({
+    const { data, nextCursor } = await deps.listJobs(prisma, {
       cursor: present(cursor),
       kinds: kind === undefined ? undefined : [kind],
       limit,
@@ -100,7 +102,7 @@ const createJobRoutes = (deps: JobRouteDependencies) => {
   });
 
   jobRoutes.openapi(getJobRoute, async (c) => {
-    const job = await deps.getJob(c.req.valid("param").id);
+    const job = await deps.getJob(prisma, c.req.valid("param").id);
 
     if (!job) {
       throw new HTTPException(404, { message: "Job not found" });

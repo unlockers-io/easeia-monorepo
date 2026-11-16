@@ -1,9 +1,10 @@
-import { prisma, type SiteLanguage } from "@repo/db";
+import type { SiteLanguage } from "@repo/db";
 import { generatePostImage as realGeneratePostImage, buildBodyImagePrompt } from "@repo/hero";
 import { JobSkippedError } from "@repo/jobs";
 import { type BodyImage, illustrate as realIllustrate } from "@repo/posts";
 import { planBodyImages as realPlanBodyImages } from "@repo/rewrite";
 
+import { prisma } from "../lib/db";
 import { env } from "../lib/env";
 import type { JobContext } from "../lib/job-log";
 
@@ -72,7 +73,7 @@ export const makeHandleGenerateBodyImages =
       return;
     }
 
-    const plan = await planBodyImages({
+    const plan = await planBodyImages(prisma, {
       body: post.body,
       post: { tags: post.tags, title: post.title },
       site: { language: post.site.language },
@@ -93,7 +94,7 @@ export const makeHandleGenerateBodyImages =
 
       // Serial on purpose: parallel image calls trip OpenAI's rate limit long
       // before they save meaningful wall-clock on a 2-4 image post.
-      const image = await generatePostImage({
+      const image = await generatePostImage(prisma, {
         filename,
         post: { id: post.id, siteId: post.siteId },
         prompt: buildBodyImagePrompt({
@@ -116,7 +117,7 @@ export const makeHandleGenerateBodyImages =
       });
     }
 
-    await illustrate(post.id, { from: post.body, images: inserted });
+    await illustrate(prisma, post.id, { from: post.body, images: inserted });
     log.set({ insertedImages: inserted.length });
     log.info("generate-body-images: done");
   };

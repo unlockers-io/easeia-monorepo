@@ -1,8 +1,10 @@
-import { JobKind, prisma } from "@repo/db";
+import { JobKind, createPrismaClient } from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { classifyPost, type classifyContent } from "./classify";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("classification intake", () => {
   let siteId = "";
@@ -30,16 +32,16 @@ describe.runIf(process.env.TEST_DATABASE === "true")("classification intake", ()
         .fn<typeof classifyContent>()
         .mockResolvedValue({ niches: ["AUDIO"], tags: ["studio", "microphone", "recording"] });
 
-      await classifyPost(post.id, classify);
-      await classifyPost(post.id, classify);
+      await classifyPost(prisma, post.id, classify);
+      await classifyPost(prisma, post.id, classify);
       expect(await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).toMatchObject({
         niches: ["AUDIO"],
         tags: ["existing", "studio", "microphone", "recording"],
       });
-      expect(await countJobs({ kinds: [JobKind.TRIGGER_DEPLOY], siteId })).toBe(
+      expect(await countJobs(prisma, { kinds: [JobKind.TRIGGER_DEPLOY], siteId })).toBe(
         status === "PUBLISHED" ? 1 : 0,
       );
-      expect(await countJobs({ kinds: [JobKind.EMBED], postId: post.id })).toBe(0);
+      expect(await countJobs(prisma, { kinds: [JobKind.EMBED], postId: post.id })).toBe(0);
     },
   );
 });

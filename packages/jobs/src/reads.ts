@@ -1,4 +1,11 @@
-import { type Job, type JobKind, JobStatus, pageOf, type Prisma, prisma } from "@repo/db";
+import {
+  type Job,
+  type JobKind,
+  JobStatus,
+  pageOf,
+  type Prisma,
+  type PrismaClient,
+} from "@repo/db";
 
 export const inFlight = {
   status: { in: [JobStatus.QUEUED, JobStatus.RUNNING] },
@@ -40,7 +47,7 @@ const whereFor = (filter: JobFilter): Prisma.JobWhereInput => ({
   status: filter.status,
 });
 
-export const listJobs = async (input: JobListInput): Promise<JobList> => {
+export const listJobs = async (prisma: PrismaClient, input: JobListInput): Promise<JobList> => {
   const rows = await prisma.job.findMany({
     cursor: input.cursor === undefined ? undefined : { id: input.cursor },
     include: withTarget,
@@ -53,16 +60,16 @@ export const listJobs = async (input: JobListInput): Promise<JobList> => {
   return pageOf(rows, input.limit);
 };
 
-export const getJob = (id: string): Promise<JobWithTarget | null> =>
+export const getJob = (prisma: PrismaClient, id: string): Promise<JobWithTarget | null> =>
   prisma.job.findUnique({ include: withTarget, where: { id } });
 
-export const countJobs = (filter: JobFilter): Promise<number> =>
+export const countJobs = (prisma: PrismaClient, filter: JobFilter): Promise<number> =>
   prisma.job.count({ where: whereFor(filter) });
 
 export const countInFlightBySite = async (
+  tx: Prisma.TransactionClient,
   kind: JobKind,
   siteIds: ReadonlyArray<string>,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<Map<string, number>> => {
   const rows = await tx.job.groupBy({
     _count: { id: true },
@@ -76,6 +83,7 @@ export const countInFlightBySite = async (
 };
 
 export const findLatestJobByPost = async (
+  prisma: PrismaClient,
   kind: JobKind,
   postIds: ReadonlyArray<string>,
 ): Promise<Map<string, Job>> => {
@@ -88,5 +96,5 @@ export const findLatestJobByPost = async (
   return new Map(rows.flatMap((row) => (row.postId === null ? [] : [[row.postId, row] as const])));
 };
 
-export const listRunJobs = (runId: string, tx: Prisma.TransactionClient = prisma) =>
+export const listRunJobs = (tx: Prisma.TransactionClient, runId: string) =>
   tx.job.findMany({ orderBy: { createdAt: "asc" }, where: { runId } });

@@ -1,8 +1,10 @@
-import { JobKind, prisma } from "@repo/db";
+import { JobKind, createPrismaClient } from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { update, updateSchedule } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", () => {
   let siteId = "";
@@ -23,7 +25,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", ()
     siteId = site.id;
   };
 
-  const deploys = () => countJobs({ kinds: [JobKind.TRIGGER_DEPLOY], siteId });
+  const deploys = () => countJobs(prisma, { kinds: [JobKind.TRIGGER_DEPLOY], siteId });
   afterEach(async () => {
     await prisma.job.deleteMany({ where: { siteId } });
     await prisma.site.deleteMany({ where: { id: siteId } });
@@ -33,17 +35,17 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", ()
     async (field) => {
       await fixture();
       await Promise.all([
-        update(siteId, { [field]: "Changed" }),
-        update(siteId, { [field]: "Changed" }),
+        update(prisma, siteId, { [field]: "Changed" }),
+        update(prisma, siteId, { [field]: "Changed" }),
       ]);
       expect(await deploys()).toBe(1);
     },
   );
   it("does not build for no-op, schedule, or hint patches", async () => {
     await fixture();
-    await update(siteId, { authorName: "Author" });
-    await update(siteId, { topicHints: "Topic" });
-    await updateSchedule(siteId, { cadenceDays: 3, lastAutoPublishedAt: new Date() });
+    await update(prisma, siteId, { authorName: "Author" });
+    await update(prisma, siteId, { topicHints: "Topic" });
+    await updateSchedule(prisma, siteId, { cadenceDays: 3, lastAutoPublishedAt: new Date() });
     expect(await deploys()).toBe(0);
   });
   it.each([
@@ -51,7 +53,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Site build projection", ()
     [true, null],
   ] as const)("preserves the deploy gate %s %s", async (enabled, hook) => {
     await fixture(enabled, hook);
-    await update(siteId, { authorName: "Changed" });
+    await update(prisma, siteId, { authorName: "Changed" });
     expect(await deploys()).toBe(0);
   });
 });

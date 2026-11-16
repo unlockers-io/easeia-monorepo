@@ -1,7 +1,10 @@
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { budgetStore } from "./budget-store";
+import { budgetStore as createBudgetStore } from "./budget-store";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
+const budgetStore = createBudgetStore(prisma);
 
 // Only enable against a disposable database; the test owns these month rows.
 describe.runIf(process.env.TEST_DATABASE === "true")("Postgres AI allowance", () => {

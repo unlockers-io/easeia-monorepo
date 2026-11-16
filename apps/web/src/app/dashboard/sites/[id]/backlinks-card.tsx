@@ -9,14 +9,15 @@ import {
 } from "@repo/ui/components/card";
 
 import { Stat } from "@/app/dashboard/lib/metrics";
+import { getPrisma } from "@/lib/db";
 
 import { ExternalBacklinksUpload } from "./external-backlinks-upload";
 
 export const BacklinksCard = async ({ siteId }: { siteId: string }) => {
   const [pbn, external, googleConnected] = await Promise.all([
-    pbnBacklinkSummary(siteId),
-    externalBacklinkSummary(siteId),
-    isConnected(),
+    pbnBacklinkSummary(getPrisma(), siteId),
+    externalBacklinkSummary(getPrisma(), siteId),
+    isConnected(getPrisma()),
   ]);
 
   return (

@@ -1,5 +1,5 @@
 import { assertAiConfigured } from "@repo/ai";
-import { JobKind, type Prisma, prisma, type Site } from "@repo/db";
+import { JobKind, type Prisma, type PrismaClient, type Site } from "@repo/db";
 import { countInFlightBySite, enqueue, lockJobs } from "@repo/jobs";
 import { bucketDraftWhere } from "@repo/posts";
 import * as Sites from "@repo/sites";
@@ -18,8 +18,8 @@ type RefillSite = BucketFields & Pick<Site, "domain" | "id">;
 export type Refill = { domain: string; queued: number; siteId: string; supply: Supply };
 
 const supplyBySite = async (
+  tx: Prisma.TransactionClient,
   siteIds: ReadonlyArray<string>,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<Map<string, Supply>> => {
   const [drafts, inflight] = await Promise.all([
     tx.post.groupBy({
@@ -27,7 +27,7 @@ const supplyBySite = async (
       by: ["siteId"],
       where: { ...bucketDraftWhere, siteId: { in: [...siteIds] } },
     }),
-    countInFlightBySite(JobKind.GENERATE_POST, siteIds, tx),
+    countInFlightBySite(tx, JobKind.GENERATE_POST, siteIds),
   ]);
 
   const draftsBySite = new Map(drafts.map((row) => [row.siteId, row._count.id]));
@@ -53,10 +53,10 @@ const refillCount = ({ bucketRefillAt, bucketTarget }: BucketFields, supply: Sup
     ? 0
     : Math.min(Math.max(0, bucketTarget - supply.total), REFILL_CEILING);
 
-const refillSite = (site: RefillSite): Promise<Refill> =>
+const refillSite = (prisma: PrismaClient, site: RefillSite): Promise<Refill> =>
   prisma.$transaction(async (tx) => {
     await lockJobs(JobKind.GENERATE_POST, site.id, tx);
-    const supply = supplyOf(await supplyBySite([site.id], tx), site.id);
+    const supply = supplyOf(await supplyBySite(tx, [site.id]), site.id);
     const queued = refillCount(site, supply);
 
     if (queued > 0) {
@@ -64,10 +64,11 @@ const refillSite = (site: RefillSite): Promise<Refill> =>
     }
 
     for (let i = 0; i < queued; i += 1) {
-      await enqueue(
-        { kind: JobKind.GENERATE_POST, payload: { siteId: site.id }, siteId: site.id },
-        tx,
-      );
+      await enqueue(tx, {
+        kind: JobKind.GENERATE_POST,
+        payload: { siteId: site.id },
+        siteId: site.id,
+      });
     }
 
     return { domain: site.domain, queued, siteId: site.id, supply };
@@ -80,7 +81,7 @@ const REFILL_SELECT = {
   id: true,
 } satisfies Prisma.SiteSelect;
 
-export const refillAll = async (): Promise<Array<Refill>> => {
+export const refillAll = async (prisma: PrismaClient): Promise<Array<Refill>> => {
   const sites = await prisma.site.findMany({
     select: REFILL_SELECT,
     where: { bucketRefillAt: { not: null }, bucketTarget: { not: null }, isEnabled: true },
@@ -89,23 +90,23 @@ export const refillAll = async (): Promise<Array<Refill>> => {
   const refills: Array<Refill> = [];
 
   for (const site of sites) {
-    refills.push(await refillSite(site));
+    refills.push(await refillSite(prisma, site));
   }
 
   return refills;
 };
 
-export const refill = async (siteId: string): Promise<Refill> =>
-  refillSite(await Sites.requireEnabled(siteId));
+export const refill = async (prisma: PrismaClient, siteId: string): Promise<Refill> =>
+  refillSite(prisma, await Sites.requireEnabled(prisma, siteId));
 
-export const nextDraft = (siteId: string) =>
+export const nextDraft = (prisma: PrismaClient, siteId: string) =>
   prisma.post.findFirst({
     orderBy: { createdAt: "asc" },
     select: { id: true },
     where: { ...bucketDraftWhere, siteId },
   });
 
-export const readBuckets = async (now: Date) => {
+export const readBuckets = async (prisma: PrismaClient, now: Date) => {
   const sites = await prisma.site.findMany({
     orderBy: { domain: "asc" },
     select: {
@@ -124,7 +125,10 @@ export const readBuckets = async (now: Date) => {
     where: { isEnabled: true },
   });
 
-  const supplies = await supplyBySite(sites.map((site) => site.id));
+  const supplies = await supplyBySite(
+    prisma,
+    sites.map((site) => site.id),
+  );
 
   return sites.map((site) => {
     const supply = supplyOf(supplies, site.id);

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { prisma } from "@repo/db";
 
 import { recordCleanup } from "../helpers/cleanup-record";
+import { prisma } from "../helpers/database";
 import { waitForEmail } from "../helpers/mail";
 import { makeTestEmail } from "../helpers/test-email";
 import { makeTestUsername } from "../helpers/test-user";

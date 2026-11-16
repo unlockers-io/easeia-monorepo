@@ -2,6 +2,8 @@ import { SiteDomainTakenError } from "@repo/sites";
 import { fakeSite } from "@repo/sites/fake";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { prisma } from "@/lib/db";
+
 import { createSiteRoutes } from "./sites";
 import { mountForTest, openGuards } from "./test-harness";
 
@@ -34,7 +36,7 @@ describe("PATCH /:id/money-site — body validation", () => {
   it("accepts a non-empty moneySiteId string → 200", async () => {
     const res = await patch("/s1/money-site", { moneySiteId: "m1" });
     expect(res.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith("s1", { moneySiteId: "m1" });
+    expect(updateMock).toHaveBeenCalledWith(prisma, "s1", { moneySiteId: "m1" });
   });
 
   it("accepts an explicit null moneySiteId → 200", async () => {
@@ -71,6 +73,7 @@ describe("site create and update", () => {
 
     expect(response.status).toBe(201);
     expect(createMock).toHaveBeenCalledWith(
+      prisma,
       expect.objectContaining({ domain: "photo-blog.example" }),
     );
     const body = await response.text();
@@ -96,6 +99,6 @@ describe("site create and update", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith("s1", { vercelProjectName: "photos" });
+    expect(updateMock).toHaveBeenCalledWith(prisma, "s1", { vercelProjectName: "photos" });
   });
 });

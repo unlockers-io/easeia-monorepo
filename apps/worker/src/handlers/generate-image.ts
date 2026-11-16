@@ -1,8 +1,8 @@
-import { prisma } from "@repo/db";
 import { generateHero as realGenerateHero } from "@repo/hero";
 import { JobSkippedError } from "@repo/jobs";
 import * as Posts from "@repo/posts";
 
+import { prisma } from "../lib/db";
 import type { JobContext } from "../lib/job-log";
 
 type PostForHero = {
@@ -50,13 +50,13 @@ export const makeHandleGenerateImage =
       throw new JobSkippedError("Post no longer exists");
     }
 
-    if ((await heroOf(postId)) !== null) {
+    if ((await heroOf(prisma, postId)) !== null) {
       log.info("generate-image: hero already exists; skipping");
 
       return;
     }
 
-    await generateHero({
+    await generateHero(prisma, {
       post: {
         id: post.id,
         siteId: post.siteId,

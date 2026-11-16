@@ -2,6 +2,7 @@ import type { ConsumerContext } from "@repo/jobs";
 import { pruneFabricatedLinks } from "@repo/links";
 import * as Posts from "@repo/posts";
 
+import { prisma } from "../lib/db";
 import { ensureHero } from "../lib/ensure-hero";
 import { env } from "../lib/env";
 import type { JobContext } from "../lib/job-log";
@@ -11,7 +12,7 @@ export const handlePublish = async ({ log, payload }: JobContext<"PUBLISH">): Pr
   log.set({ postId });
   log.info("publish: start");
 
-  const target = await Posts.startPublish(postId);
+  const target = await Posts.startPublish(prisma, postId);
 
   if (target === null) {
     log.info("publish: post no longer awaits publishing, skip");
@@ -19,7 +20,7 @@ export const handlePublish = async ({ log, payload }: JobContext<"PUBLISH">): Pr
     return;
   }
 
-  const { stripped } = await pruneFabricatedLinks(postId);
+  const { stripped } = await pruneFabricatedLinks(prisma, postId);
 
   if (stripped.length > 0) {
     log.set({ strippedFabricatedLinks: stripped.length });
@@ -27,10 +28,10 @@ export const handlePublish = async ({ log, payload }: JobContext<"PUBLISH">): Pr
   }
 
   await ensureHero({ autogenEnabled: env.HERO_AUTOGEN_ENABLED, ...target });
-  await Posts.completePublish(postId);
+  await Posts.completePublish(prisma, postId);
 
   log.info("publish: done");
 };
 
 export const failPublish = ({ payload }: ConsumerContext<"PUBLISH">): Promise<void> =>
-  Posts.failPublish(payload.postId);
+  Posts.failPublish(prisma, payload.postId);

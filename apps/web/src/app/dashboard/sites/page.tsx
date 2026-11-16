@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from "@repo/db";
+import type { Prisma } from "@repo/db";
 import { toCategorySlugMap } from "@repo/sites";
 import {
   Card,
@@ -11,6 +11,7 @@ import { Suspense } from "react";
 import { SkeletonBox, SkeletonSuspense } from "skullet/react";
 
 import { SiteCreateDialog } from "@/components/site-create-dialog";
+import { getPrisma } from "@/lib/db";
 import { parseNiches } from "@/lib/search-params";
 
 import { GscBackfillAllButton } from "./gsc-backfill-all-button";
@@ -64,11 +65,11 @@ const SitesContent = async ({ searchParams }: { searchParams: Promise<SearchPara
   }
 
   const [sites, totalCount] = await Promise.all([
-    prisma.site.findMany({
+    getPrisma().site.findMany({
       orderBy: { domain: "asc" },
       where,
     }),
-    prisma.site.count(),
+    getPrisma().site.count(),
   ]);
 
   if (totalCount === 0) {

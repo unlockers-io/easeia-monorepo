@@ -1,5 +1,5 @@
 import { generateStructured } from "@repo/ai";
-import type { SiteLanguage } from "@repo/db";
+import type { SiteLanguage, PrismaClient } from "@repo/db";
 import { z } from "zod";
 
 import { SITE_LANGUAGE_HUMAN } from "./prompt-constants";
@@ -118,9 +118,10 @@ export const sanitizeBodyImagePlan = (
 };
 
 export const planBodyImages = async (
+  prisma: PrismaClient,
   input: PlanBodyImagesInput,
 ): Promise<ReadonlyArray<PlannedBodyImage>> => {
-  const { images } = await generateStructured({
+  const { images } = await generateStructured(prisma, {
     prompt: buildBodyImagePlanPrompt(input),
     schema: plannedBodyImagesSchema,
   });

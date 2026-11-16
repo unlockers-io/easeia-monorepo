@@ -1,10 +1,12 @@
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { loopbackUrl } from "@repo/portless-env/apps";
 import type { Transport } from "@repo/transactional/transport";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createAuth } from "./server";
 import type { AuthConfig } from "./server";
+
+const prisma = createPrismaClient("postgresql://user:pass@localhost:5432/db");
 
 type Plugin = NonNullable<AuthConfig["extraPlugins"]>[number];
 

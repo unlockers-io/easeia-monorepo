@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SkeletonSuspense } from "skullet/react";
 
+import { getPrisma } from "@/lib/db";
 import { formatRelativeTime } from "@/lib/relative-time";
 
 import { RecrawlMoneySiteButton } from "../recrawl-money-site-button";
@@ -16,7 +17,7 @@ const loadMoneySite = async (id: string) => {
   "use cache";
   cacheLife("minutes");
 
-  return MoneySites.detail(id);
+  return MoneySites.detail(getPrisma(), id);
 };
 
 /** @public Next.js app-router reads metadata via the module loader */

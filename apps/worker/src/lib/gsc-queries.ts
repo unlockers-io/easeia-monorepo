@@ -1,12 +1,14 @@
 import { log } from "@repo/observability";
 import { forSite } from "@repo/search-console";
 
+import { prisma } from "./db";
+
 // Best-effort: topic selection must survive a missing Google connection,
 // an unverified property, or a Google API outage, so every failure path
 // collapses to an empty list instead of throwing.
 const fetchTopSearchQueries = async (domain: string): Promise<Array<string>> => {
   try {
-    const site = await forSite(domain);
+    const site = await forSite(prisma, domain);
 
     if (site.status !== "ok") {
       return [];

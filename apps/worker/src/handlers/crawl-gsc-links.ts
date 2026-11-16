@@ -1,9 +1,9 @@
-import { prisma } from "@repo/db";
 import { JobSkippedError } from "@repo/jobs";
 import { recordGscBacklinks } from "@repo/links";
 import { forSite } from "@repo/search-console";
 import { postPublicUrl } from "@repo/sites";
 
+import { prisma } from "../lib/db";
 import type { JobContext } from "../lib/job-log";
 
 export const handleCrawlGscLinks = async ({
@@ -27,7 +27,7 @@ export const handleCrawlGscLinks = async ({
     throw new JobSkippedError("Post no longer exists");
   }
 
-  const searchConsole = await forSite(post.site.domain);
+  const searchConsole = await forSite(prisma, post.site.domain);
 
   if (searchConsole.status !== "ok") {
     log.set({ searchConsole: searchConsole.status });
@@ -37,7 +37,7 @@ export const handleCrawlGscLinks = async ({
   }
 
   const result = await searchConsole.inspectUrl(postPublicUrl(post.site, post));
-  const { domains } = await recordGscBacklinks(post, result.referringUrls);
+  const { domains } = await recordGscBacklinks(prisma, post, result.referringUrls);
 
   log.set({
     coverageState: result.coverageState,

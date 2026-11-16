@@ -17,6 +17,8 @@ import { errorResponse } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 import type { AuthVariables } from "@/middleware/api-auth";
 
+import { prisma } from "../lib/db";
+
 type BuildRouteDependencies = Omit<Guards, "audit"> & {
   findSite: (siteId: string) => Promise<Site | null>;
   listImages: (siteId: string) => Promise<Array<BuildImage>>;
@@ -161,9 +163,10 @@ const createBuildRoutes = (dependencies: BuildRouteDependencies) => {
 
 const buildRoutes = createBuildRoutes({
   ...guards,
-  findSite: Sites.find,
-  listImages: Posts.listBuildImages,
-  listPosts: Posts.listForBuild,
+  // oxlint-disable-next-line unicorn/no-array-method-this-argument -- Sites.find looks a Site up; it is not Array#find
+  findSite: (siteId) => Sites.find(prisma, siteId),
+  listImages: (siteId) => Posts.listBuildImages(prisma, siteId),
+  listPosts: (siteId, author) => Posts.listForBuild(prisma, siteId, author),
 });
 
 export { buildRoutes, createBuildRoutes };

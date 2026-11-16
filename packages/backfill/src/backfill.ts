@@ -6,7 +6,7 @@ import {
   type JobKind,
   JobStatus,
   type Prisma,
-  prisma,
+  type PrismaClient,
 } from "@repo/db";
 import { listRunJobs } from "@repo/jobs";
 
@@ -25,7 +25,7 @@ type Spec<Args extends ReadonlyArray<unknown>, Counts extends Record<string, num
   counts: (run: BackfillRun, jobs: ReadonlyArray<Job>) => Counts;
   kind: BackfillKind;
   label: string;
-  members: (...args: Args) => Promise<Members>;
+  members: (prisma: PrismaClient, ...args: Args) => Promise<Members>;
   phases: readonly [Phase, ...Array<Phase>];
 };
 
@@ -35,8 +35,8 @@ export const createBackfill = <
 >(
   spec: Spec<Args, Counts>,
 ) => {
-  const start = async (...args: Args) => {
-    const members = await spec.members(...args);
+  const start = async (prisma: PrismaClient, ...args: Args) => {
+    const members = await spec.members(prisma, ...args);
     const first = spec.phases[0];
 
     return prisma.$transaction(
@@ -63,7 +63,7 @@ export const createBackfill = <
     );
   };
 
-  const tick = async (): Promise<void> => {
+  const tick = async (prisma: PrismaClient): Promise<void> => {
     const active = await prisma.backfillRun.findMany({
       where: { kind: spec.kind, status: JobStatus.RUNNING },
     });
@@ -78,7 +78,7 @@ export const createBackfill = <
             return;
           }
 
-          const children = await listRunJobs(run.id, tx);
+          const children = await listRunJobs(tx, run.id);
           const jobs = children.filter((job) => job.phase === run.phase);
 
           if (
@@ -107,7 +107,7 @@ export const createBackfill = <
     }
   };
 
-  const readStatus = async () => {
+  const readStatus = async (prisma: PrismaClient) => {
     const run = await prisma.backfillRun.findFirst({
       orderBy: { startedAt: "desc" },
       where: { kind: spec.kind },
@@ -117,7 +117,7 @@ export const createBackfill = <
       return { active: false };
     }
 
-    const jobs = await listRunJobs(run.id);
+    const jobs = await listRunJobs(prisma, run.id);
     let ended: "done" | "failed" | null = null;
 
     if (run.status === JobStatus.DONE) {

@@ -2,10 +2,12 @@
 import "dotenv/config";
 
 import { generateStructured } from "@repo/ai";
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { approveSuggestions, listSuggestions, suggestForPost, withoutSeeAlso } from "@repo/links";
 import { reviseBody } from "@repo/posts";
 import { z } from "zod";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const BATCH_SIZE = 5;
 const LINKS_PER_POST = 4;
@@ -53,7 +55,7 @@ const selectPosts = (): Promise<Array<{ body: string; id: string; slug: string }
   });
 
 const fetchTopSuggestions = async (postId: string, body: string): Promise<Array<Anchor>> => {
-  const { data: links } = await listSuggestions({
+  const { data: links } = await listSuggestions(prisma, {
     fromPostId: postId,
     limit: SUGGESTIONS_PER_POST,
   });
@@ -115,7 +117,7 @@ type Outcome = {
 };
 
 const enrichOne = async (post: { body: string; id: string; slug: string }): Promise<Outcome> => {
-  await suggestForPost(post.id);
+  await suggestForPost(prisma, post.id);
   const anchors = await fetchTopSuggestions(post.id, post.body);
 
   if (anchors.length === 0) {
@@ -127,7 +129,7 @@ const enrichOne = async (post: { body: string; id: string; slug: string }): Prom
     };
   }
 
-  const { body } = await generateStructured({
+  const { body } = await generateStructured(prisma, {
     prompt: buildPrompt(post.body, anchors),
     schema: bodySchema,
   });
@@ -211,10 +213,10 @@ const main = async (): Promise<number> => {
 
   for (const o of enriched) {
     if (o.before !== undefined && o.after !== undefined && o.after !== o.before) {
-      await reviseBody(o.id, { body: o.after, from: o.before });
+      await reviseBody(prisma, o.id, { body: o.after, from: o.before });
     }
 
-    await approveSuggestions(o.id, o.linkIds ?? []);
+    await approveSuggestions(prisma, o.id, o.linkIds ?? []);
   }
 
   console.log(`\nWrote ${enriched.length} bodies.`);

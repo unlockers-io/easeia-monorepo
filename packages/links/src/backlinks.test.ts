@@ -1,9 +1,11 @@
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { sourceDomainOf } from "./hosts";
 
 import { externalBacklinkSummary, importCsvBacklinks, recordGscBacklinks } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe("sourceDomainOf", () => {
   it("keys a URL by its lowercased host without www", () => {
@@ -33,11 +35,12 @@ describe.runIf(process.env.TEST_DATABASE === "true")("external backlinks", () =>
     });
 
     await importCsvBacklinks(
+      prisma,
       siteId,
       ["Site,Pages linking to your site", "forbes.com,3", "nytimes.com,1"].join("\n"),
     );
 
-    const { domains } = await recordGscBacklinks(post, [
+    const { domains } = await recordGscBacklinks(prisma, post, [
       "https://www.forbes.com/a",
       "https://forbes.com/b",
       "https://forbes.com/b",
@@ -50,7 +53,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("external backlinks", () =>
         where: { siteId, source: "GSC_API", sourceDomain: "forbes.com" },
       }),
     ).toMatchObject({ linkingPages: 2 });
-    expect(await externalBacklinkSummary(siteId)).toMatchObject({
+    expect(await externalBacklinkSummary(prisma, siteId)).toMatchObject({
       linkingPages: 4,
       referringDomains: 2,
     });

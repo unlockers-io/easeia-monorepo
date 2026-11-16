@@ -1,5 +1,5 @@
 import { AiNotConfiguredError } from "@repo/ai";
-import { JobKind, JobStatus, PostStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, PostStatus, createPrismaClient } from "@repo/db";
 import { enqueue, listRunJobs } from "@repo/jobs";
 import { closeJobs, consume, dispatchPendingJobs } from "@repo/jobs/worker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forPublishedMember } from "./members";
 
 import { BackfillAlreadyRunningError, networkBackfill } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfill", () => {
   let siteId = "";
@@ -22,7 +24,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
   };
 
   const start = async () => {
-    const { runId } = await networkBackfill.start();
+    const { runId } = await networkBackfill.start(prisma);
     runIds.push(runId);
 
     return runId;
@@ -45,7 +47,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
     vi.stubEnv("OPENAI_API_KEY", "");
     await fixture();
 
-    await expect(networkBackfill.start()).rejects.toBeInstanceOf(AiNotConfiguredError);
+    await expect(networkBackfill.start(prisma)).rejects.toBeInstanceOf(AiNotConfiguredError);
   });
 
   it("allows one run and finishes honestly after an exhausted child, releasing the guard", async () => {
@@ -57,13 +59,13 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
     );
     const id = runIds.at(-1) ?? "";
     await prisma.job.updateMany({ data: { status: JobStatus.DONE }, where: { runId: id } });
-    const [child] = await listRunJobs(id);
+    const [child] = await listRunJobs(prisma, id);
     await prisma.job.update({
       data: { attempts: 5, status: JobStatus.FAILED },
       where: { id: child?.id },
     });
-    await networkBackfill.tick();
-    expect(await networkBackfill.readStatus()).toMatchObject({
+    await networkBackfill.tick(prisma);
+    expect(await networkBackfill.readStatus(prisma)).toMatchObject({
       active: false,
       counts: { failed: 1 },
       ended: "failed",
@@ -80,15 +82,19 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
     });
 
     await prisma.job.updateMany({ data: { status: JobStatus.SKIPPED }, where: { runId: id } });
-    await enqueue({ kind: JobKind.SUGGEST_LINKS, payload: { postId: late.id }, postId: late.id });
-    await networkBackfill.tick();
-    await networkBackfill.tick();
-    const jobs = await listRunJobs(id);
+    await enqueue(prisma, {
+      kind: JobKind.SUGGEST_LINKS,
+      payload: { postId: late.id },
+      postId: late.id,
+    });
+    await networkBackfill.tick(prisma);
+    await networkBackfill.tick(prisma);
+    const jobs = await listRunJobs(prisma, id);
     expect(
       jobs.filter((job) => job.kind === JobKind.SUGGEST_LINKS).map((job) => job.postId),
     ).toContain(original.id);
     expect(jobs.some((job) => job.postId === late.id)).toBe(false);
-    expect(await networkBackfill.readStatus()).toMatchObject({
+    expect(await networkBackfill.readStatus(prisma)).toMatchObject({
       active: true,
       counts: { skipped: 2 },
     });
@@ -96,14 +102,17 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
       data: { status: JobStatus.DONE },
       where: { phase: "SUGGEST_LINKS", runId: id },
     });
-    await networkBackfill.tick();
-    expect(await networkBackfill.readStatus()).toMatchObject({ active: false, ended: "done" });
+    await networkBackfill.tick(prisma);
+    expect(await networkBackfill.readStatus(prisma)).toMatchObject({
+      active: false,
+      ended: "done",
+    });
   });
 
   it("skips deleted or archived members and makes repeated fan-out idempotent", async () => {
     const post = await fixture();
     const id = await start();
-    const [child] = await listRunJobs(id);
+    const [child] = await listRunJobs(prisma, id);
 
     const input = {
       kind: JobKind.CLASSIFY,
@@ -112,19 +121,19 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
       run: { id, member: post.id, phase: "CLASSIFY_EMBED" },
     } as const;
 
-    await Promise.all([enqueue(input), enqueue(input)]);
-    expect(await listRunJobs(id)).toHaveLength(2);
+    await Promise.all([enqueue(prisma, input), enqueue(prisma, input)]);
+    expect(await listRunJobs(prisma, id)).toHaveLength(2);
     await prisma.post.delete({ where: { id: post.id } });
     await prisma.job.updateMany({ data: { status: JobStatus.SKIPPED }, where: { runId: id } });
-    await Promise.all([networkBackfill.tick(), networkBackfill.tick()]);
-    expect(await listRunJobs(id)).toHaveLength(3);
-    const afterDeletion = await listRunJobs(id);
+    await Promise.all([networkBackfill.tick(prisma), networkBackfill.tick(prisma)]);
+    expect(await listRunJobs(prisma, id)).toHaveLength(3);
+    const afterDeletion = await listRunJobs(prisma, id);
     expect(afterDeletion.find((job) => job.kind === JobKind.SUGGEST_LINKS)?.status).toBe(
       JobStatus.SKIPPED,
     );
     expect(child?.id).toBeDefined();
-    await networkBackfill.tick();
-    expect(await networkBackfill.readStatus()).toMatchObject({
+    await networkBackfill.tick(prisma);
+    expect(await networkBackfill.readStatus(prisma)).toMatchObject({
       active: false,
       counts: { skipped: 3 },
       ended: "done",
@@ -146,19 +155,19 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
       const handler = vi.fn().mockResolvedValue(undefined);
 
       const workers = [JobKind.CLASSIFY, JobKind.EMBED].map((kind) =>
-        consume({ handler: forPublishedMember(handler), kind }),
+        consume(prisma, { handler: forPublishedMember(prisma, handler), kind }),
       );
 
       try {
-        await dispatchPendingJobs();
+        await dispatchPendingJobs(prisma);
         await vi.waitFor(async () => {
-          const jobs = await listRunJobs(id);
+          const jobs = await listRunJobs(prisma, id);
           expect(jobs.every((job) => job.status === JobStatus.SKIPPED)).toBe(true);
         });
         expect(handler).not.toHaveBeenCalled();
-        await networkBackfill.tick();
-        await networkBackfill.tick();
-        expect(await networkBackfill.readStatus()).toMatchObject({
+        await networkBackfill.tick(prisma);
+        await networkBackfill.tick(prisma);
+        expect(await networkBackfill.readStatus(prisma)).toMatchObject({
           active: false,
           counts: { skipped: 6 },
           ended: "done",
@@ -171,9 +180,12 @@ describe.runIf(process.env.TEST_DATABASE === "true")("run-scoped network backfil
 
   it("finishes an empty member set without polling rows", async () => {
     const id = await start();
-    await networkBackfill.tick();
-    await networkBackfill.tick();
-    expect(await listRunJobs(id)).toHaveLength(0);
-    expect(await networkBackfill.readStatus()).toMatchObject({ active: false, ended: "done" });
+    await networkBackfill.tick(prisma);
+    await networkBackfill.tick(prisma);
+    expect(await listRunJobs(prisma, id)).toHaveLength(0);
+    expect(await networkBackfill.readStatus(prisma)).toMatchObject({
+      active: false,
+      ended: "done",
+    });
   });
 });

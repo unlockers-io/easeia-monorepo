@@ -1,7 +1,8 @@
-import { JobKind, type Prisma, prisma } from "@repo/db";
+import { JobKind, type Prisma } from "@repo/db";
 import { enqueue, JobSkippedError } from "@repo/jobs";
 import { forSite } from "@repo/search-console";
 
+import { prisma } from "../lib/db";
 import type { JobContext } from "../lib/job-log";
 
 // Google's URL Inspection API allows ~600 calls/property/day; 500 is the
@@ -21,9 +22,9 @@ type Payload = JobContext<"BACKFILL_GSC_LINKS">["payload"];
 const reEnqueueSelf = async (
   payload: Payload,
   delayMs: number,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<void> => {
-  await enqueue({ delayMs, kind: JobKind.BACKFILL_GSC_LINKS, payload, siteId: payload.siteId }, tx);
+  await enqueue(tx, { delayMs, kind: JobKind.BACKFILL_GSC_LINKS, payload, siteId: payload.siteId });
 };
 
 export const handleBackfillGscLinks = async ({
@@ -42,7 +43,7 @@ export const handleBackfillGscLinks = async ({
       throw new JobSkippedError("Site no longer exists");
     }
 
-    const searchConsole = await forSite(site.domain);
+    const searchConsole = await forSite(prisma, site.domain);
 
     if (searchConsole.status === "not_connected") {
       log.warn("backfill-gsc-links: no Google connection, aborting");
@@ -98,10 +99,12 @@ export const handleBackfillGscLinks = async ({
 
   await prisma.$transaction(async (tx) => {
     for (const [i, postId] of slice.entries()) {
-      await enqueue(
-        { delayMs: i * STAGGER_MS, kind: JobKind.CRAWL_GSC_LINKS, payload: { postId }, postId },
-        tx,
-      );
+      await enqueue(tx, {
+        delayMs: i * STAGGER_MS,
+        kind: JobKind.CRAWL_GSC_LINKS,
+        payload: { postId },
+        postId,
+      });
     }
 
     await reEnqueueSelf(

@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import type { PrismaClient } from "@repo/db";
 import {
   SEO_DESCRIPTION_MAX,
   SEO_DESCRIPTION_MIN,
@@ -40,6 +40,7 @@ export type RewriteResult =
     };
 
 export const rewritePost = async (
+  prisma: PrismaClient,
   postId: string,
   opts: RewriteOptions = {},
 ): Promise<RewriteResult> => {
@@ -56,7 +57,7 @@ export const rewritePost = async (
     return { outcome: "skipped", reason: "already_rewritten" };
   }
 
-  const { data: candidateLinks } = await listSuggestions({
+  const { data: candidateLinks } = await listSuggestions(prisma, {
     fromPostId: postId,
     limit: SUGGESTION_OVERFETCH,
   });
@@ -65,7 +66,7 @@ export const rewritePost = async (
 
   const moneyPages =
     post.site.moneySiteId !== null && post.site.moneySiteId !== ""
-      ? await findRelevantPages(postId, TOP_MONEY_SITE)
+      ? await findRelevantPages(prisma, postId, TOP_MONEY_SITE)
       : [];
 
   const anchors: Array<AnchorSpec> = [
@@ -81,7 +82,7 @@ export const rewritePost = async (
     })),
   ];
 
-  const { missing, output, retryUsed } = await generateWithAnchors({
+  const { missing, output, retryUsed } = await generateWithAnchors(prisma, {
     anchors,
     insertInstruction: "Insert each one inline at a natural spot in the body.",
     prompt: buildRewritePrompt({
@@ -114,11 +115,13 @@ export const rewritePost = async (
 
   await prisma.$transaction(async (tx) => {
     await reviseBody(
+      prisma,
       postId,
       { body, excerpt, focusKeyword, from: post.body, rewrittenAt: new Date(), title },
       tx,
     );
     await approveSuggestions(
+      prisma,
       postId,
       topInternalPbn.map((l) => l.id),
       tx,

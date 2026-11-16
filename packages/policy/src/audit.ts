@@ -1,4 +1,4 @@
-import { type Prisma, prisma } from "@repo/db";
+import type { Prisma, PrismaClient } from "@repo/db";
 
 import type { Actor } from "./authorize";
 
@@ -28,7 +28,11 @@ type AuditAction =
 
 export type AuditEntry = { action: AuditAction; meta?: Prisma.InputJsonValue; target: string };
 
-export const recordAudit = async (actor: Actor, entry: AuditEntry): Promise<void> => {
+export const recordAudit = async (
+  prisma: PrismaClient,
+  actor: Actor,
+  entry: AuditEntry,
+): Promise<void> => {
   await prisma.auditLog.create({
     data: {
       action: entry.action,

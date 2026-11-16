@@ -1,4 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import type { PrismaClient } from "@repo/db";
 import {
   embed,
   generateImage as generateImageFile,
@@ -126,17 +127,22 @@ const createAi = (transport: AiTransport) => {
 
 const AI_ENV_VARS = [API_KEY_VAR] as const;
 
-const {
-  assertConfigured: assertAiConfigured,
-  embedText,
-  generateImage,
-  generateStructured,
-} = createAi({ apiKey: () => envValue(API_KEY_VAR), fetch: budgetedOpenAiFetch });
+const apiKey = () => envValue(API_KEY_VAR);
+
+const openAi = (prisma: PrismaClient) => createAi({ apiKey, fetch: budgetedOpenAiFetch(prisma) });
+
+const { assertConfigured: assertAiConfigured } = createAi({ apiKey, fetch: globalThis.fetch });
+
+const generateStructured = <T>(prisma: PrismaClient, request: StructuredRequest<T>): Promise<T> =>
+  openAi(prisma).generateStructured(request);
+
+const generateImage = (prisma: PrismaClient, prompt: string): Promise<Uint8Array> =>
+  openAi(prisma).generateImage(prompt);
 
 const MAX_EMBED_INPUT_CHARS = 6000 * 4;
 
-const embedDocument = (title: string, body: string): Promise<Array<number>> =>
-  embedText(`${title}\n\n${body}`.slice(0, MAX_EMBED_INPUT_CHARS));
+const embedDocument = (prisma: PrismaClient, title: string, body: string): Promise<Array<number>> =>
+  openAi(prisma).embedText(`${title}\n\n${body}`.slice(0, MAX_EMBED_INPUT_CHARS));
 
 export {
   AI_ENV_VARS,

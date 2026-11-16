@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const VALID_ENV = {
   BETTER_AUTH_SECRET: "a".repeat(32),
+  DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
   FROM_EMAIL: "noreply@easeia.com",
 } as const;
 
@@ -28,6 +29,11 @@ describe("getEnv", () => {
   it("should return the parsed environment when every required variable is set", async () => {
     const getEnv = await loadGetEnv();
     expect(getEnv().FROM_EMAIL).toBe("noreply@easeia.com");
+  });
+
+  it("should require DATABASE_URL", async () => {
+    const getEnv = await loadGetEnv({ DATABASE_URL: undefined });
+    expect(() => getEnv()).toThrow(/DATABASE_URL/v);
   });
 
   it("should require FROM_EMAIL", async () => {

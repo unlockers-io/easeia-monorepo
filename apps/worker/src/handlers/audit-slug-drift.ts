@@ -1,6 +1,8 @@
-import { PostStatus, prisma, type Site } from "@repo/db";
+import { PostStatus, type Site } from "@repo/db";
 import { log } from "@repo/observability";
 import { postPath } from "@repo/sites";
+
+import { prisma } from "../lib/db";
 
 const PUBLISH_GRACE_MS = 6 * 60 * 60 * 1000;
 

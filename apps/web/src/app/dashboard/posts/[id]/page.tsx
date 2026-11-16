@@ -20,6 +20,7 @@ import { notFound } from "next/navigation";
 import { ActionButton } from "@/components/action-button";
 import { CardSuspense } from "@/components/card-suspense";
 import { JobStatusBadge } from "@/components/job-status-badge";
+import { getPrisma } from "@/lib/db";
 import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
@@ -42,10 +43,10 @@ const PostPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   const [post, liveOutbound, { data: jobs }, latestPublish] = await Promise.all([
-    Posts.detail(id),
-    outboundLinks(id),
-    listJobs({ limit: 5, postId: id }),
-    findLatestJobByPost(JobKind.PUBLISH, [id]),
+    Posts.detail(getPrisma(), id),
+    outboundLinks(getPrisma(), id),
+    listJobs(getPrisma(), { limit: 5, postId: id }),
+    findLatestJobByPost(getPrisma(), JobKind.PUBLISH, [id]),
   ]);
 
   if (!post) {

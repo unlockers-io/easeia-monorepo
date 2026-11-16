@@ -1,4 +1,4 @@
-import type { Niche, SiteLanguage } from "@repo/db";
+import type { Niche, SiteLanguage, PrismaClient } from "@repo/db";
 import {
   SEO_DESCRIPTION_MAX,
   SEO_DESCRIPTION_MIN,
@@ -157,10 +157,13 @@ const detectBodyLanguage = (body: string): DetectedLanguage => {
   return detected ? { detected, francCode: code } : { detected: "unknown", francCode: code };
 };
 
-export const generateNewPost = async (input: GeneratePostInput): Promise<GeneratedPost> => {
+export const generateNewPost = async (
+  prisma: PrismaClient,
+  input: GeneratePostInput,
+): Promise<GeneratedPost> => {
   const {
     output: { body, category, excerpt, focusKeyword, tags, title },
-  } = await generateWithAnchors({
+  } = await generateWithAnchors(prisma, {
     anchors: input.anchors,
     insertInstruction:
       "Insert each one inline at a natural spot in the body as a Markdown link [anchor](URL), leaving the rest of the body as Markdown with its blank-line paragraph breaks intact.",

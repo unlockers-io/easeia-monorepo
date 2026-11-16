@@ -1,4 +1,5 @@
 import { generateStructured } from "@repo/ai";
+import type { PrismaClient } from "@repo/db";
 import {
   SEO_DESCRIPTION_MAX,
   SEO_DESCRIPTION_MIN,
@@ -67,8 +68,11 @@ const buildPrompt = (input: SeoSuggestionInput): string => {
   return lines.join("\n");
 };
 
-export const generateSeoSuggestions = (input: SeoSuggestionInput): Promise<SeoSuggestion> => {
-  return generateStructured({ prompt: buildPrompt(input), schema: seoSuggestionSchema });
+export const generateSeoSuggestions = (
+  prisma: PrismaClient,
+  input: SeoSuggestionInput,
+): Promise<SeoSuggestion> => {
+  return generateStructured(prisma, { prompt: buildPrompt(input), schema: seoSuggestionSchema });
 };
 
 export { seoSuggestionSchema };

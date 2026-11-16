@@ -1,5 +1,5 @@
 import { createAuth } from "@repo/auth/server";
-import { prisma } from "@repo/db";
+import type { PrismaClient } from "@repo/db";
 import { createTransport } from "@repo/transactional/transport";
 
 const SEED_FROM_EMAIL = "Easeia <noreply@email.easeia.com>";
@@ -59,20 +59,21 @@ export const createSeedAdmin = (deps: SeedAdminDeps) => async (): Promise<void> 
   console.log(`seeded admin ${email}`);
 };
 
-export const seedAdmin = createSeedAdmin({
-  findUser: (email) => prisma.user.findUnique({ select: { id: true }, where: { email } }),
-  signUp: async ({ secret, ...body }) => {
-    const auth = createAuth({
-      allowedHosts: ["localhost:*"],
-      mailer: {
-        from: SEED_FROM_EMAIL,
-        transport: createTransport({ apiKey: undefined, transport: "outbox" }),
-      },
-      prisma,
-      secret,
-    });
+export const seedAdmin = (prisma: PrismaClient) =>
+  createSeedAdmin({
+    findUser: (email) => prisma.user.findUnique({ select: { id: true }, where: { email } }),
+    signUp: async ({ secret, ...body }) => {
+      const auth = createAuth({
+        allowedHosts: ["localhost:*"],
+        mailer: {
+          from: SEED_FROM_EMAIL,
+          transport: createTransport({ apiKey: undefined, transport: "outbox" }),
+        },
+        prisma,
+        secret,
+      });
 
-    await auth.api.signUpEmail({ body });
-    await prisma.user.update({ data: { emailVerified: true }, where: { email: body.email } });
-  },
-});
+      await auth.api.signUpEmail({ body });
+      await prisma.user.update({ data: { emailVerified: true }, where: { email: body.email } });
+    },
+  })();

@@ -1,7 +1,9 @@
 import "dotenv/config";
 
-import { type Niche, PostStatus, prisma } from "@repo/db";
+import { type Niche, PostStatus, createPrismaClient } from "@repo/db";
 import * as Sites from "@repo/sites";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const topNiches = async (siteId: string): Promise<Array<Niche>> => {
   const posts = await prisma.post.findMany({
@@ -32,7 +34,7 @@ const main = async (): Promise<void> => {
 
   for (const site of sites) {
     const niches = await topNiches(site.id);
-    await Sites.update(site.id, { niches });
+    await Sites.update(prisma, site.id, { niches });
     console.log(`  ${site.domain}`);
     console.log(`    before: [${site.niches.join(", ") || "—"}]`);
     console.log(`    after:  [${niches.join(", ") || "—"}]`);

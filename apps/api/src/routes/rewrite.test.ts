@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { prisma } from "@/lib/db";
+
 import { createRewriteRoutes } from "./rewrite";
 import { mountForTest, openGuards } from "./test-harness";
 
@@ -28,13 +30,13 @@ describe("rewrite write routes: body validation", () => {
   it("POST /network accepts an empty body (force defaults to false)", async () => {
     const res = await post("/network");
     expect(res.status).toBe(202);
-    expect(start).toHaveBeenCalledWith({ force: false });
+    expect(start).toHaveBeenCalledWith(prisma, { force: false });
   });
 
   it("POST /network accepts force: true", async () => {
     const res = await post("/network", { force: true });
     expect(res.status).toBe(202);
-    expect(start).toHaveBeenCalledWith({ force: true });
+    expect(start).toHaveBeenCalledWith(prisma, { force: true });
   });
 
   it("POST /network rejects a malformed force body with the standard envelope", async () => {
@@ -52,7 +54,7 @@ describe("rewrite write routes: body validation", () => {
   it("POST /post/:id accepts an empty body (force defaults to false)", async () => {
     const res = await post("/post/p1");
     expect(res.status).toBe(202);
-    expect(requestRewrite).toHaveBeenCalledWith("p1", { force: false });
+    expect(requestRewrite).toHaveBeenCalledWith(prisma, "p1", { force: false });
   });
 
   it("POST /post/:id rejects a malformed force body", async () => {

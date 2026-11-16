@@ -1,8 +1,10 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { listJobs } from "@repo/jobs";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { completePublish, publish, reviseBody, update } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const dropFailure = async () => {
   await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS thermo_fail_intent ON "Job"');
@@ -48,13 +50,13 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
     await prisma.job.deleteMany({ where: { OR: [{ siteId }, { post: { siteId } }] } });
     await prisma.site.deleteMany({ where: { id: siteId } });
   });
-  const jobs = () => listJobs({ limit: 100, siteId });
+  const jobs = () => listJobs(prisma, { limit: 100, siteId });
 
   it("rolls back a body/rewrite marker if any consequence cannot be recorded", async () => {
     const post = await fixture();
     await failIntents(post.id);
     await expect(
-      reviseBody(post.id, { body: "After", from: "Before", rewrittenAt: new Date() }),
+      reviseBody(prisma, post.id, { body: "After", from: "Before", rewrittenAt: new Date() }),
     ).rejects.toThrow("injected intent insertion failure");
     expect(await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).toMatchObject({
       body: "Before",
@@ -63,7 +65,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
     const rolledBack = await jobs();
     expect(rolledBack.data).toHaveLength(0);
     await dropFailure();
-    await reviseBody(post.id, { body: "After", from: "Before", rewrittenAt: new Date() });
+    await reviseBody(prisma, post.id, { body: "After", from: "Before", rewrittenAt: new Date() });
     const saved = await jobs();
     expect(saved.data.map((job) => job.kind).toSorted()).toEqual(
       [JobKind.CRAWL_LINKS, JobKind.EMBED, JobKind.TRIGGER_DEPLOY].toSorted(),
@@ -76,17 +78,19 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
   it("keeps a publish scheduled and its delayed intent recoverable without Redis", async () => {
     const post = await fixture("DRAFT");
     const scheduledAt = new Date(Date.now() + 3_600_000);
-    await update(post.id, { scheduledAt });
-    await publish(post.id);
+    await update(prisma, post.id, { scheduledAt });
+    await publish(prisma, post.id);
     const queued = await jobs();
     expect(queued.data[0]?.availableAt).toEqual(scheduledAt);
     await failIntents(post.id);
-    await expect(completePublish(post.id)).rejects.toThrow("injected intent insertion failure");
+    await expect(completePublish(prisma, post.id)).rejects.toThrow(
+      "injected intent insertion failure",
+    );
     const scheduled = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
     expect(scheduled.status).toBe("SCHEDULED");
     await dropFailure();
-    await completePublish(post.id);
-    await completePublish(post.id);
+    await completePublish(prisma, post.id);
+    await completePublish(prisma, post.id);
     const completed = await jobs();
     expect(completed.data.filter((job) => job.kind === JobKind.GENERATE_BODY_IMAGES)).toHaveLength(
       1,
@@ -100,9 +104,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
       data: { body: "Before", siteId, slug: "second", status: "PUBLISHED", title: "Second" },
     });
 
-    await update(first.id, { excerpt: null, tags: ["Tag"], title: "Repaired" });
+    await update(prisma, first.id, { excerpt: null, tags: ["Tag"], title: "Repaired" });
     await failIntents(second.id);
-    await expect(update(second.id, { title: "Broken" })).rejects.toThrow(
+    await expect(update(prisma, second.id, { title: "Broken" })).rejects.toThrow(
       "injected intent insertion failure",
     );
     const unchanged = await prisma.post.findUniqueOrThrow({ where: { id: second.id } });
@@ -110,7 +114,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("atomic Post consequences",
     const prior = await jobs();
     expect(prior.data.filter((job) => job.kind === JobKind.EMBED)).toHaveLength(1);
     expect(prior.data.filter((job) => job.kind === JobKind.TRIGGER_DEPLOY)).toHaveLength(1);
-    await update(first.id, { tags: ["Tag"], title: "Repaired" });
+    await update(prisma, first.id, { tags: ["Tag"], title: "Repaired" });
     const unchangedJobs = await jobs();
     expect(unchangedJobs.data).toHaveLength(3);
   });

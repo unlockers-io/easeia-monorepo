@@ -1,5 +1,5 @@
 import { generateStructured } from "@repo/ai";
-import { Niche, prisma } from "@repo/db";
+import { Niche, type PrismaClient } from "@repo/db";
 import { stripHtml, update } from "@repo/posts";
 import { z } from "zod";
 
@@ -68,6 +68,7 @@ export type ClassifyContentResult = {
 };
 
 export const classifyContent = async (
+  prisma: PrismaClient,
   input: ClassifyContentInput,
 ): Promise<ClassifyContentResult> => {
   const body = stripHtml(input.body).slice(0, MAX_BODY_CHARS);
@@ -79,12 +80,13 @@ export const classifyContent = async (
     title: input.title,
   });
 
-  const output = await generateStructured({ prompt, schema });
+  const output = await generateStructured(prisma, { prompt, schema });
 
   return { niches: output.niches, tags: output.tags };
 };
 
 export const classifyPost = async (
+  prisma: PrismaClient,
   postId: string,
   classify: typeof classifyContent = classifyContent,
 ): Promise<void> => {
@@ -97,7 +99,7 @@ export const classifyPost = async (
     return;
   }
 
-  const result = await classify({
+  const result = await classify(prisma, {
     body: post.body,
     siteDomain: post.site.domain,
     siteNiches: post.site.niches,
@@ -105,5 +107,5 @@ export const classifyPost = async (
   });
 
   const mergedTags = mergeTags(post.tags, result.tags);
-  await update(postId, { niches: result.niches, tags: mergedTags });
+  await update(prisma, postId, { niches: result.niches, tags: mergedTags });
 };

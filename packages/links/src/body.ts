@@ -1,4 +1,4 @@
-import { type Prisma, prisma, type SiteLanguage } from "@repo/db";
+import type { Prisma, PrismaClient, SiteLanguage } from "@repo/db";
 import { reviseBody } from "@repo/posts";
 
 type EditablePost = {
@@ -12,6 +12,7 @@ type EditablePost = {
 type BodyEdit<T> = (post: EditablePost) => Promise<{ body: string; result: T }>;
 
 export const editPostBody = async <T>(
+  prisma: PrismaClient,
   postId: string,
   edit: BodyEdit<T>,
   tx?: Prisma.TransactionClient,
@@ -34,7 +35,7 @@ export const editPostBody = async <T>(
   const { body, result } = await edit({ ...rest, domain: site.domain, language: site.language });
 
   if (body !== post.body) {
-    await reviseBody(postId, { body, from: post.body }, tx);
+    await reviseBody(prisma, postId, { body, from: post.body }, tx);
   }
 
   return result;

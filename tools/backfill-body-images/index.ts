@@ -2,8 +2,10 @@
 // require an explicit limit or --all. See README.md for dry-run instructions.
 import "dotenv/config";
 
-import { JobKind, type Prisma, prisma } from "@repo/db";
+import { JobKind, type Prisma, createPrismaClient } from "@repo/db";
 import { enqueue } from "@repo/jobs";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const COST_PER_POST_USD = 0.17;
 
@@ -85,7 +87,7 @@ const main = async (): Promise<number> => {
 
   for (const post of posts) {
     try {
-      await enqueue({
+      await enqueue(prisma, {
         kind: JobKind.GENERATE_BODY_IMAGES,
         payload: { postId: post.id },
         postId: post.id,

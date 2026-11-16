@@ -1,5 +1,5 @@
 import { assertAiConfigured } from "@repo/ai";
-import { BackfillKind, JobKind, PostStatus, prisma } from "@repo/db";
+import { BackfillKind, JobKind, PostStatus } from "@repo/db";
 
 import { completed, createBackfill } from "./backfill";
 import { enqueuePostMember } from "./members";
@@ -13,7 +13,7 @@ export const networkBackfill = createBackfill({
   }),
   kind: BackfillKind.NETWORK,
   label: "network backfill",
-  members: async () => {
+  members: async (prisma) => {
     assertAiConfigured();
 
     const posts = await prisma.post.findMany({

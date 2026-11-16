@@ -1,4 +1,4 @@
-import { LinkSource, LinkType, prisma } from "@repo/db";
+import { LinkSource, LinkType, type PrismaClient } from "@repo/db";
 import { normalizeBody } from "@repo/posts";
 
 import { editPostBody } from "./body";
@@ -18,6 +18,7 @@ const MAX_ANCHOR_LENGTH = 500;
 const MAX_URL_LENGTH = 2000;
 
 const resolveToPostIds = async (
+  prisma: PrismaClient,
   classified: ReadonlyArray<ClassifiedLink>,
 ): Promise<Array<ResolvedLink>> => {
   const candidatesBySite = new Map<string, Set<string>>();
@@ -59,14 +60,18 @@ const resolveToPostIds = async (
   }));
 };
 
-const resolveBodyLinks = async (post: {
-  body: string;
-  domain: string;
-  siteId: string;
-}): Promise<Array<ResolvedLink>> => {
+const resolveBodyLinks = async (
+  prisma: PrismaClient,
+  post: {
+    body: string;
+    domain: string;
+    siteId: string;
+  },
+): Promise<Array<ResolvedLink>> => {
   const network = await prisma.site.findMany({ select: { domain: true, id: true } });
 
   return resolveToPostIds(
+    prisma,
     classifyLinks({
       base: `https://${post.domain}`,
       links: extractLinks(post.body),
@@ -77,7 +82,10 @@ const resolveBodyLinks = async (post: {
   );
 };
 
-export const crawlPost = async (postId: string): Promise<CrawlSummary | null> => {
+export const crawlPost = async (
+  prisma: PrismaClient,
+  postId: string,
+): Promise<CrawlSummary | null> => {
   const post = await prisma.post.findUnique({
     include: { site: { select: { domain: true } } },
     where: { id: postId },
@@ -87,7 +95,7 @@ export const crawlPost = async (postId: string): Promise<CrawlSummary | null> =>
     return null;
   }
 
-  const resolved = await resolveBodyLinks({ ...post, domain: post.site.domain });
+  const resolved = await resolveBodyLinks(prisma, { ...post, domain: post.site.domain });
 
   const rows = resolved.map((link) => ({
     anchorText: link.anchorText.slice(0, MAX_ANCHOR_LENGTH),
@@ -127,14 +135,15 @@ export const crawlPost = async (postId: string): Promise<CrawlSummary | null> =>
 };
 
 export const pruneFabricatedLinks = async (
+  prisma: PrismaClient,
   postId: string,
 ): Promise<{ stripped: Array<string> }> => {
-  const stripped = await editPostBody(postId, async (post) => {
+  const stripped = await editPostBody(prisma, postId, async (post) => {
     if (post.body === "") {
       return { body: post.body, result: [] };
     }
 
-    const bad = fabricatedHrefs(await resolveBodyLinks(post));
+    const bad = fabricatedHrefs(await resolveBodyLinks(prisma, post));
 
     if (bad.size === 0) {
       return { body: post.body, result: [] };

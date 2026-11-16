@@ -16,6 +16,7 @@ import {
 import { CheckCircle2, ExternalLink, Plug, Unplug } from "lucide-react";
 
 import { getSession } from "@/lib/auth-helpers";
+import { getPrisma } from "@/lib/db";
 
 import { Banner } from "./banner";
 import { IntegrationsCard } from "./integrations";
@@ -23,7 +24,7 @@ import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 
 const ConnectionCard = async ({ userId }: { userId: string }) => {
-  const connection = await loadConnection(userId);
+  const connection = await loadConnection(getPrisma(), userId);
 
   if (!connection) {
     return (
@@ -59,7 +60,7 @@ const ConnectionCard = async ({ userId }: { userId: string }) => {
   let errorMessage: string | null = null;
 
   try {
-    const sites = await listVerifiedSites(userId);
+    const sites = await listVerifiedSites(getPrisma(), userId);
     verifiedCount = sites.length;
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : String(error);

@@ -5,6 +5,8 @@ import { apiKeySummarySchema, createApiKey, listApiKeys, revokeApiKey } from "@r
 import { errorResponse, idParamSchema, jsonResponse, okSchema } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 type RouteDependencies = Guards & {
   createKey: typeof createApiKey;
   listKeys: typeof listApiKeys;
@@ -47,7 +49,9 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
     tags: ["API Keys"],
   });
 
-  apiKeyRoutes.openapi(listApiKeysRoute, async (c) => c.json({ data: await deps.listKeys() }, 200));
+  apiKeyRoutes.openapi(listApiKeysRoute, async (c) =>
+    c.json({ data: await deps.listKeys(prisma) }, 200),
+  );
 
   const createApiKeyRoute = createRoute({
     middleware: [deps.requirePermission("api-keys:write")],
@@ -76,7 +80,7 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
   });
 
   apiKeyRoutes.openapi(createApiKeyRoute, async (c) => {
-    const issued = await deps.createKey(c.req.valid("json"));
+    const issued = await deps.createKey(prisma, c.req.valid("json"));
     await deps.audit(c, {
       action: "apikey.create",
       meta: { scopes: issued.scopes },
@@ -106,7 +110,7 @@ const createApiKeyRoutes = (deps: RouteDependencies) => {
 
   apiKeyRoutes.openapi(revokeApiKeyRoute, async (c) => {
     const { id } = c.req.valid("param");
-    await deps.revokeKey(id);
+    await deps.revokeKey(prisma, id);
     await deps.audit(c, { action: "apikey.revoke", target: `apikey:${id}` });
 
     return c.json({ ok: true as const }, 200);

@@ -1,6 +1,7 @@
-import { prisma, vectorLiteral } from "@repo/db";
+import { type PrismaClient, vectorLiteral } from "@repo/db";
 
 export const recordEmbedding = async (
+  prisma: PrismaClient,
   postId: string,
   vector: ReadonlyArray<number>,
 ): Promise<void> => {
@@ -20,7 +21,11 @@ export type SimilarPost = {
   title: string;
 };
 
-export const findSimilar = async (postId: string, limit: number): Promise<Array<SimilarPost>> => {
+export const findSimilar = async (
+  prisma: PrismaClient,
+  postId: string,
+  limit: number,
+): Promise<Array<SimilarPost>> => {
   const rows = await prisma.$queryRaw<
     Array<{
       domain: string;
@@ -52,7 +57,7 @@ export const findSimilar = async (postId: string, limit: number): Promise<Array<
   }));
 };
 
-export const hasEmbedding = async (postId: string): Promise<boolean> => {
+export const hasEmbedding = async (prisma: PrismaClient, postId: string): Promise<boolean> => {
   const rows = await prisma.$queryRaw<Array<{ has: boolean }>>`
     SELECT (embedding IS NOT NULL) AS has FROM "Post" WHERE id = ${postId}
   `;

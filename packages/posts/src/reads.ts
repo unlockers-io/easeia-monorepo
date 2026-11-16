@@ -1,13 +1,10 @@
 import { postListQuerySchema, type PostListQueryInput } from "@repo/api-types";
-import { pageOf, type Post, type Prisma, prisma } from "@repo/db";
+import { pageOf, type Post, type Prisma, type PrismaClient } from "@repo/db";
 
 import { PostNotFoundError } from "./errors";
 import { parseOrThrow } from "./parse";
 
-export const requirePost = async (
-  id: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Post> => {
+export const requirePost = async (tx: Prisma.TransactionClient, id: string): Promise<Post> => {
   const post = await tx.post.findUnique({ where: { id } });
 
   if (!post) {
@@ -22,7 +19,10 @@ type ListResult = {
   meta: { nextCursor: string | undefined };
 };
 
-export const list = async (input: PostListQueryInput): Promise<ListResult> => {
+export const list = async (
+  prisma: PrismaClient,
+  input: PostListQueryInput,
+): Promise<ListResult> => {
   const { cursor, limit, niche, q, siteId, sort, status } = parseOrThrow(
     postListQuerySchema,
     input,
@@ -64,9 +64,9 @@ export const list = async (input: PostListQueryInput): Promise<ListResult> => {
   return { data, meta: { nextCursor } };
 };
 
-export const get = (id: string): Promise<Post> => requirePost(id);
+export const get = (prisma: PrismaClient, id: string): Promise<Post> => requirePost(prisma, id);
 
-export const detail = (postId: string) =>
+export const detail = (prisma: PrismaClient, postId: string) =>
   prisma.post.findUnique({
     include: {
       site: { include: { moneySite: { select: { domain: true } } } },

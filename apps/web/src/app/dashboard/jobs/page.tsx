@@ -21,6 +21,7 @@ import { connection } from "next/server";
 import { SkeletonSuspense } from "skullet/react";
 
 import { JobKindBadge, JobStatusBadge } from "@/components/job-status-badge";
+import { getPrisma } from "@/lib/db";
 
 type JobsTableRow = JobRow & {
   attempts: number;
@@ -41,7 +42,7 @@ const SAMPLE_JOBS: ReadonlyArray<JobsTableRow> = ["a", "b", "c", "d", "e", "f"].
 
 const JobsTable = async () => {
   await connection();
-  const { data: jobs } = await listJobs({ limit: 100 });
+  const { data: jobs } = await listJobs(getPrisma(), { limit: 100 });
 
   return <JobsTableView jobs={jobs} />;
 };

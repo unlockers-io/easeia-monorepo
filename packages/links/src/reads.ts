@@ -1,4 +1,4 @@
-import { LinkType, PostStatus, type Prisma, prisma } from "@repo/db";
+import { LinkType, PostStatus, type Prisma, type PrismaClient } from "@repo/db";
 
 import { sourceDomainOf } from "./hosts";
 import { liveLinkSql, liveLinkWhere } from "./live";
@@ -13,6 +13,7 @@ const siteBacklinksWhere = (siteId: string) =>
   ({ ...pbnBacklinksWhere, toPost: { siteId } }) satisfies Prisma.LinkWhereInput;
 
 export const countInternalInboundLinks = async (
+  prisma: PrismaClient,
   postIds: ReadonlyArray<string>,
 ): Promise<Map<string, number>> => {
   if (postIds.length === 0) {
@@ -41,7 +42,7 @@ export const countInternalInboundLinks = async (
   return counts;
 };
 
-export const outboundLinks = (postId: string) =>
+export const outboundLinks = (prisma: PrismaClient, postId: string) =>
   prisma.link.findMany({
     include: { toPost: { select: { id: true, slug: true, title: true } } },
     orderBy: { position: "asc" },
@@ -57,10 +58,11 @@ export const linksTo = <L extends { toUrl: string }>(
   return links.filter((link) => sourceDomainOf(link.toUrl) === target);
 };
 
-export const countPbnBacklinks = (): Promise<number> =>
+export const countPbnBacklinks = (prisma: PrismaClient): Promise<number> =>
   prisma.link.count({ where: pbnBacklinksWhere });
 
 export const pbnBacklinkSummary = async (
+  prisma: PrismaClient,
   siteId: string,
 ): Promise<{ backlinks: number; referringPosts: number; referringSites: number }> => {
   const rows = await prisma.link.findMany({
@@ -75,7 +77,7 @@ export const pbnBacklinkSummary = async (
   };
 };
 
-export const recentPbnBacklinks = (siteId: string, limit: number) =>
+export const recentPbnBacklinks = (prisma: PrismaClient, siteId: string, limit: number) =>
   prisma.link.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -98,7 +100,9 @@ export type PbnEdge = { count: number; fromSiteId: string; toSiteId: string };
 
 export type MoneyEdge = { count: number; fromSiteId: string; moneySiteId: string };
 
-export const networkLinkEdges = async (): Promise<{
+export const networkLinkEdges = async (
+  prisma: PrismaClient,
+): Promise<{
   moneyEdges: Array<MoneyEdge>;
   pbnEdges: Array<PbnEdge>;
 }> => {

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { SkeletonSuspense } from "skullet/react";
 
+import { getPrisma } from "@/lib/db";
+
 import { CreateMoneySiteForm } from "./create-money-site-form";
 import { RecrawlMoneySiteButton } from "./recrawl-money-site-button";
 
@@ -28,7 +30,7 @@ const SAMPLE_MONEY_SITES: ReadonlyArray<MoneySiteRow> = ["a", "b", "c"].map((id)
 const MoneySitesList = async () => {
   await connection();
 
-  return <MoneySitesListView items={await listMoneySites()} />;
+  return <MoneySitesListView items={await listMoneySites(getPrisma())} />;
 };
 
 const MoneySitesListView = ({ items }: { items: ReadonlyArray<MoneySiteRow> }) => {

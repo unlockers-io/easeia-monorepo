@@ -2,6 +2,7 @@ import { exchangeCode, GoogleAuthError, storeConnection } from "@repo/search-con
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getSession } from "@/lib/auth-helpers";
+import { getPrisma } from "@/lib/db";
 import { buildRedirectUri, stateCookieName } from "@/lib/google-oauth";
 
 const decodeIdTokenEmail = (idToken: string | null | undefined): string | null => {
@@ -78,7 +79,7 @@ export const GET = async (req: NextRequest) => {
 
   try {
     const tokens = await exchangeCode({ code, redirectUri });
-    await storeConnection({
+    await storeConnection(getPrisma(), {
       googleEmail: decodeIdTokenEmail(tokens.id_token),
       tokens,
       userId: session.user.id,

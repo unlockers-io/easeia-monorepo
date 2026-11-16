@@ -16,12 +16,13 @@ import {
 } from "@repo/ui/components/table";
 import Link from "next/link";
 
+import { getPrisma } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { readIntegrations } from "@/lib/integrations";
 
 export const IntegrationsCard = async () => {
   const integrations = readIntegrations();
-  const sites = await Sites.list();
+  const sites = await Sites.list(getPrisma());
   const ready = sites.filter(Sites.hasDeployHook).length;
 
   return (

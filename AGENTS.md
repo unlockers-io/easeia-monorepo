@@ -67,7 +67,7 @@ tests/          # cross-app Playwright e2e specs
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `@repo/ui`                                                     | Shared React components (Tailwind + CVA). TanStack Form fields (`Field`, `FieldGroup`, etc.).       |
 | `@repo/auth`                                                   | Better Auth config. Exports `./server` (web and tools) and `./client` (web).                        |
-| `@repo/db`                                                     | Prisma client singleton + schema.                                                                   |
+| `@repo/db`                                                     | Prisma schema and `createPrismaClient(databaseUrl)`; each process builds one client and passes it.  |
 | `@repo/blob`                                                   | Cloudflare R2 helpers (S3-compatible): upload, delete, URL resolution.                              |
 | `@repo/errors`                                                 | `DomainError`, the base of every error a Channel maps to a response.                                |
 | `@repo/sites`                                                  | Site aggregate: sole writer (every patch validated), gates, `ensure`, public projection, redeploy.  |

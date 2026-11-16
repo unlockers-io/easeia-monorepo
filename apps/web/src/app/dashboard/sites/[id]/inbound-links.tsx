@@ -16,10 +16,12 @@ import {
 } from "@repo/ui/components/table";
 import Link from "next/link";
 
+import { getPrisma } from "@/lib/db";
+
 const LIMIT = 50;
 
 export const InboundLinksCard = async ({ siteId }: { siteId: string }) => {
-  const links = await recentPbnBacklinks(siteId, LIMIT);
+  const links = await recentPbnBacklinks(getPrisma(), siteId, LIMIT);
 
   return (
     <Card>

@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { generateStructured } from "@repo/ai";
+import { createPrismaClient } from "@repo/db";
 import {
   buildRewritePrompt,
   EVAL_CASES,
@@ -9,6 +10,8 @@ import {
   type EvalCase,
 } from "@repo/rewrite";
 import { z } from "zod";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const argv = process.argv.slice(2);
 const langFilter = argv.find((a) => a.startsWith("--lang="))?.slice("--lang=".length);
@@ -47,7 +50,7 @@ const runCase = async (
     siteNiches: ["WEDDING"],
   });
 
-  const rewrite = await generateStructured({ prompt, schema: rewriteOutputSchema });
+  const rewrite = await generateStructured(prisma, { prompt, schema: rewriteOutputSchema });
 
   const gradingPrompt = [
     "You are grading a blog post rewrite against a checklist.",
@@ -63,7 +66,7 @@ const runCase = async (
     ...evalCase.assertions.map((a, i) => `${i + 1}. ${a.description}`),
   ].join("\n");
 
-  const grading = await generateStructured({
+  const grading = await generateStructured(prisma, {
     prompt: gradingPrompt,
     schema: buildGradingSchema(evalCase.assertions.length),
   });

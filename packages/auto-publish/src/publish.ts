@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import type { PrismaClient } from "@repo/db";
 import { DomainError } from "@repo/errors";
 import * as Posts from "@repo/posts";
 
@@ -17,23 +17,26 @@ export type PublishDueResult = {
   skipped: Array<Skipped>;
 };
 
-export const publishDraft = async (postId: string): Promise<void> => {
-  await Posts.publishBucketDraft(postId);
+export const publishDraft = async (prisma: PrismaClient, postId: string): Promise<void> => {
+  await Posts.publishBucketDraft(prisma, postId);
 };
 
-export const publishNext = async (siteId: string): Promise<Published | null> => {
-  const draft = await nextDraft(siteId);
+export const publishNext = async (
+  prisma: PrismaClient,
+  siteId: string,
+): Promise<Published | null> => {
+  const draft = await nextDraft(prisma, siteId);
 
   if (draft === null) {
     return null;
   }
 
-  await publishDraft(draft.id);
+  await publishDraft(prisma, draft.id);
 
   return { postId: draft.id, siteId };
 };
 
-const findDue = async (now: Date) => {
+const findDue = async (prisma: PrismaClient, now: Date) => {
   const sites = await prisma.site.findMany({
     select: { autoPublishEnabled: true, cadenceDays: true, id: true, lastAutoPublishedAt: true },
     where: {
@@ -47,9 +50,9 @@ const findDue = async (now: Date) => {
   return sites.filter((site) => isDue(site, now));
 };
 
-export const publishDue = async (now: Date): Promise<PublishDueResult> => {
-  const sites = await findDue(now);
-  const settled = await Promise.allSettled(sites.map((site) => publishNext(site.id)));
+export const publishDue = async (prisma: PrismaClient, now: Date): Promise<PublishDueResult> => {
+  const sites = await findDue(prisma, now);
+  const settled = await Promise.allSettled(sites.map((site) => publishNext(prisma, site.id)));
   const result: PublishDueResult = { failed: [], published: [], skipped: [] };
 
   for (const [index, outcome] of settled.entries()) {

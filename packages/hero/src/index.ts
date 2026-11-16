@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@repo/db";
 import * as Posts from "@repo/posts";
 
 import { generatePostImage } from "./generate-image";
@@ -141,12 +142,14 @@ type GenerateHeroPost = {
 type GenerateHeroDeps = GeneratePostImageDeps & { setHero?: typeof Posts.setHero };
 
 export const generateHero = async (
+  prisma: PrismaClient,
   input: { post: GenerateHeroPost; site: { imageStyle: string | null } },
   { setHero = Posts.setHero, ...imageDeps }: GenerateHeroDeps = {},
 ): Promise<void> => {
   const filename = `${input.post.slug}.jpg`;
 
   const image = await generatePostImage(
+    prisma,
     {
       filename,
       post: { id: input.post.id, siteId: input.post.siteId },
@@ -155,7 +158,7 @@ export const generateHero = async (
     imageDeps,
   );
 
-  await setHero(input.post.id, {
+  await setHero(prisma, input.post.id, {
     blobKey: image.key,
     blobUrl: image.url,
     filename,

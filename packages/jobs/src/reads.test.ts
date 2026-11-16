@@ -1,7 +1,9 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { findLatestJobByPost } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("findLatestJobByPost", () => {
   const run = `reads-${Date.now().toString(36)}`;
@@ -28,7 +30,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("findLatestJobByPost", () =
     const latest = await job(new Date(Date.now() - 30_000), JobStatus.FAILED);
     await job(new Date(), JobStatus.DONE, JobKind.CRAWL_LINKS);
 
-    const jobs = await findLatestJobByPost(JobKind.PUBLISH, [busy.id, idle.id]);
+    const jobs = await findLatestJobByPost(prisma, JobKind.PUBLISH, [busy.id, idle.id]);
 
     expect(jobs.get(busy.id)?.id).toBe(latest.id);
     expect(jobs.has(idle.id)).toBe(false);

@@ -1,12 +1,14 @@
+import type { PrismaClient } from "@repo/db";
+
 import { refillAll, type Refill } from "./bucket";
 import { publishDue, type PublishDueResult } from "./publish";
 
 export type TickResult = Omit<PublishDueResult, "failed"> & { refills: Array<Refill> };
 
-export const tick = async (now = new Date()): Promise<TickResult> => {
-  const { failed, ...published } = await publishDue(now);
+export const tick = async (prisma: PrismaClient, now = new Date()): Promise<TickResult> => {
+  const { failed, ...published } = await publishDue(prisma, now);
   // oxlint-disable-next-line react-doctor/server-sequential-independent-await -- not independent: refillAll counts the bucket drafts publishDue just claimed
-  const refills = await refillAll();
+  const refills = await refillAll(prisma);
 
   if (failed.length > 0) {
     throw new AggregateError(

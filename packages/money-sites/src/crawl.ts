@@ -1,6 +1,6 @@
 import { AiNotConfiguredError, embedDocument } from "@repo/ai";
 import { classifyContent, type ClassifyContentResult } from "@repo/classify";
-import { JobKind, prisma, vectorLiteral } from "@repo/db";
+import { JobKind, type PrismaClient, vectorLiteral } from "@repo/db";
 import { enqueue, type EnqueueInput, type RunTarget } from "@repo/jobs";
 
 import { extractPageContent } from "./extract";
@@ -20,6 +20,7 @@ type CrawlSitemapResult = {
 };
 
 export const crawlSitemap = async (
+  prisma: PrismaClient,
   moneySiteId: string,
   run?: Omit<RunTarget, "member">,
 ): Promise<CrawlSitemapResult> => {
@@ -61,7 +62,7 @@ export const crawlSitemap = async (
         job.run = { ...run, member: page.id };
       }
 
-      await enqueue(job, tx);
+      await enqueue(tx, job);
     }
 
     return { discovered: allUrls.length, enqueued: pages.length, upserted };
@@ -73,7 +74,10 @@ export type CrawlPageResult = {
   embedded: boolean;
 };
 
-export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResult> => {
+export const crawlPage = async (
+  prisma: PrismaClient,
+  moneySitePageId: string,
+): Promise<CrawlPageResult> => {
   const page = await prisma.moneySitePage.findUnique({
     include: { moneySite: true },
     where: { id: moneySitePageId },
@@ -103,7 +107,7 @@ export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResul
   let classified: ClassifyContentResult | null = null;
 
   try {
-    classified = await classifyContent({
+    classified = await classifyContent(prisma, {
       body: bodyText.slice(0, MAX_BODY_CHARS),
       siteDomain: page.moneySite.domain,
       siteNiches: [],
@@ -118,7 +122,7 @@ export const crawlPage = async (moneySitePageId: string): Promise<CrawlPageResul
   let embedding: Array<number> | null = null;
 
   try {
-    embedding = await embedDocument(title, bodyText);
+    embedding = await embedDocument(prisma, title, bodyText);
   } catch (error) {
     if (!(error instanceof AiNotConfiguredError)) {
       throw error;

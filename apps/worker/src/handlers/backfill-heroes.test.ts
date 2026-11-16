@@ -1,6 +1,17 @@
-import { JobKind, PostStatus, prisma } from "@repo/db";
-import { countJobs } from "@repo/jobs";
 import { afterAll, describe, expect, it, vi } from "vitest";
+
+vi.hoisted(() => {
+  Object.assign(process.env, {
+    DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://test:test@localhost:5440/easeia_test",
+    REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6381",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
+  });
+});
+
+import { JobKind, PostStatus } from "@repo/db";
+import { countJobs } from "@repo/jobs";
+
+import { prisma } from "../lib/db";
 
 import { handleBackfillHeroes } from "./backfill-heroes";
 
@@ -43,7 +54,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("handleBackfillHeroes", () 
 
     await handleBackfillHeroes({ jobId: "j", log, payload: {} });
 
-    expect(await countJobs({ kinds: [JobKind.GENERATE_IMAGE], postId: heroless.id })).toBe(1);
-    expect(await countJobs({ kinds: [JobKind.GENERATE_IMAGE], siteId })).toBe(1);
+    expect(await countJobs(prisma, { kinds: [JobKind.GENERATE_IMAGE], postId: heroless.id })).toBe(
+      1,
+    );
+    expect(await countJobs(prisma, { kinds: [JobKind.GENERATE_IMAGE], siteId })).toBe(1);
   });
 });

@@ -9,13 +9,14 @@ import {
 import { connection } from "next/server";
 
 import { SiteCreateDialog } from "@/components/site-create-dialog";
+import { getPrisma } from "@/lib/db";
 
 import { NewPostForm } from "./new-post-form";
 
 const NewPostPage = async () => {
   await connection();
 
-  const sites = await Sites.listEnabled();
+  const sites = await Sites.listEnabled(getPrisma());
 
   if (sites.length === 0) {
     return (

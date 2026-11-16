@@ -1,4 +1,4 @@
-import { type Link, LinkSource, LinkType, prisma } from "@repo/db";
+import { type Link, LinkSource, LinkType, type PrismaClient } from "@repo/db";
 import { postPublicUrl } from "@repo/sites";
 
 const INTERNAL_LIMIT = 5;
@@ -27,7 +27,12 @@ type Row = {
   title: string;
 };
 
-const query = async (refId: string, sameSite: boolean, limit: number): Promise<Array<Target>> => {
+const query = async (
+  prisma: PrismaClient,
+  refId: string,
+  sameSite: boolean,
+  limit: number,
+): Promise<Array<Target>> => {
   const op = sameSite ? "=" : "<>";
 
   const rows = await prisma.$queryRawUnsafe<Array<Row>>(
@@ -85,10 +90,13 @@ const suggestionRow = (fromPostId: string, target: Target, type: LinkType, sugge
   type,
 });
 
-export const suggestForPost = async (postId: string): Promise<SuggestResult> => {
+export const suggestForPost = async (
+  prisma: PrismaClient,
+  postId: string,
+): Promise<SuggestResult> => {
   const [internal, pbn, existing] = await Promise.all([
-    query(postId, true, INTERNAL_LIMIT * 2),
-    query(postId, false, PBN_LIMIT * 2),
+    query(prisma, postId, true, INTERNAL_LIMIT * 2),
+    query(prisma, postId, false, PBN_LIMIT * 2),
     prisma.link.findMany({
       select: { toPostId: true },
       where: {
@@ -123,7 +131,11 @@ export const suggestForPost = async (postId: string): Promise<SuggestResult> => 
   return { internal: internalFinal.length, pbn: pbnFinal.length };
 };
 
-export const suggestLink = async (fromPostId: string, toPostId: string): Promise<Link> => {
+export const suggestLink = async (
+  prisma: PrismaClient,
+  fromPostId: string,
+  toPostId: string,
+): Promise<Link> => {
   const pending = await prisma.link.findFirst({
     where: { approved: null, fromPostId, source: LinkSource.SUGGESTED, toPostId },
   });

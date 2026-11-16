@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { ApiKeyCreate } from "@repo/api-types";
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -14,9 +14,11 @@ import {
   type Actor,
 } from "./index";
 
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
+
 const issueActor = async (input: ApiKeyCreate) => {
-  const issued = await createApiKey(input);
-  const actor = await authenticate(`Bearer ${issued.token}`);
+  const issued = await createApiKey(prisma, input);
+  const actor = await authenticate(prisma, `Bearer ${issued.token}`);
 
   if (actor === null) {
     throw new Error("expected an API key actor");
@@ -26,7 +28,7 @@ const issueActor = async (input: ApiKeyCreate) => {
 };
 
 const findListed = async (id: string) => {
-  const keys = await listApiKeys();
+  const keys = await listApiKeys(prisma);
 
   return keys.find((key) => key.id === id);
 };
@@ -69,15 +71,15 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
   });
 
   it("rejects an unknown key", async () => {
-    await expect(authenticate("Bearer easeia_live_doesnotexist")).rejects.toMatchObject({
+    await expect(authenticate(prisma, "Bearer easeia_live_doesnotexist")).rejects.toMatchObject({
       httpStatus: 401,
       message: "Invalid API key",
     });
   });
 
   it("leaves credentials that are not API keys to the session lookup", async () => {
-    await expect(authenticate(undefined)).resolves.toBeNull();
-    await expect(authenticate("Bearer better-auth-session-token")).resolves.toBeNull();
+    await expect(authenticate(prisma, undefined)).resolves.toBeNull();
+    await expect(authenticate(prisma, "Bearer better-auth-session-token")).resolves.toBeNull();
   });
 
   it("denies an action outside the key's scopes", async () => {
@@ -105,7 +107,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
   });
 
   it("creates, lists and revokes a key, storing only the token's sha256", async () => {
-    const issued = await createApiKey({
+    const issued = await createApiKey(prisma, {
       name: `  ${run} n8n  `,
       scopes: ["posts:read", "jobs:read"],
     });
@@ -127,26 +129,28 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
       siteId: null,
     });
 
-    await revokeApiKey(issued.id);
+    await revokeApiKey(prisma, issued.id);
 
     const revoked = await findListed(issued.id);
     expect(revoked?.revokedAt).toBeInstanceOf(Date);
-    await expect(authenticate(`Bearer ${issued.token}`)).rejects.toMatchObject({
+    await expect(authenticate(prisma, `Bearer ${issued.token}`)).rejects.toMatchObject({
       httpStatus: 401,
     });
   });
 
   it("refuses a Site-scoped key without a Site", async () => {
     await expect(
-      createApiKey({ name: `${run} unbound build`, scopes: ["content:read"] }),
+      createApiKey(prisma, { name: `${run} unbound build`, scopes: ["content:read"] }),
     ).rejects.toThrow("Pick a site");
   });
 
   it("refuses an unknown scope instead of dropping it", async () => {
     const input = { name: `${run} billing`, scopes: ["posts:read", "billing:write"] };
 
-    await expect(createApiKey(input as unknown as ApiKeyCreate)).rejects.toThrow("Invalid option");
-    const keys = await listApiKeys();
+    await expect(createApiKey(prisma, input as unknown as ApiKeyCreate)).rejects.toThrow(
+      "Invalid option",
+    );
+    const keys = await listApiKeys(prisma);
     expect(keys.some((key) => key.name === input.name)).toBe(false);
   });
 
@@ -158,12 +162,12 @@ describe.runIf(process.env.TEST_DATABASE === "true")("access module on Postgres"
       scopes: ["posts:write"],
     });
 
-    await recordAudit(admin, {
+    await recordAudit(prisma, admin, {
       action: "site.update",
       meta: { moneySiteId: "m1" },
       target: `site:${run}`,
     });
-    await recordAudit(apiActor, { action: "post.publish", target: `post:${run}` });
+    await recordAudit(prisma, apiActor, { action: "post.publish", target: `post:${run}` });
 
     const rows = await prisma.auditLog.findMany({
       orderBy: { createdAt: "asc" },

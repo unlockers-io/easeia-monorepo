@@ -22,6 +22,8 @@ import {
 } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 const { audit, requirePermission } = guards;
 
 const app = createProtectedRouter(guards);
@@ -38,7 +40,7 @@ app.openapi(
     tags: ["Money Sites"],
   }),
   async (c) => {
-    const sites = await listMoneySites();
+    const sites = await listMoneySites(prisma);
 
     return c.json({ data: sites }, 200);
   },
@@ -58,7 +60,7 @@ app.openapi(
     tags: ["Money Sites"],
   }),
   async (c) => {
-    const site = await createMoneySite(c.req.valid("json"));
+    const site = await createMoneySite(prisma, c.req.valid("json"));
     await audit(c, { action: "moneysite.create", target: `moneysite:${site.id}` });
 
     return c.json({ data: site }, 201);
@@ -81,7 +83,7 @@ app.openapi(
   }),
   async (c) => {
     const id = c.req.valid("param").id;
-    const site = await updateMoneySite(id, c.req.valid("json"));
+    const site = await updateMoneySite(prisma, id, c.req.valid("json"));
     await audit(c, { action: "moneysite.update", target: `moneysite:${id}` });
 
     return c.json({ data: site }, 200);
@@ -101,7 +103,7 @@ app.openapi(
   }),
   async (c) => {
     const id = c.req.valid("param").id;
-    await deleteMoneySite(id);
+    await deleteMoneySite(prisma, id);
     await audit(c, { action: "moneysite.delete", target: `moneysite:${id}` });
 
     return c.json({ ok: true as const }, 200);
@@ -122,7 +124,7 @@ app.openapi(
   async (c) => {
     const id = c.req.valid("param").id;
 
-    const job = await requestCrawl(id);
+    const job = await requestCrawl(prisma, id);
 
     await audit(c, { action: "moneysite.recrawl", target: `moneysite:${id}` });
 

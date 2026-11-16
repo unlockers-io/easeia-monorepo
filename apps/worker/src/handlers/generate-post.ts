@@ -1,5 +1,5 @@
 import { dataForSeo } from "@repo/dataforseo";
-import { JobKind, type Prisma, prisma, type SiteLanguage } from "@repo/db";
+import { JobKind, type Prisma, type SiteLanguage } from "@repo/db";
 import { enqueue, JobSkippedError } from "@repo/jobs";
 import { log as workerLog } from "@repo/observability";
 import * as Posts from "@repo/posts";
@@ -10,6 +10,7 @@ import {
   type SerpCompetitor,
 } from "@repo/rewrite";
 
+import { prisma } from "../lib/db";
 import { fetchTopSearchQueries } from "../lib/gsc-queries";
 import type { JobContext } from "../lib/job-log";
 
@@ -67,12 +68,12 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
     }
 
     const [anchors, recentTitles, searchQueries] = await Promise.all([
-      dependencies.selectAnchors({ niches: site.niches, siteId: site.id }),
+      dependencies.selectAnchors(prisma, { niches: site.niches, siteId: site.id }),
       dependencies.findRecentTitles(site.id),
       dependencies.fetchSearchQueries(site.domain),
     ]);
 
-    const topic = await dependencies.proposeTopic({
+    const topic = await dependencies.proposeTopic(prisma, {
       language: site.language,
       niches: site.niches,
       recentTitles,
@@ -93,7 +94,7 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
         ? `Angle for this post: ${topic.angle}`
         : `${site.topicHints}\nAngle for this post: ${topic.angle}`;
 
-    const generated = await dependencies.generatePost({
+    const generated = await dependencies.generatePost(prisma, {
       anchors,
       serpContext: { competitors, focusKeyword: topic.focusKeyword },
       site: {
@@ -105,7 +106,7 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
       topicHints,
     });
 
-    const { post } = await dependencies.createPost({
+    const { post } = await dependencies.createPost(prisma, {
       body: generated.body,
       categories: [generated.category],
       excerpt: generated.excerpt,
@@ -120,7 +121,7 @@ const createHandleGeneratePost = (dependencies: GeneratePostDependencies) =>
 
     // Retrying GENERATE_POST would create a second draft; publish records this intent again.
     try {
-      await dependencies.enqueueJob({
+      await dependencies.enqueueJob(prisma, {
         kind: JobKind.GENERATE_BODY_IMAGES,
         payload: { postId: post.id },
         postId: post.id,

@@ -4,6 +4,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { apiAuthMiddleware, requireAction, type AuthVariables } from "@/middleware/api-auth";
 import { apiRateLimit } from "@/middleware/security";
 
+import { prisma } from "./db";
 import { createRouter } from "./openapi";
 
 export type Guards = {
@@ -18,7 +19,7 @@ export type Guards = {
 
 export const guards: Guards = {
   apiAuth: apiAuthMiddleware,
-  audit: (c, entry) => Policy.recordAudit(c.get("actor"), entry),
+  audit: (c, entry) => Policy.recordAudit(prisma, c.get("actor"), entry),
   rateLimit: apiRateLimit,
   requirePermission: requireAction,
 };

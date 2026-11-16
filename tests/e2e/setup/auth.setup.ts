@@ -1,10 +1,10 @@
 import { mkdir } from "node:fs/promises";
 
 import { expect, test as setup } from "@playwright/test";
-import { prisma } from "@repo/db";
 
 import { verificationLink } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { prisma } from "../helpers/database";
 import { TEST_USER } from "../helpers/test-user";
 import { webUrl } from "../urls";
 

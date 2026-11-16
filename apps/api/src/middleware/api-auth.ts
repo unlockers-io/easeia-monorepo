@@ -5,6 +5,7 @@ import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 
 import { sessions } from "../lib/auth";
+import { prisma } from "../lib/db";
 
 export type AuthVariables = { actor: Actor };
 
@@ -28,7 +29,8 @@ const sessionActor = async (c: Context): Promise<Actor | null> => {
 };
 
 export const apiAuthMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-  const actor = (await authenticate(c.req.header("Authorization"))) ?? (await sessionActor(c));
+  const actor =
+    (await authenticate(prisma, c.req.header("Authorization"))) ?? (await sessionActor(c));
 
   if (!actor) {
     throw new HTTPException(401, { message: "Authentication required" });

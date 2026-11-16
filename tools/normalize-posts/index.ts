@@ -4,8 +4,10 @@
  */
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { normalizePostText, reviseBody } from "@repo/posts";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const APPLY = process.argv.includes("--apply");
 const BATCH_SIZE = 200;
@@ -63,7 +65,7 @@ const main = async (): Promise<void> => {
       }
 
       try {
-        await reviseBody(row.id, { ...text, from: row.body });
+        await reviseBody(prisma, row.id, { ...text, from: row.body });
       } catch (error) {
         failures.push(`${row.site.domain}/${row.slug}: ${String(error)}`);
       }
