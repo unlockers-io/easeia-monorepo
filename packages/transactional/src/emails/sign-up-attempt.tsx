@@ -11,6 +11,7 @@ type SignUpAttemptEmailProps = {
   signInUrl: string;
   userEmail: string;
   username?: string;
+  year: number;
 };
 
 const SignUpAttemptEmail = ({
@@ -18,9 +19,10 @@ const SignUpAttemptEmail = ({
   signInUrl,
   userEmail,
   username,
+  year,
 }: SignUpAttemptEmailProps) => {
   return (
-    <BaseLayout preview="A sign-up attempt was made with your Easeia account email">
+    <BaseLayout preview="A sign-up attempt was made with your Easeia account email" year={year}>
       <Heading className="mt-0 mb-4 text-2xl font-semibold tracking-tight text-balance break-words text-foreground">
         Did you try to sign up?
       </Heading>

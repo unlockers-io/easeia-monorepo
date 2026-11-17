@@ -161,7 +161,6 @@ const MoneySiteDetail = async ({ params }: { params: Promise<{ id: string }> }) 
     notFound();
   }
 
-  // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
 
   return <MoneySiteDetailView {...loaded} nowMs={nowMs} />;

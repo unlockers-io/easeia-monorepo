@@ -26,7 +26,7 @@ export const stripLinks = (markdown: string, hrefs: Iterable<string>): string =>
   for (const href of hrefs) {
     const link = new RegExp(`\\[([^\\]]+)\\]\\(${RegExp.escape(href)}(?:\\s+"[^"]*")?\\)`, "gv");
 
-    out = out.replace(link, (_full, text: string) => text);
+    out = out.replaceAll(link, (_full, text: string) => text);
   }
 
   return out;

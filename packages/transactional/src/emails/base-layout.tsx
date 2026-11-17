@@ -10,6 +10,7 @@ type BaseLayoutProps = {
   footerText?: string;
   preview: string;
   unsubscribeUrl?: string;
+  year: number;
 };
 
 const BaseLayout = ({
@@ -17,6 +18,7 @@ const BaseLayout = ({
   footerText = `You're receiving this email because you have an account with ${displayName}.`,
   preview,
   unsubscribeUrl,
+  year,
 }: BaseLayoutProps) => {
   return (
     <Html>
@@ -64,7 +66,7 @@ const BaseLayout = ({
               </Text>
 
               <Text className="m-0 text-xs text-muted-foreground">
-                © {new Date().getFullYear()}
+                © {year}
                 {` ${displayName}. All rights reserved.`}
               </Text>
             </Section>

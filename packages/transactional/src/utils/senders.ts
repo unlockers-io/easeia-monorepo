@@ -56,16 +56,13 @@ type TransactionalEmail =
 
 type EmailBuild = { subject: string; template: React.ReactElement; to: string };
 
-type TemplateBuilder<P> = (payload: P) => EmailBuild;
+type TemplateBuilder<P> = (payload: P, year: number) => EmailBuild;
 
 const TEMPLATES = {
-  "change-email-confirmation": ({
-    changeUrl,
-    currentEmail,
-    expiresInHours,
-    newEmail,
-    username,
-  }: ChangeEmailPayload) => ({
+  "change-email-confirmation": (
+    { changeUrl, currentEmail, expiresInHours, newEmail, username }: ChangeEmailPayload,
+    year: number,
+  ) => ({
     subject: "Confirm change of your Easeia account email",
     template: React.createElement(ChangeEmail, {
       changeUrl,
@@ -73,17 +70,14 @@ const TEMPLATES = {
       expiresInHours,
       newEmail,
       username,
+      year,
     }),
     to: currentEmail,
   }),
-  "password-reset": ({
-    browserInfo,
-    expiresInHours,
-    ipAddress,
-    resetUrl,
-    userEmail,
-    username,
-  }: PasswordResetPayload) => ({
+  "password-reset": (
+    { browserInfo, expiresInHours, ipAddress, resetUrl, userEmail, username }: PasswordResetPayload,
+    year: number,
+  ) => ({
     subject: "Reset your Easeia password",
     template: React.createElement(PasswordResetEmail, {
       browserInfo,
@@ -92,31 +86,35 @@ const TEMPLATES = {
       resetUrl,
       userEmail,
       username,
+      year,
     }),
     to: userEmail,
   }),
-  "sign-up-attempt": ({
-    resetPasswordUrl,
-    signInUrl,
-    userEmail,
-    username,
-  }: SignUpAttemptPayload) => ({
+  "sign-up-attempt": (
+    { resetPasswordUrl, signInUrl, userEmail, username }: SignUpAttemptPayload,
+    year: number,
+  ) => ({
     subject: "Sign-up attempt with your Easeia account",
     template: React.createElement(SignUpAttemptEmail, {
       resetPasswordUrl,
       signInUrl,
       userEmail,
       username,
+      year,
     }),
     to: userEmail,
   }),
-  welcome: ({ expiresInHours, userEmail, username, verificationUrl }: WelcomePayload) => ({
+  welcome: (
+    { expiresInHours, userEmail, username, verificationUrl }: WelcomePayload,
+    year: number,
+  ) => ({
     subject: `Welcome to Easeia${username !== undefined && username !== "" ? `, ${username}` : ""}! Please verify your email`,
     template: React.createElement(WelcomeEmail, {
       expiresInHours,
       userEmail,
       username,
       verificationUrl,
+      year,
     }),
     to: userEmail,
   }),
@@ -127,22 +125,22 @@ const TEMPLATES = {
   welcome: TemplateBuilder<WelcomePayload>;
 };
 
-const buildEmail = (email: TransactionalEmail): EmailBuild => {
+const buildEmail = (email: TransactionalEmail, year: number): EmailBuild => {
   switch (email.type) {
     case "change-email-confirmation": {
-      return TEMPLATES["change-email-confirmation"](email);
+      return TEMPLATES["change-email-confirmation"](email, year);
     }
 
     case "password-reset": {
-      return TEMPLATES["password-reset"](email);
+      return TEMPLATES["password-reset"](email, year);
     }
 
     case "sign-up-attempt": {
-      return TEMPLATES["sign-up-attempt"](email);
+      return TEMPLATES["sign-up-attempt"](email, year);
     }
 
     case "welcome": {
-      return TEMPLATES.welcome(email);
+      return TEMPLATES.welcome(email, year);
     }
 
     default: {
@@ -155,7 +153,7 @@ type SendEmail = typeof sendEmail;
 
 const createSendTransactionalEmail =
   (send: SendEmail) => (email: TransactionalEmail, config: MailerConfig) => {
-    const { subject, template, to } = buildEmail(email);
+    const { subject, template, to } = buildEmail(email, new Date().getFullYear());
 
     return send({
       from: config.from,

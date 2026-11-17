@@ -42,7 +42,7 @@ type AstroSourceValue = z.infer<typeof astroSourceValueSchema> | undefined;
 
 const invalidXmlChars = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gv;
 
-const stripInvalidXmlChars = (text: string): string => text.replace(invalidXmlChars, "");
+const stripInvalidXmlChars = (text: string): string => text.replaceAll(invalidXmlChars, "");
 
 const stripNulls = (value: AstroSourceValue): AstroDataValue => {
   if (value === null) {
@@ -119,7 +119,7 @@ const escapeAttr = (value: string): string =>
 const placeholderSchema = z.looseObject({ alt: z.string().default(""), src: z.string() });
 
 const restoreBodyImages = (html: string, images: BuildPost["images"]): string =>
-  html.replace(PLACEHOLDER_IMG, (_match, encoded: string) => {
+  html.replaceAll(PLACEHOLDER_IMG, (_match, encoded: string) => {
     let parsed: unknown;
 
     try {

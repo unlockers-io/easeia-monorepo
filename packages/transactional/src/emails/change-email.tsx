@@ -12,6 +12,7 @@ type ChangeEmailProps = {
   expiresInHours: number;
   newEmail: string;
   username?: string;
+  year: number;
 };
 
 const ChangeEmail = ({
@@ -20,9 +21,10 @@ const ChangeEmail = ({
   expiresInHours,
   newEmail,
   username,
+  year,
 }: ChangeEmailProps) => {
   return (
-    <BaseLayout preview="Confirm your new Easeia account email address.">
+    <BaseLayout preview="Confirm your new Easeia account email address." year={year}>
       <Heading className="mt-0 mb-4 text-2xl font-semibold tracking-tight text-balance break-words text-foreground">
         Confirm your new email
       </Heading>

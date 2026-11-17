@@ -14,6 +14,7 @@ type PasswordResetEmailProps = {
   resetUrl: string;
   userEmail: string;
   username?: string;
+  year: number;
 };
 
 const PasswordResetEmail = ({
@@ -23,9 +24,10 @@ const PasswordResetEmail = ({
   resetUrl,
   userEmail,
   username,
+  year,
 }: PasswordResetEmailProps) => {
   return (
-    <BaseLayout preview="Reset your Easeia password">
+    <BaseLayout preview="Reset your Easeia password" year={year}>
       <Heading className="mt-0 mb-4 text-2xl font-semibold tracking-tight text-balance break-words text-foreground">
         Reset your password
       </Heading>

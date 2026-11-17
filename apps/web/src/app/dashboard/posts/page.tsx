@@ -64,7 +64,6 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
 
   const domainOf = new Map(sites.map((site) => [site.id, site.domain]));
 
-  // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
 
   const rows: Array<PostRow> = posts.map((p) => {
