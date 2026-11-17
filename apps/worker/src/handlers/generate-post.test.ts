@@ -5,9 +5,11 @@ vi.hoisted(() => {
   Object.assign(process.env, {
     DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
     REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
 });
+
+import { prisma } from "../lib/db";
 
 import { createHandleGeneratePost, type GeneratePostDependencies } from "./generate-post";
 
@@ -85,7 +87,7 @@ describe("handleGeneratePost", () => {
 
     await handleGeneratePost({ jobId: "job_1", log, payload: { siteId: "site_a" } });
 
-    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ publish: false }));
+    expect(createPost).toHaveBeenCalledWith(prisma, expect.objectContaining({ publish: false }));
   });
 
   it("chains body images for the new draft", async () => {
@@ -110,7 +112,7 @@ describe("handleGeneratePost", () => {
 
     await handleGeneratePost({ jobId: "job_1", log, payload: { siteId: "site_a" } });
 
-    expect(enqueueJob).toHaveBeenCalledExactlyOnceWith({
+    expect(enqueueJob).toHaveBeenCalledExactlyOnceWith(prisma, {
       kind: "GENERATE_BODY_IMAGES",
       payload: { postId: "post_1" },
       postId: "post_1",
@@ -175,7 +177,7 @@ describe("handleGeneratePost", () => {
 
     await handleGeneratePost({ jobId: "job_3", log, payload: { siteId: "site_a" } });
 
-    expect(proposeTopic).toHaveBeenCalledWith({
+    expect(proposeTopic).toHaveBeenCalledWith(prisma, {
       language: "PT",
       niches: ["WEDDING"],
       recentTitles: ["Old post"],
@@ -188,6 +190,7 @@ describe("handleGeneratePost", () => {
       language: "PT",
     });
     expect(generatePost).toHaveBeenCalledWith(
+      prisma,
       expect.objectContaining({
         serpContext: {
           competitors: [{ description: "desc", title: "Competitor post" }],

@@ -4,10 +4,11 @@ vi.hoisted(() => {
   Object.assign(process.env, {
     DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
     REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
 });
 
+import { prisma } from "./db";
 import { makeEnsureHero, type EnsureHeroDeps } from "./ensure-hero";
 
 const post = { id: "p1", siteId: "s1", slug: "slug", tags: [], title: "T" };
@@ -25,7 +26,7 @@ describe("ensureHero", () => {
 
     await makeEnsureHero(deps)({ autogenEnabled: true, post, site });
 
-    expect(deps.generateHero).toHaveBeenCalledExactlyOnceWith({ post, site });
+    expect(deps.generateHero).toHaveBeenCalledExactlyOnceWith(prisma, { post, site });
   });
 
   it("publishes heroless when generation throws", async () => {

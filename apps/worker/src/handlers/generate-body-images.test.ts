@@ -8,6 +8,8 @@ vi.hoisted(() => {
   });
 });
 
+import { prisma } from "../lib/db";
+
 import { makeHandleGenerateBodyImages } from "./generate-body-images";
 
 const body = ["## Microfones", "", "Um parágrafo.", "", "Fecho."].join("\n");
@@ -75,7 +77,7 @@ describe("handleGenerateBodyImages", () => {
     await handle(ctx);
 
     expect(deps.generatePostImage).toHaveBeenCalledTimes(2);
-    expect(deps.illustrate).toHaveBeenCalledExactlyOnceWith("p1", {
+    expect(deps.illustrate).toHaveBeenCalledExactlyOnceWith(prisma, "p1", {
       from: body,
       images: [
         expect.objectContaining({
@@ -96,11 +98,11 @@ describe("handleGenerateBodyImages", () => {
     const { deps, handle } = wire();
     await handle(ctx);
 
-    expect(deps.generatePostImage.mock.calls.map((c) => c[0].filename)).toEqual([
+    expect(deps.generatePostImage.mock.calls.map((c) => c[1].filename)).toEqual([
       "guia-de-microfones-1.jpg",
       "guia-de-microfones-2.jpg",
     ]);
-    expect(deps.illustrate.mock.calls[0]?.[1].images[0]).toMatchObject({
+    expect(deps.illustrate.mock.calls[0]?.[2].images[0]).toMatchObject({
       alt: "Um microfone",
       blobKey: "k1",
       blobUrl: "https://img.easeia.com/1.jpg",
@@ -115,7 +117,7 @@ describe("handleGenerateBodyImages", () => {
     const { deps, handle } = wire();
     await handle(ctx);
 
-    const prompts = deps.generatePostImage.mock.calls.map((c) => c[0].prompt);
+    const prompts = deps.generatePostImage.mock.calls.map((c) => c[1].prompt);
     expect(prompts[0]).toContain("a condenser microphone on a stand");
     expect(prompts[0]).toContain("Professional audio studio scene");
     expect(prompts[1]).toContain("a small home studio at dusk");

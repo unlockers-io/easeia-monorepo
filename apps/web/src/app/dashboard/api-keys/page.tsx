@@ -19,6 +19,7 @@ import {
 import { connection } from "next/server";
 
 import { ActionButton } from "@/components/action-button";
+import { getPrisma } from "@/lib/db";
 
 import { revokeApiKeyAction } from "./actions";
 import { CreateKeyDialog } from "./create-key-dialog";
@@ -26,7 +27,10 @@ import { CreateKeyDialog } from "./create-key-dialog";
 const ApiKeysPage = async () => {
   await connection();
 
-  const [keys, sites] = await Promise.all([listApiKeys(), Sites.listEnabled()]);
+  const [keys, sites] = await Promise.all([
+    listApiKeys(getPrisma()),
+    Sites.listEnabled(getPrisma()),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">

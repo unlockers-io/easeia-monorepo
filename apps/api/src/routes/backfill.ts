@@ -4,6 +4,8 @@ import { networkBackfill } from "@repo/backfill";
 import { commonErrors, jsonResponse, startedRunSchema } from "@/lib/openapi-schemas";
 import { guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 import { createRunRouter, type RunRouteDependencies } from "./run-router";
 
 type BackfillRouteDependencies = RunRouteDependencies & {
@@ -25,7 +27,7 @@ const createBackfillRoutes = (dependencies: BackfillRouteDependencies) => {
       tags: ["Network"],
     }),
     async (c) => {
-      const { runId } = await dependencies.start();
+      const { runId } = await dependencies.start(prisma);
       await dependencies.audit(c, { action: "backfill.trigger", target: "network" });
 
       return c.json({ runId }, 202);

@@ -6,6 +6,8 @@ import * as Posts from "@repo/posts";
 import { errorResponse, idParamSchema, jsonResponse, okSchema } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 type RouteDependencies = Guards & {
   posts: Pick<
     typeof Posts,
@@ -40,7 +42,8 @@ const createPostRoutes = (deps: RouteDependencies) => {
   const withHero = (post: Post, heroes: ReadonlyMap<string, string>) =>
     postSchema.parse({ ...post, featuredImage: heroes.get(post.id) ?? null });
 
-  const present = async (post: Post) => withHero(post, await deps.posts.heroUrls([post.id]));
+  const present = async (post: Post) =>
+    withHero(post, await deps.posts.heroUrls(prisma, [post.id]));
 
   const listResponseSchema = z
     .object({
@@ -89,9 +92,12 @@ const createPostRoutes = (deps: RouteDependencies) => {
   });
 
   postRoutes.openapi(listPostsRoute, async (c) => {
-    const result = await deps.posts.list(c.req.valid("query"));
+    const result = await deps.posts.list(prisma, c.req.valid("query"));
 
-    const heroes = await deps.posts.heroUrls(result.data.map((post) => post.id));
+    const heroes = await deps.posts.heroUrls(
+      prisma,
+      result.data.map((post) => post.id),
+    );
 
     return c.json(
       { data: result.data.map((post) => withHero(post, heroes)), meta: result.meta },
@@ -130,7 +136,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   });
 
   postRoutes.openapi(createPostRoute, async (c) => {
-    const result = await deps.posts.create(c.req.valid("json"));
+    const result = await deps.posts.create(prisma, c.req.valid("json"));
     await deps.audit(c, { action: "post.create", target: `post:${result.post.id}` });
 
     return c.json({ data: await present(result.post), job: result.job }, 201);
@@ -157,7 +163,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   });
 
   postRoutes.openapi(getPostRoute, async (c) => {
-    const post = await deps.posts.get(c.req.valid("param").id);
+    const post = await deps.posts.get(prisma, c.req.valid("param").id);
 
     return c.json({ data: await present(post) }, 200);
   });
@@ -193,7 +199,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   });
 
   postRoutes.openapi(updatePostRoute, async (c) => {
-    const post = await deps.posts.update(c.req.valid("param").id, c.req.valid("json"));
+    const post = await deps.posts.update(prisma, c.req.valid("param").id, c.req.valid("json"));
     await deps.audit(c, { action: "post.update", target: `post:${post.id}` });
 
     return c.json({ data: await present(post) }, 200);
@@ -218,7 +224,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
 
   postRoutes.openapi(deletePostRoute, async (c) => {
     const id = c.req.valid("param").id;
-    await deps.posts.remove(id);
+    await deps.posts.remove(prisma, id);
     await deps.audit(c, { action: "post.delete", target: `post:${id}` });
 
     return c.json({ ok: true as const }, 200);
@@ -247,7 +253,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
   });
 
   postRoutes.openapi(publishPostRoute, async (c) => {
-    const result = await deps.posts.publish(c.req.valid("param").id);
+    const result = await deps.posts.publish(prisma, c.req.valid("param").id);
     await deps.audit(c, { action: "post.publish", target: `post:${result.post.id}` });
 
     return c.json({ data: { jobId: result.job.id, postId: result.post.id } }, 202);
@@ -272,7 +278,7 @@ const createPostRoutes = (deps: RouteDependencies) => {
 
   postRoutes.openapi(unpublishPostRoute, async (c) => {
     const id = c.req.valid("param").id;
-    await deps.posts.unpublish(id);
+    await deps.posts.unpublish(prisma, id);
     await deps.audit(c, { action: "post.unpublish", target: `post:${id}` });
 
     return c.json({ ok: true as const }, 200);

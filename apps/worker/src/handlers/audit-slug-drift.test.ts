@@ -4,7 +4,7 @@ vi.hoisted(() => {
   Object.assign(process.env, {
     DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
     REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
 });
 

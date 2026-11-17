@@ -1,4 +1,4 @@
-import { JobKind, prisma, type Prisma, type Site } from "@repo/db";
+import { JobKind, type PrismaClient, type Prisma, type Site } from "@repo/db";
 import { enqueueUnlessQueued } from "@repo/jobs";
 
 import { parseDeployHook } from "./deploy-hook";
@@ -19,6 +19,7 @@ const deployTarget = (site: Site): URL | Undeployable =>
   site.isEnabled ? (parseDeployHook(site.vercelDeployHookUrl) ?? "no-deploy-hook") : "disabled";
 
 const recordRedeploy = async (
+  prisma: PrismaClient,
   siteId: string,
   tx: Prisma.TransactionClient,
 ): Promise<RedeployOutcome> => {
@@ -30,6 +31,7 @@ const recordRedeploy = async (
   }
 
   const job = await enqueueUnlessQueued(
+    prisma,
     {
       delayMs: REDEPLOY_WINDOW_MS,
       kind: JobKind.TRIGGER_DEPLOY,
@@ -43,15 +45,20 @@ const recordRedeploy = async (
 };
 
 export const requestRedeploy = (
+  prisma: PrismaClient,
   siteId: string,
   tx?: Prisma.TransactionClient,
 ): Promise<RedeployOutcome> =>
   tx === undefined
-    ? prisma.$transaction((db) => recordRedeploy(siteId, db))
-    : recordRedeploy(siteId, tx);
+    ? prisma.$transaction((db) => recordRedeploy(prisma, siteId, db))
+    : recordRedeploy(prisma, siteId, tx);
 
-export const deploy = async (siteId: string, postHook: PostDeployHook): Promise<DeployOutcome> => {
-  const target = deployTarget(await load(siteId));
+export const deploy = async (
+  prisma: PrismaClient,
+  siteId: string,
+  postHook: PostDeployHook,
+): Promise<DeployOutcome> => {
+  const target = deployTarget(await load(prisma, siteId));
 
   if (!(target instanceof URL)) {
     return target;

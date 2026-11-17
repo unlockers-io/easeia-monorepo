@@ -1,3 +1,5 @@
+import type { PrismaClient } from "@repo/db";
+
 import { monthlyBudgetMicroUsd, monthlyBudgetStartMonth, planAiRequest } from "./budget-policy";
 import { budgetStore } from "./budget-store";
 import type { AiBudgetStore } from "./budget-store";
@@ -70,12 +72,13 @@ const createBudgetedFetch =
     return response;
   };
 
-const budgetedOpenAiFetch = createBudgetedFetch({
-  fetch: (...args) => globalThis.fetch(...args),
-  limit: monthlyBudgetMicroUsd,
-  now: () => new Date(),
-  startMonth: monthlyBudgetStartMonth,
-  store: budgetStore,
-});
+const budgetedOpenAiFetch = (prisma: PrismaClient) =>
+  createBudgetedFetch({
+    fetch: (...args) => globalThis.fetch(...args),
+    limit: monthlyBudgetMicroUsd,
+    now: () => new Date(),
+    startMonth: monthlyBudgetStartMonth,
+    store: budgetStore(prisma),
+  });
 
 export { budgetedOpenAiFetch, createBudgetedFetch };

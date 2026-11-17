@@ -3,6 +3,7 @@
 import * as Sites from "@repo/sites";
 import { z } from "zod";
 
+import { getPrisma } from "@/lib/db";
 import { settle, withAuth } from "@/lib/server-action";
 
 import { checkNameSchema, createFixAdvice } from "./fix-advice";
@@ -15,14 +16,16 @@ const BULK_CONCURRENCY = 8;
 const checkNamesSchema = z.array(checkNameSchema).min(1).max(100);
 
 export const getFixAdviceAction = async (siteId: string, checkName: string) =>
-  withAuth(async () => adviceFor(await Sites.load(siteId), checkNameSchema.parse(checkName)));
+  withAuth(async () =>
+    adviceFor(await Sites.load(getPrisma(), siteId), checkNameSchema.parse(checkName)),
+  );
 
 export const bulkGenerateFixAdviceAction = async (
   siteId: string,
   checkNames: ReadonlyArray<string>,
 ) =>
   withAuth(async () => {
-    const site = await Sites.load(siteId);
+    const site = await Sites.load(getPrisma(), siteId);
     const unique = [...new Set(checkNamesSchema.parse(checkNames))];
 
     const adviceResult = async (checkName: string) => ({

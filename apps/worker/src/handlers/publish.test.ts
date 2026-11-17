@@ -9,10 +9,12 @@ vi.hoisted(() => {
   });
 });
 
-import { JobKind, PostStatus, prisma } from "@repo/db";
+import { JobKind, PostStatus } from "@repo/db";
 import { countJobs, listJobs } from "@repo/jobs";
 import { closeJobs } from "@repo/jobs/worker";
 import * as Posts from "@repo/posts";
+
+import { prisma } from "../lib/db";
 
 import { handlePublish } from "./publish";
 
@@ -37,7 +39,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       siteIds.push(site.id);
 
-      const { job, post } = await Posts.create({
+      const { job, post } = await Posts.create(prisma, {
         body: "<p>Body.</p>",
         categories: ["Casamentos"],
         publish: true,
@@ -52,7 +54,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       const published = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
 
-      const { data: deploys } = await listJobs({
+      const { data: deploys } = await listJobs(prisma, {
         kinds: [JobKind.TRIGGER_DEPLOY],
         limit: 1,
         siteId: site.id,
@@ -63,9 +65,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       expect(deploy?.createdAt.getTime()).toBeGreaterThanOrEqual(
         published.publishedAt?.getTime() ?? Number.POSITIVE_INFINITY,
       );
-      expect(await countJobs({ kinds: [JobKind.EMBED], postId: post.id })).toBe(1);
-      expect(await countJobs({ kinds: [JobKind.CRAWL_LINKS], postId: post.id })).toBe(1);
-      expect(await countJobs({ kinds: [JobKind.GENERATE_BODY_IMAGES], postId: post.id })).toBe(1);
+      expect(await countJobs(prisma, { kinds: [JobKind.EMBED], postId: post.id })).toBe(1);
+      expect(await countJobs(prisma, { kinds: [JobKind.CRAWL_LINKS], postId: post.id })).toBe(1);
+      expect(
+        await countJobs(prisma, { kinds: [JobKind.GENERATE_BODY_IMAGES], postId: post.id }),
+      ).toBe(1);
     });
   },
 );

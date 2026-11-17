@@ -1,11 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { prisma } from "@repo/db";
 import type { MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
 import { createRouter } from "@/lib/openapi";
 import { errorResponse } from "@/lib/openapi-schemas";
 import { createWaitlistRateLimit } from "@/middleware/security";
+
+import { prisma } from "../lib/db";
 
 const signupSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),

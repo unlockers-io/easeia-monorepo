@@ -1,6 +1,8 @@
 import { generateStructured } from "@repo/ai";
 import { z } from "zod";
 
+import { getPrisma } from "@/lib/db";
+
 const severitySchema = z.enum(["low", "medium", "high"]);
 const categorySchema = z.enum(["hosting", "content", "structure"]);
 
@@ -68,7 +70,7 @@ const buildPrompt = (input: FixAdviceInput): string => {
 };
 
 export const generateFixAdvice = (input: FixAdviceInput): Promise<FixAdvice> => {
-  return generateStructured({ prompt: buildPrompt(input), schema: fixAdviceSchema });
+  return generateStructured(getPrisma(), { prompt: buildPrompt(input), schema: fixAdviceSchema });
 };
 
 export { buildPrompt as buildFixAdvicePrompt, fixAdviceSchema };

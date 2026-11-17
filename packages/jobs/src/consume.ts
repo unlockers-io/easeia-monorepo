@@ -1,4 +1,4 @@
-import { type Job, type JobKind, JobStatus, type Prisma, prisma } from "@repo/db";
+import { type Job, type JobKind, JobStatus, type Prisma, type PrismaClient } from "@repo/db";
 import { UnrecoverableError, Worker, type Job as BullJob } from "bullmq";
 
 import { type ConsumerContext, JobSkippedError } from "./context";
@@ -25,7 +25,12 @@ const runFor = (row: Pick<Job, "runId" | "phase">): ConsumerContext<JobKind>["ru
   return { id: row.runId, phase: row.phase };
 };
 
-const recordFailure = async (jobId: string, error: unknown, retry: boolean): Promise<void> => {
+const recordFailure = async (
+  prisma: PrismaClient,
+  jobId: string,
+  error: unknown,
+  retry: boolean,
+): Promise<void> => {
   if (error instanceof JobSkippedError) {
     await prisma.job.update({
       data: { finishedAt: new Date(), lastError: error.message, status: JobStatus.SKIPPED },
@@ -71,10 +76,10 @@ const contextFor = <K extends JobKind>(
 };
 
 const settleFailure = async <K extends JobKind>(
+  prisma: PrismaClient,
   options: ConsumeOptions<K>,
   context: ConsumerContext<K>,
-  error: unknown,
-  finalAttempt: boolean,
+  { error, finalAttempt }: { error: unknown; finalAttempt: boolean },
 ): Promise<void> => {
   const retry = !finalAttempt && (options.isRetryable?.(error) ?? true);
 
@@ -83,11 +88,14 @@ const settleFailure = async <K extends JobKind>(
       await options.onFailure?.(context);
     }
   } finally {
-    await recordFailure(context.jobId, error, retry);
+    await recordFailure(prisma, context.jobId, error, retry);
   }
 };
 
-export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =>
+export const consume = <K extends JobKind>(
+  prisma: PrismaClient,
+  options: ConsumeOptions<K>,
+): Worker =>
   new Worker(
     queueName(options.kind),
     async (bull: BullJob<Prisma.InputJsonObject>) => {
@@ -114,7 +122,7 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       try {
         context = contextFor(options.kind, row, bull.data);
       } catch (error) {
-        await recordFailure(jobId, error, false);
+        await recordFailure(prisma, jobId, error, false);
 
         return;
       }
@@ -122,7 +130,7 @@ export const consume = <K extends JobKind>(options: ConsumeOptions<K>): Worker =
       try {
         await options.handler(context);
       } catch (error) {
-        await settleFailure(options, context, error, finalAttempt);
+        await settleFailure(prisma, options, context, { error, finalAttempt });
 
         return;
       }

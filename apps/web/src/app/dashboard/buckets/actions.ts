@@ -5,11 +5,12 @@ import * as Posts from "@repo/posts";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
+import { getPrisma } from "@/lib/db";
 import { withAuth } from "@/lib/server-action";
 
 export const refillBucketAction = async (siteId: string) =>
   withAuth(async () => {
-    const { queued } = await AutoPublish.refill(siteId);
+    const { queued } = await AutoPublish.refill(getPrisma(), siteId);
 
     if (queued > 0) {
       await audit({ action: "bucket.refill", target: `site:${siteId}` });
@@ -21,7 +22,7 @@ export const refillBucketAction = async (siteId: string) =>
 
 export const applyNetworkDefaultsAction = async (input: AutoPublish.NetworkDefaultsInput) =>
   withAuth(async () => {
-    const counts = await AutoPublish.applyNetworkDefaults(input);
+    const counts = await AutoPublish.applyNetworkDefaults(getPrisma(), input);
     await audit({ action: "site.update", meta: counts, target: "network" });
     revalidatePath("/dashboard/buckets");
     revalidatePath("/dashboard/sites");
@@ -31,7 +32,7 @@ export const applyNetworkDefaultsAction = async (input: AutoPublish.NetworkDefau
 
 export const refillAllNeedyBucketsAction = async () =>
   withAuth(async () => {
-    const refills = await AutoPublish.refillAll();
+    const refills = await AutoPublish.refillAll(getPrisma());
     const queuedPerSite: Record<string, number> = {};
 
     for (const refill of refills) {
@@ -48,7 +49,7 @@ export const refillAllNeedyBucketsAction = async () =>
 
 export const publishNextFromBucketAction = async (siteId: string) =>
   withAuth(async () => {
-    const published = await AutoPublish.publishNext(siteId);
+    const published = await AutoPublish.publishNext(getPrisma(), siteId);
 
     if (published !== null) {
       await audit({ action: "post.publish", target: `post:${published.postId}` });
@@ -60,14 +61,14 @@ export const publishNextFromBucketAction = async (siteId: string) =>
 
 export const publishDraftAction = async (postId: string) =>
   withAuth(async () => {
-    await AutoPublish.publishDraft(postId);
+    await AutoPublish.publishDraft(getPrisma(), postId);
     await audit({ action: "post.publish", target: `post:${postId}` });
     revalidatePath("/dashboard/buckets");
   });
 
 export const deleteDraftAction = async (postId: string) =>
   withAuth(async () => {
-    await Posts.removeBucketDraft(postId);
+    await Posts.removeBucketDraft(getPrisma(), postId);
     await audit({ action: "post.delete", target: `post:${postId}` });
     revalidatePath("/dashboard/buckets");
   });

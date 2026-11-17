@@ -1,4 +1,4 @@
-import { type Niche, prisma } from "@repo/db";
+import type { Niche, PrismaClient } from "@repo/db";
 
 export type RelevantPage = {
   id: string;
@@ -32,6 +32,7 @@ type Row = {
 };
 
 export const findRelevantPages = async (
+  prisma: PrismaClient,
   postId: string,
   limit: number,
 ): Promise<Array<RelevantPage>> => {

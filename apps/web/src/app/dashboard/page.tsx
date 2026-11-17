@@ -1,4 +1,4 @@
-import { JobKind, JobStatus, prisma, type Site, type SiteSnapshot } from "@repo/db";
+import { JobKind, JobStatus, type Site, type SiteSnapshot } from "@repo/db";
 import { buildRecommendations } from "@repo/health";
 import { countJobs, listJobs } from "@repo/jobs";
 import { countPbnBacklinks } from "@repo/links";
@@ -19,6 +19,7 @@ import { SkeletonBox, SkeletonSuspense } from "skullet/react";
 import { ActionButton } from "@/components/action-button";
 import { JobStatusBadge } from "@/components/job-status-badge";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
+import { getPrisma } from "@/lib/db";
 
 import { refreshSnapshotsAction } from "./actions";
 import { ScheduleTable } from "./schedule-table";
@@ -63,7 +64,7 @@ const DashboardContent = async () => {
 
   const [sites, { data: recentJobs }, moneySiteCount, rewriteCount, pbnBacklinksTotal] =
     await Promise.all([
-      prisma.site.findMany({
+      getPrisma().site.findMany({
         include: {
           moneySite: { select: { domain: true, id: true, name: true } },
           snapshots: { orderBy: { date: "desc" }, take: 14 },
@@ -71,12 +72,12 @@ const DashboardContent = async () => {
         orderBy: { domain: "asc" },
         where: { isEnabled: true },
       }),
-      listJobs({ limit: 6 }),
-      prisma.moneySite.count({
+      listJobs(getPrisma(), { limit: 6 }),
+      getPrisma().moneySite.count({
         where: { pbnSites: { some: {} } },
       }),
-      countJobs({ kinds: [JobKind.REWRITE_POST], status: JobStatus.DONE }),
-      countPbnBacklinks(),
+      countJobs(getPrisma(), { kinds: [JobKind.REWRITE_POST], status: JobStatus.DONE }),
+      countPbnBacklinks(getPrisma()),
     ]);
 
   const cards = sites.map((site) => buildSiteCardModel(site));

@@ -1,4 +1,4 @@
-import { PostStatus, prisma } from "@repo/db";
+import { PostStatus, type PrismaClient } from "@repo/db";
 import { approveSuggestions, suggestLink } from "@repo/links";
 
 const SIM_LIMIT = 8;
@@ -17,7 +17,11 @@ export type LinkFix = { orphanId: string; siteId: string; sourceId: string };
 
 type SourceCandidate = { body: string; id: string };
 
-const similarSources = async (orphanId: string, siteId: string): Promise<Array<SourceCandidate>> =>
+const similarSources = async (
+  prisma: PrismaClient,
+  orphanId: string,
+  siteId: string,
+): Promise<Array<SourceCandidate>> =>
   prisma.$queryRawUnsafe<Array<SourceCandidate>>(
     `
     SELECT p.id, p.body
@@ -35,7 +39,10 @@ const similarSources = async (orphanId: string, siteId: string): Promise<Array<S
     SIM_LIMIT,
   );
 
-const fallbackSources = async (orphan: ListedPost): Promise<Array<SourceCandidate>> => {
+const fallbackSources = async (
+  prisma: PrismaClient,
+  orphan: ListedPost,
+): Promise<Array<SourceCandidate>> => {
   const rows = await prisma.post.findMany({
     orderBy: { publishedAt: "desc" },
     select: { body: true, categories: true, id: true },
@@ -54,11 +61,12 @@ const fallbackSources = async (orphan: ListedPost): Promise<Array<SourceCandidat
 };
 
 const pickSource = async (
+  prisma: PrismaClient,
   orphan: ListedPost,
   addedBySource: ReadonlyMap<string, number>,
 ): Promise<SourceCandidate | undefined> => {
-  const similar = await similarSources(orphan.id, orphan.siteId);
-  const candidates = similar.length > 0 ? similar : await fallbackSources(orphan);
+  const similar = await similarSources(prisma, orphan.id, orphan.siteId);
+  const candidates = similar.length > 0 ? similar : await fallbackSources(prisma, orphan);
 
   return candidates.find(
     (candidate) =>
@@ -68,13 +76,14 @@ const pickSource = async (
 };
 
 export const planInboundFixes = async (
+  prisma: PrismaClient,
   orphans: ReadonlyArray<ListedPost>,
 ): Promise<Array<LinkFix>> => {
   const addedBySource = new Map<string, number>();
   const planned: Array<LinkFix> = [];
 
   for (const orphan of orphans) {
-    const picked = await pickSource(orphan, addedBySource);
+    const picked = await pickSource(prisma, orphan, addedBySource);
 
     if (picked === undefined) {
       continue;
@@ -87,7 +96,7 @@ export const planInboundFixes = async (
   return planned;
 };
 
-export const applyInboundFix = async (fix: LinkFix): Promise<void> => {
-  const link = await suggestLink(fix.sourceId, fix.orphanId);
-  await approveSuggestions(fix.sourceId, [link.id]);
+export const applyInboundFix = async (prisma: PrismaClient, fix: LinkFix): Promise<void> => {
+  const link = await suggestLink(prisma, fix.sourceId, fix.orphanId);
+  await approveSuggestions(prisma, fix.sourceId, [link.id]);
 };

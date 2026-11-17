@@ -1,4 +1,4 @@
-import { ExternalBacklinkSource, JobKind, type Prisma, prisma } from "@repo/db";
+import { ExternalBacklinkSource, JobKind, type Prisma, type PrismaClient } from "@repo/db";
 import { DomainError } from "@repo/errors";
 import { enqueueUnlessInFlight } from "@repo/jobs";
 import { isConnected } from "@repo/search-console";
@@ -34,10 +34,11 @@ const upsertBacklink = (
   });
 
 export const importCsvBacklinks = async (
+  prisma: PrismaClient,
   siteId: string,
   csvText: string,
 ): Promise<{ imported: number; skipped: number }> => {
-  const site = await Sites.load(siteId);
+  const site = await Sites.load(prisma, siteId);
   const { rows, skipped } = parseExternalBacklinksCsv(csvText, { selfDomain: site.domain });
 
   await prisma.$transaction(async (tx) => {
@@ -50,6 +51,7 @@ export const importCsvBacklinks = async (
 };
 
 export const recordGscBacklinks = async (
+  prisma: PrismaClient,
   post: { id: string; siteId: string },
   referringUrls: ReadonlyArray<string>,
 ): Promise<{ domains: number }> => {
@@ -99,16 +101,17 @@ export const recordGscBacklinks = async (
 };
 
 export const requestGscBacklinkBackfill = async (
+  prisma: PrismaClient,
   siteIds: ReadonlyArray<string>,
 ): Promise<{ queued: number }> => {
-  if (!(await isConnected())) {
+  if (!(await isConnected(prisma))) {
     throw new GoogleNotConnectedError();
   }
 
   let queued = 0;
 
   for (const siteId of siteIds) {
-    const job = await enqueueUnlessInFlight({
+    const job = await enqueueUnlessInFlight(prisma, {
       kind: JobKind.BACKFILL_GSC_LINKS,
       payload: { siteId },
       siteId,
@@ -120,7 +123,7 @@ export const requestGscBacklinkBackfill = async (
   return { queued };
 };
 
-export const externalBacklinkSummary = async (siteId: string) => {
+export const externalBacklinkSummary = async (prisma: PrismaClient, siteId: string) => {
   const [rows, recentReferringUrls] = await Promise.all([
     prisma.externalBacklink.findMany({
       select: { importedAt: true, linkingPages: true, sourceDomain: true },

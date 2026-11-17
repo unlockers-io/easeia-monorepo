@@ -6,14 +6,18 @@ import { approveSuggestion, listSuggestions, rejectSuggestion } from "@repo/link
 import { z } from "zod";
 
 import { audit } from "@/lib/access";
+import { getPrisma } from "@/lib/db";
 import { withAuth } from "@/lib/server-action";
 
-export const readBackfillStatusAction = async () => withAuth(networkBackfill.readStatus);
-export const readRewriteStatusAction = async () => withAuth(rewriteBackfill.readStatus);
+export const readBackfillStatusAction = async () =>
+  withAuth(() => networkBackfill.readStatus(getPrisma()));
+
+export const readRewriteStatusAction = async () =>
+  withAuth(() => rewriteBackfill.readStatus(getPrisma()));
 
 export const startBackfillAction = async () =>
   withAuth(async () => {
-    const started = await networkBackfill.start();
+    const started = await networkBackfill.start(getPrisma());
     await audit({ action: "backfill.trigger", target: "network" });
 
     return started;
@@ -21,7 +25,7 @@ export const startBackfillAction = async () =>
 
 export const startRewriteAction = async (force: boolean) =>
   withAuth(async () => {
-    const started = await rewriteBackfill.start({ force: z.boolean().parse(force) });
+    const started = await rewriteBackfill.start(getPrisma(), { force: z.boolean().parse(force) });
     await audit({ action: "rewrite.trigger", target: "network" });
 
     return started;
@@ -29,7 +33,10 @@ export const startRewriteAction = async (force: boolean) =>
 
 export const listSuggestionsAction = async (input: z.input<typeof suggestionListQuerySchema>) =>
   withAuth(async () => {
-    const { data, nextCursor } = await listSuggestions(suggestionListQuerySchema.parse(input));
+    const { data, nextCursor } = await listSuggestions(
+      getPrisma(),
+      suggestionListQuerySchema.parse(input),
+    );
 
     return { data, meta: { nextCursor: nextCursor ?? null } };
   });
@@ -38,7 +45,7 @@ export const decideSuggestionAction = async (id: string, action: "approve" | "re
   withAuth(async () => {
     const decision = z.enum(["approve", "reject"]).parse(action);
     const decide = decision === "approve" ? approveSuggestion : rejectSuggestion;
-    const suggestion = await decide(z.string().min(1).parse(id));
+    const suggestion = await decide(getPrisma(), z.string().min(1).parse(id));
     await audit({ action: `link.${decision}`, target: `link:${id}` });
 
     return suggestion;

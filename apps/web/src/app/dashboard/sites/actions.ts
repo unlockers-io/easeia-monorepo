@@ -8,13 +8,14 @@ import * as Sites from "@repo/sites";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
+import { getPrisma } from "@/lib/db";
 import { withAuth } from "@/lib/server-action";
 
 import { authorPatchSchema, publishingPatchSchema } from "./[id]/patches";
 
 export const createSiteAction = async (input: SiteCreateInput) =>
   withAuth(async () => {
-    const site = await Sites.create(input);
+    const site = await Sites.create(getPrisma(), input);
     await audit({ action: "site.create", target: `site:${site.id}` });
     revalidatePath("/dashboard/sites");
     revalidatePath("/dashboard/posts/new");
@@ -24,15 +25,20 @@ export const createSiteAction = async (input: SiteCreateInput) =>
 
 export const updateSiteAction = async (id: string, patch: SiteUpdatePatch) =>
   withAuth(async () => {
-    await Sites.update(id, patch);
+    await Sites.update(getPrisma(), id, patch);
     await audit({ action: "site.update", target: `site:${id}` });
     revalidatePath("/dashboard/sites");
   });
 
 export const startGscBacklinkBackfillAllAction = async () =>
   withAuth(async () => {
-    const sites = await Sites.listEnabled();
-    const { queued } = await requestGscBacklinkBackfill(sites.map((site) => site.id));
+    const sites = await Sites.listEnabled(getPrisma());
+
+    const { queued } = await requestGscBacklinkBackfill(
+      getPrisma(),
+      sites.map((site) => site.id),
+    );
+
     await audit({ action: "backlinks.backfill", meta: { queued }, target: "network" });
 
     return { alreadyRunning: sites.length - queued, queued };
@@ -40,7 +46,7 @@ export const startGscBacklinkBackfillAllAction = async () =>
 
 export const assignMoneySiteAction = async (siteId: string, moneySiteId: string | null) =>
   withAuth(async () => {
-    await Sites.update(siteId, { moneySiteId });
+    await Sites.update(getPrisma(), siteId, { moneySiteId });
     await audit({ action: "site.update", meta: { moneySiteId }, target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
     revalidatePath("/dashboard");
@@ -48,7 +54,7 @@ export const assignMoneySiteAction = async (siteId: string, moneySiteId: string 
 
 export const uploadExternalBacklinksAction = async (siteId: string, csvText: string) =>
   withAuth(async () => {
-    const result = await importCsvBacklinks(siteId, csvText);
+    const result = await importCsvBacklinks(getPrisma(), siteId, csvText);
     await audit({ action: "backlinks.import", meta: result, target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
 
@@ -63,8 +69,8 @@ export type UpdateAutoPublishInput = AutoPublish.AutoPublishInput & {
 export const updateAutoPublishAction = async (siteId: string, input: UpdateAutoPublishInput) =>
   withAuth(async () => {
     const { language, topicHints } = input;
-    await AutoPublish.configure(siteId, input);
-    await Sites.update(siteId, { language, topicHints });
+    await AutoPublish.configure(getPrisma(), siteId, input);
+    await Sites.update(getPrisma(), siteId, { language, topicHints });
     await audit({ action: "site.update", target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
     revalidatePath("/dashboard/buckets");
@@ -75,14 +81,14 @@ export const updateSiteAuthorAction = async (
   input: Pick<SiteUpdatePatch, "authorBio" | "authorName" | "authorPhotoUrl" | "authorUrl">,
 ) =>
   withAuth(async () => {
-    await Sites.update(siteId, authorPatchSchema.parse(input));
+    await Sites.update(getPrisma(), siteId, authorPatchSchema.parse(input));
     await audit({ action: "site.update", target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
   });
 
 export const updateSiteCadenceAction = async (siteId: string, cadenceDays: number | null) =>
   withAuth(async () => {
-    await AutoPublish.setCadence(siteId, cadenceDays);
+    await AutoPublish.setCadence(getPrisma(), siteId, cadenceDays);
     await audit({ action: "site.update", target: `site:${siteId}` });
     revalidatePath("/dashboard/sites");
     revalidatePath(`/dashboard/sites/${siteId}`);
@@ -90,8 +96,8 @@ export const updateSiteCadenceAction = async (siteId: string, cadenceDays: numbe
 
 export const startGscBacklinkBackfillAction = async (siteId: string) =>
   withAuth(async () => {
-    await Sites.load(siteId);
-    const result = await requestGscBacklinkBackfill([siteId]);
+    await Sites.load(getPrisma(), siteId);
+    const result = await requestGscBacklinkBackfill(getPrisma(), [siteId]);
     await audit({ action: "backlinks.backfill", target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
 
@@ -106,7 +112,7 @@ export const updateSitePublishingAction = async (
   >,
 ) =>
   withAuth(async () => {
-    await Sites.update(siteId, publishingPatchSchema.parse(input));
+    await Sites.update(getPrisma(), siteId, publishingPatchSchema.parse(input));
     await audit({ action: "site.update", target: `site:${siteId}` });
     revalidatePath(`/dashboard/sites/${siteId}`);
     revalidatePath("/dashboard/posts");

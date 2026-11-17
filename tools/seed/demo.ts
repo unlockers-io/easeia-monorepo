@@ -1,11 +1,13 @@
 import "dotenv/config";
 
-import { JobKind, prisma } from "@repo/db";
+import { JobKind, createPrismaClient } from "@repo/db";
 import { recordCompletedJob } from "@repo/jobs";
 import { recordSeedPost } from "@repo/posts";
 import * as Sites from "@repo/sites";
 
 import { seedAdmin } from "./admin";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 // This fixture is deliberately restricted to a disposable local *_demo database.
 const requireDemoDatabase = () => {
@@ -63,8 +65,8 @@ const ago = (days: number) => new Date(Date.now() - days * 86_400_000);
 
 const seedSite = async (site: (typeof SITES)[number], index: number) => {
   const niches = ["PHOTOGRAPHY" as const, "LIFESTYLE" as const];
-  const { id: siteId } = await Sites.ensure(site.domain, niches);
-  await Sites.update(siteId, {
+  const { id: siteId } = await Sites.ensure(prisma, site.domain, niches);
+  await Sites.update(prisma, siteId, {
     authorBio: "An editorial team in the synthetic Easeia demo network.",
     authorName: "Demo Editorial",
     defaultCategory: "journal",
@@ -74,7 +76,7 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
     niches,
     topicHints: site.keyword,
   });
-  await Sites.updateSchedule(siteId, {
+  await Sites.updateSchedule(prisma, siteId, {
     autoPublishEnabled: false,
     bucketRefillAt: 3,
     bucketTarget: 6,
@@ -127,10 +129,10 @@ const seedSite = async (site: (typeof SITES)[number], index: number) => {
       title: n === 0 ? site.topic : `${site.topic}: part ${n + 1}`,
     };
 
-    await recordSeedPost({ id, ...post });
+    await recordSeedPost(prisma, { id, ...post });
 
     if (published) {
-      await recordCompletedJob({
+      await recordCompletedJob(prisma, {
         finishedAt: ago(n + 1),
         id: `demo-job-${index}-${n}`,
         kind: n === 1 ? JobKind.REWRITE_POST : JobKind.PUBLISH,
@@ -186,7 +188,7 @@ const seedLinks = async () => {
 
 const main = async () => {
   requireDemoDatabase();
-  await seedAdmin();
+  await seedAdmin(prisma);
 
   const moneySite = {
     domain: "acmestudios.example",

@@ -4,6 +4,8 @@ import { Search } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { getPrisma } from "@/lib/db";
+
 import { tryProvider } from "./provider-result";
 import { SearchConsoleError } from "./search-console-error";
 
@@ -30,7 +32,7 @@ export const withSearchConsole = async (
   { domain, purpose, title }: Gate,
   render: (site: ConnectedSite) => Promise<ReactNode>,
 ): Promise<ReactNode> => {
-  const resolved = await searchConsoleCall(() => forSite(domain));
+  const resolved = await searchConsoleCall(() => forSite(getPrisma(), domain));
 
   if (!resolved.ok) {
     return <SearchConsoleError message={resolved.error} title={title} />;

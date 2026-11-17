@@ -1,4 +1,4 @@
-import { type Niche, type Post, prisma } from "@repo/db";
+import type { Niche, Post, PrismaClient } from "@repo/db";
 
 const NICHE_PT = {
   ARCHITECTURE: "Arquitetura",
@@ -61,7 +61,10 @@ const pickExistingCategory = (
   return argmax(nicheMatched) ?? argmax(overall);
 };
 
-export const fallbackCategory = async (post: Pick<Post, "niches" | "siteId">): Promise<string> => {
+export const fallbackCategory = async (
+  prisma: PrismaClient,
+  post: Pick<Post, "niches" | "siteId">,
+): Promise<string> => {
   const sitePosts = await prisma.post.findMany({
     select: { categories: true, niches: true },
     where: { categories: { isEmpty: false }, siteId: post.siteId },

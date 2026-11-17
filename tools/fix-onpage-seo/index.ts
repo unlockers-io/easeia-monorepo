@@ -4,13 +4,15 @@
  */
 import "dotenv/config";
 
-import { PostStatus, prisma } from "@repo/db";
+import { PostStatus, createPrismaClient } from "@repo/db";
 import { classifyDescriptionLength, classifyTitleLength, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
 import { stripHtml, update } from "@repo/posts";
 
 import { applyInboundFix, type ListedPost, planInboundFixes } from "./inbound";
 import { generateSeoSuggestions } from "./seo";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const APPLY = process.argv.includes("--apply");
 const SKIP_META = process.argv.includes("--skip-meta");
@@ -70,7 +72,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
     return { id: post.id, reason: "not found", siteId: post.siteId, status: "skipped" };
   }
 
-  const suggestion = await generateSeoSuggestions({
+  const suggestion = await generateSeoSuggestions(prisma, {
     bodyText: stripHtml(row.body),
     currentDescription: row.excerpt ?? undefined,
     currentFocusKeyword: row.focusKeyword ?? undefined,
@@ -102,7 +104,7 @@ const fixMetaOne = async (post: MetaTarget): Promise<MetaOutcome> => {
   }
 
   if (APPLY) {
-    await update(post.id, { excerpt: nextExcerpt, title: nextTitle });
+    await update(prisma, post.id, { excerpt: nextExcerpt, title: nextTitle });
   }
 
   return { id: post.id, siteId: post.siteId, status: "fixed" };
@@ -124,7 +126,7 @@ const runInboundPass = async (
 ): Promise<void> => {
   const orphans = posts.filter((p) => (inbound.get(p.id) ?? 0) === 0);
   console.log(`\nInbound pass: ${orphans.length} posts with 0 in-content inbound links`);
-  const planned = await planInboundFixes(orphans);
+  const planned = await planInboundFixes(prisma, orphans);
   console.log(`  planned source→orphan links: ${planned.length}`);
 
   if (!APPLY) {
@@ -132,7 +134,7 @@ const runInboundPass = async (
   }
 
   for (const fix of planned) {
-    await applyInboundFix(fix);
+    await applyInboundFix(prisma, fix);
   }
 
   console.log(`  wrote ${planned.length} inbound links`);
@@ -222,7 +224,12 @@ const main = async (): Promise<number> => {
   }
 
   const posts = await selectPosts(site?.id);
-  const inbound = await countInternalInboundLinks(posts.map((p) => p.id));
+
+  const inbound = await countInternalInboundLinks(
+    prisma,
+    posts.map((p) => p.id),
+  );
+
   printSummary(
     `On-page SEO ${site === null ? "network-wide" : `on ${site.domain}`} (${APPLY ? "APPLY" : "dry run"})`,
     summarizeOnPage(

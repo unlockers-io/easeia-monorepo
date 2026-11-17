@@ -1,6 +1,13 @@
 import { AiNotConfiguredError } from "@repo/ai";
 import type { PostCreateInput } from "@repo/api-types";
-import { JobKind, Niche, type Post, PostStatus, prisma, type SiteLanguage } from "@repo/db";
+import {
+  JobKind,
+  Niche,
+  type Post,
+  PostStatus,
+  createPrismaClient,
+  type SiteLanguage,
+} from "@repo/db";
 import { countJobs, listJobs } from "@repo/jobs";
 import { closeJobs } from "@repo/jobs/worker";
 import { SiteDeployHookMissingError } from "@repo/sites";
@@ -14,16 +21,18 @@ import {
   PostValidationError,
 } from "./index";
 
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
+
 const HOOK = "https://deploy.test/hook";
 
-const postJobs = (kind: JobKind, postId: string) => countJobs({ kinds: [kind], postId });
+const postJobs = (kind: JobKind, postId: string) => countJobs(prisma, { kinds: [kind], postId });
 
-const deploys = (siteId: string) => countJobs({ kinds: [JobKind.TRIGGER_DEPLOY], siteId });
+const deploys = (siteId: string) => countJobs(prisma, { kinds: [JobKind.TRIGGER_DEPLOY], siteId });
 
 const load = (id: string) => prisma.post.findUniqueOrThrow({ where: { id } });
 
 const latestDeploy = async (siteId: string) => {
-  const { data } = await listJobs({ kinds: [JobKind.TRIGGER_DEPLOY], limit: 1, siteId });
+  const { data } = await listJobs(prisma, { kinds: [JobKind.TRIGGER_DEPLOY], limit: 1, siteId });
 
   return data[0];
 };
@@ -65,7 +74,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     const createDraft = async (siteId: string, patch: Partial<PostCreateInput> = {}) => {
       sequence += 1;
 
-      const { post } = await Posts.create({
+      const { post } = await Posts.create(prisma, {
         body: "<p>Body.</p>",
         categories: ["Casamentos"],
         niches: [Niche.WEDDING],
@@ -133,7 +142,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createDraft(siteId);
 
-        const updated = await Posts.update(post.id, { title: "Renamed" });
+        const updated = await Posts.update(prisma, post.id, { title: "Renamed" });
 
         expect(updated.title).toBe("Renamed");
         expect(updated.tags).toEqual(["noivas"]);
@@ -147,7 +156,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const post = await createDraft(siteId);
 
         const patch = { siteId: otherSiteId, title: "Stays" };
-        const updated = await Posts.update(post.id, patch);
+        const updated = await Posts.update(prisma, post.id, patch);
 
         expect(updated.siteId).toBe(siteId);
       });
@@ -166,7 +175,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const post = await createDraft(siteId, { title: "Casamento — guia" });
 
         expect(post.title).not.toContain("—");
-        const updated = await Posts.update(post.id, { title: "Festa — dicas" });
+        const updated = await Posts.update(prisma, post.id, { title: "Festa — dicas" });
 
         expect(updated.title).not.toContain("—");
       });
@@ -175,7 +184,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createDraft(siteId);
 
-        await expect(Posts.update(post.id, { slug: "Not Kebab" })).rejects.toBeInstanceOf(
+        await expect(Posts.update(prisma, post.id, { slug: "Not Kebab" })).rejects.toBeInstanceOf(
           PostValidationError,
         );
       });
@@ -184,7 +193,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        await Posts.update(post.id, { body: "<p>New body.</p>" });
+        await Posts.update(prisma, post.id, { body: "<p>New body.</p>" });
 
         expect(await deploys(siteId)).toBe(1);
         expect(await postJobs(JobKind.EMBED, post.id)).toBe(1);
@@ -195,7 +204,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        await Posts.update(post.id, { tags: ["casamento"] });
+        await Posts.update(prisma, post.id, { tags: ["casamento"] });
 
         expect(await deploys(siteId)).toBe(1);
         expect(await postJobs(JobKind.EMBED, post.id)).toBe(0);
@@ -205,14 +214,14 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createDraft(siteId);
 
-        await Posts.update(post.id, { body: "<p>New body.</p>" });
+        await Posts.update(prisma, post.id, { body: "<p>New body.</p>" });
 
         expect(await deploys(siteId)).toBe(0);
         expect(await postJobs(JobKind.EMBED, post.id)).toBe(0);
       });
 
       it("reports a missing post", async () => {
-        await expect(Posts.update("missing", { title: "x" })).rejects.toBeInstanceOf(
+        await expect(Posts.update(prisma, "missing", { title: "x" })).rejects.toBeInstanceOf(
           PostNotFoundError,
         );
       });
@@ -223,7 +232,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createDraft(siteId);
 
-        const results = await Promise.allSettled([Posts.publish(post.id), Posts.publish(post.id)]);
+        const results = await Promise.allSettled([
+          Posts.publish(prisma, post.id),
+          Posts.publish(prisma, post.id),
+        ]);
 
         expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
         expect(results.find((r) => r.status === "rejected")?.reason).toBeInstanceOf(PostStateError);
@@ -233,9 +245,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("refuses a post whose publish is already queued", async () => {
         const siteId = await createSite();
         const post = await createDraft(siteId);
-        await Posts.publish(post.id);
+        await Posts.publish(prisma, post.id);
 
-        await expect(Posts.publish(post.id)).rejects.toBeInstanceOf(PostStateError);
+        await expect(Posts.publish(prisma, post.id)).rejects.toBeInstanceOf(PostStateError);
         expect(await postJobs(JobKind.PUBLISH, post.id)).toBe(1);
       });
 
@@ -243,7 +255,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        const { post: claimed } = await Posts.publish(post.id);
+        const { post: claimed } = await Posts.publish(prisma, post.id);
 
         expect(claimed.status).toBe(PostStatus.SCHEDULED);
         expect(await postJobs(JobKind.PUBLISH, post.id)).toBe(1);
@@ -254,10 +266,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("marks the post PUBLISHED, then redeploys its Site, then fans out", async () => {
         const siteId = await createSite();
         const post = await createDraft(siteId);
-        await Posts.publish(post.id);
+        await Posts.publish(prisma, post.id);
 
-        expect(await Posts.startPublish(post.id)).not.toBeNull();
-        await Posts.completePublish(post.id);
+        expect(await Posts.startPublish(prisma, post.id)).not.toBeNull();
+        await Posts.completePublish(prisma, post.id);
 
         const published = await load(post.id);
         const deploy = await latestDeploy(siteId);
@@ -276,9 +288,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         await createDraft(siteId, { categories: ["Casamentos"], niches: [Niche.WEDDING] });
         await createDraft(siteId, { categories: ["Eventos"], niches: [Niche.EVENTS] });
         const post = await createDraft(siteId, { categories: [], niches: [Niche.WEDDING] });
-        await Posts.publish(post.id);
+        await Posts.publish(prisma, post.id);
 
-        const started = await Posts.startPublish(post.id);
+        const started = await Posts.startPublish(prisma, post.id);
 
         expect(started?.post.categories).toEqual(["Casamentos"]);
         const stored = await load(post.id);
@@ -288,9 +300,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("falls back to the niche name on a Site without categories", async () => {
         const siteId = await createSite();
         const post = await createDraft(siteId, { categories: [], niches: [Niche.FILM] });
-        await Posts.publish(post.id);
+        await Posts.publish(prisma, post.id);
 
-        const started = await Posts.startPublish(post.id);
+        const started = await Posts.startPublish(prisma, post.id);
 
         expect(started?.post.categories).toEqual(["Cinema"]);
       });
@@ -298,11 +310,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("does not resurrect a post archived while its publish was queued", async () => {
         const siteId = await createSite();
         const post = await createDraft(siteId);
-        await Posts.publish(post.id);
-        await Posts.unpublish(post.id);
+        await Posts.publish(prisma, post.id);
+        await Posts.unpublish(prisma, post.id);
 
-        expect(await Posts.startPublish(post.id)).toBeNull();
-        await Posts.completePublish(post.id);
+        expect(await Posts.startPublish(prisma, post.id)).toBeNull();
+        await Posts.completePublish(prisma, post.id);
 
         expect(await statusOf(post.id)).toBe(PostStatus.ARCHIVED);
         expect(await deploys(siteId)).toBe(0);
@@ -312,12 +324,12 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const queued = await createDraft(siteId);
         const archived = await createDraft(siteId);
-        await Posts.publish(queued.id);
-        await Posts.publish(archived.id);
-        await Posts.unpublish(archived.id);
+        await Posts.publish(prisma, queued.id);
+        await Posts.publish(prisma, archived.id);
+        await Posts.unpublish(prisma, archived.id);
 
-        await Posts.failPublish(queued.id);
-        await Posts.failPublish(archived.id);
+        await Posts.failPublish(prisma, queued.id);
+        await Posts.failPublish(prisma, archived.id);
 
         expect(await statusOf(queued.id)).toBe(PostStatus.FAILED);
         expect(await statusOf(archived.id)).toBe(PostStatus.ARCHIVED);
@@ -329,7 +341,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        const { post: archived } = await Posts.unpublish(post.id);
+        const { post: archived } = await Posts.unpublish(prisma, post.id);
 
         expect(archived.status).toBe(PostStatus.ARCHIVED);
         expect(await deploys(siteId)).toBe(1);
@@ -339,7 +351,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        await Posts.remove(post.id);
+        await Posts.remove(prisma, post.id);
 
         expect(await prisma.post.count({ where: { id: post.id } })).toBe(0);
         expect(await deploys(siteId)).toBe(1);
@@ -348,13 +360,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("keeps a live post in its Site's build while it is republished", async () => {
         const siteId = await createSite();
         const live = await createLive(siteId);
-        await Posts.publish(live.id);
+        await Posts.publish(prisma, live.id);
 
-        const built = await Posts.listForBuild(siteId, null);
+        const built = await Posts.listForBuild(prisma, siteId, null);
 
         expect(built.map((post) => post.slug)).toEqual([live.slug]);
 
-        await Posts.update(live.id, { title: "Edited while republishing" });
+        await Posts.update(prisma, live.id, { title: "Edited while republishing" });
 
         expect(await deploys(siteId)).toBe(1);
       });
@@ -367,7 +379,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
           where: { id: draft.id },
         });
 
-        const [built] = await Posts.listForBuild(siteId, null);
+        const [built] = await Posts.listForBuild(prisma, siteId, null);
 
         expect(built?.slug).toBe(draft.slug);
         expect(built?.frontmatter.status).toBe(PostStatus.PUBLISHED);
@@ -378,8 +390,8 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const archived = await createDraft(siteId);
         const removed = await createDraft(siteId);
 
-        await Posts.unpublish(archived.id);
-        await Posts.remove(removed.id);
+        await Posts.unpublish(prisma, archived.id);
+        await Posts.remove(prisma, removed.id);
 
         expect(await deploys(siteId)).toBe(0);
       });
@@ -390,7 +402,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createDraft(siteId);
 
-        await expect(Posts.requestRewrite(post.id, { force: true })).rejects.toBeInstanceOf(
+        await expect(Posts.requestRewrite(prisma, post.id, { force: true })).rejects.toBeInstanceOf(
           AiNotConfiguredError,
         );
         expect(await postJobs(JobKind.REWRITE_POST, post.id)).toBe(0);
@@ -401,7 +413,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite(null);
         const post = await createDraft(siteId);
 
-        await expect(Posts.requestRewrite(post.id, { force: true })).rejects.toBeInstanceOf(
+        await expect(Posts.requestRewrite(prisma, post.id, { force: true })).rejects.toBeInstanceOf(
           SiteDeployHookMissingError,
         );
       });
@@ -409,9 +421,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("reports a missing post", async () => {
         process.env.OPENAI_API_KEY = "sk-test";
 
-        await expect(Posts.requestRewrite("missing", { force: false })).rejects.toBeInstanceOf(
-          PostNotFoundError,
-        );
+        await expect(
+          Posts.requestRewrite(prisma, "missing", { force: false }),
+        ).rejects.toBeInstanceOf(PostNotFoundError);
       });
 
       it("enqueues one REWRITE_POST Job", async () => {
@@ -419,7 +431,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createDraft(siteId);
 
-        await Posts.requestRewrite(post.id, { force: true });
+        await Posts.requestRewrite(prisma, post.id, { force: true });
 
         expect(await postJobs(JobKind.REWRITE_POST, post.id)).toBe(1);
       });
@@ -435,11 +447,11 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const created = await createDraft(siteId, { body: "<h2>Título</h2><p>Corpo\u0011.</p>" });
 
-        const updated = await Posts.update(created.id, {
+        const updated = await Posts.update(prisma, created.id, {
           body: "<!-- wp:paragraph -->\n<p>Veja [o guia](https://x.test/guia).</p>\n<!-- /wp:paragraph -->",
         });
 
-        const revised = await Posts.reviseBody(created.id, {
+        const revised = await Posts.reviseBody(prisma, created.id, {
           body: [paragraph, paragraph, paragraph].join("\n\n"),
           from: updated.body,
         });
@@ -467,7 +479,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const post = await createDraft(siteId);
         const rewrittenAt = new Date();
 
-        const revised = await Posts.reviseBody(post.id, {
+        const revised = await Posts.reviseBody(prisma, post.id, {
           body: "Novo corpo.",
           excerpt: "Novo resumo.",
           focusKeyword: "novo",
@@ -490,8 +502,8 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const post = await createDraft(siteId);
 
         const results = await Promise.allSettled([
-          Posts.reviseBody(post.id, { body: "Primeira.", from: post.body }),
-          Posts.reviseBody(post.id, { body: "Segunda.", from: post.body }),
+          Posts.reviseBody(prisma, post.id, { body: "Primeira.", from: post.body }),
+          Posts.reviseBody(prisma, post.id, { body: "Segunda.", from: post.body }),
         ]);
 
         const kept = results.flatMap((r) => (r.status === "fulfilled" ? [r.value.body] : []));
@@ -503,10 +515,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("refuses a revision of a body that changed since it was read", async () => {
         const siteId = await createSite();
         const post = await createDraft(siteId);
-        await Posts.update(post.id, { body: "Editado no painel." });
+        await Posts.update(prisma, post.id, { body: "Editado no painel." });
 
         await expect(
-          Posts.reviseBody(post.id, { body: "Revisão antiga.", from: post.body }),
+          Posts.reviseBody(prisma, post.id, { body: "Revisão antiga.", from: post.body }),
         ).rejects.toBeInstanceOf(PostStateError);
         expect(await bodyOf(post.id)).toBe("Editado no painel.");
       });
@@ -515,7 +527,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const siteId = await createSite();
         const post = await createLive(siteId);
 
-        await Posts.reviseBody(post.id, { body: "Corpo revisado.", from: post.body });
+        await Posts.reviseBody(prisma, post.id, { body: "Corpo revisado.", from: post.body });
 
         expect(await deploys(siteId)).toBe(1);
         expect(await postJobs(JobKind.EMBED, post.id)).toBe(1);
@@ -529,8 +541,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const draft = await createDraft(siteId);
         const live = await createLive(siteId);
 
-        await expect(Posts.publishBucketDraft(live.id)).rejects.toBeInstanceOf(PostStateError);
-        await Posts.publishBucketDraft(draft.id);
+        await expect(Posts.publishBucketDraft(prisma, live.id)).rejects.toBeInstanceOf(
+          PostStateError,
+        );
+        await Posts.publishBucketDraft(prisma, draft.id);
 
         expect(await statusOf(draft.id)).toBe(PostStatus.SCHEDULED);
         expect(await postJobs(JobKind.PUBLISH, draft.id)).toBe(1);
@@ -542,8 +556,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const draft = await createDraft(siteId);
         const live = await createLive(siteId);
 
-        await expect(Posts.removeBucketDraft(live.id)).rejects.toBeInstanceOf(PostStateError);
-        await Posts.removeBucketDraft(draft.id);
+        await expect(Posts.removeBucketDraft(prisma, live.id)).rejects.toBeInstanceOf(
+          PostStateError,
+        );
+        await Posts.removeBucketDraft(prisma, draft.id);
 
         expect(await prisma.post.count({ where: { id: draft.id } })).toBe(0);
         expect(await prisma.post.count({ where: { id: live.id } })).toBe(1);
@@ -557,7 +573,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const film = await createDraft(siteId, { niches: [Niche.FILM], title: "Alpha cinema" });
         await createDraft(siteId, { niches: [Niche.FOOD], title: "Alpha comida" });
 
-        const { data } = await Posts.list({
+        const { data } = await Posts.list(prisma, {
           niche: [Niche.WEDDING, Niche.FILM],
           q: "alpha",
           siteId,
@@ -576,9 +592,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
           await createDraft(siteId),
         ];
 
-        const first = await Posts.list({ limit: 2, siteId, sort: "oldest" });
+        const first = await Posts.list(prisma, { limit: 2, siteId, sort: "oldest" });
 
-        const second = await Posts.list({
+        const second = await Posts.list(prisma, {
           cursor: first.meta.nextCursor,
           limit: 2,
           siteId,

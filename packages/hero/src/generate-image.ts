@@ -1,5 +1,6 @@
 import { generateImage as aiGenerateImage } from "@repo/ai";
 import { upload as blobUpload } from "@repo/blob";
+import type { PrismaClient } from "@repo/db";
 import sharp from "sharp";
 
 export type GeneratePostImageDeps = {
@@ -35,10 +36,11 @@ const defaultToJpeg = async (
 };
 
 export const generatePostImage = async (
+  prisma: PrismaClient,
   input: GeneratePostImageInput,
   deps: GeneratePostImageDeps = {},
 ): Promise<GeneratePostImageResult> => {
-  const generateImage = deps.generateImage ?? aiGenerateImage;
+  const generateImage = deps.generateImage ?? ((prompt: string) => aiGenerateImage(prisma, prompt));
   const toJpeg = deps.toJpeg ?? defaultToJpeg;
   const blob = deps.blob ?? { upload: blobUpload };
 

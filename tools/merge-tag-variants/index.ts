@@ -5,9 +5,11 @@
  */
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { update } from "@repo/posts";
 import { slugify } from "@repo/sites";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const APPLY = process.argv.includes("--apply");
 
@@ -102,7 +104,7 @@ const main = async (): Promise<void> => {
   }
 
   for (const post of planned) {
-    await update(post.id, { tags: post.next });
+    await update(prisma, post.id, { tags: post.next });
   }
 
   console.log(`\nupdated ${planned.length} posts`);

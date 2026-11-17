@@ -1,10 +1,12 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { Queue, type Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { queueName } from "./transport";
 import { closeJobs, consume, schedule, unschedule } from "./worker";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const KIND = JobKind.AUDIT_SLUG_DRIFT;
 
@@ -40,7 +42,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       for (let replica = 0; replica < replicas; replica += 1) {
         await schedule(KIND, 400);
-        workers.push(consume({ handler, kind: KIND }));
+        workers.push(consume(prisma, { handler, kind: KIND }));
       }
 
       await vi.waitFor(

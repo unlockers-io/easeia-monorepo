@@ -5,6 +5,8 @@ import * as Sites from "@repo/sites";
 import { commonErrors, idParamSchema } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 type SiteRouteDependencies = Guards & {
   createSite: typeof Sites.create;
   listSites: typeof Sites.list;
@@ -44,7 +46,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
       tags: ["Sites"],
     }),
     async (c) => {
-      const sites = await deps.listSites();
+      const sites = await deps.listSites(prisma);
 
       return c.json({ data: sites.map(Sites.toPublic) }, 200);
     },
@@ -62,7 +64,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
       tags: ["Sites"],
     }),
     async (c) => {
-      const site = await deps.loadSite(c.req.valid("param").id);
+      const site = await deps.loadSite(prisma, c.req.valid("param").id);
 
       return c.json({ data: Sites.toPublic(site) }, 200);
     },
@@ -82,7 +84,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
       tags: ["Sites"],
     }),
     async (c) => {
-      const site = await deps.createSite(c.req.valid("json"));
+      const site = await deps.createSite(prisma, c.req.valid("json"));
       await deps.audit(c, { action: "site.create", target: `site:${site.id}` });
 
       return c.json({ data: Sites.toPublic(site) }, 201);
@@ -107,7 +109,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
       tags: ["Sites"],
     }),
     async (c) => {
-      const site = await deps.updateSite(c.req.valid("param").id, c.req.valid("json"));
+      const site = await deps.updateSite(prisma, c.req.valid("param").id, c.req.valid("json"));
       await deps.audit(c, { action: "site.update", target: `site:${site.id}` });
 
       return c.json({ data: Sites.toPublic(site) }, 200);
@@ -144,7 +146,7 @@ const createSiteRoutes = (deps: SiteRouteDependencies) => {
       tags: ["Sites"],
     }),
     async (c) => {
-      const site = await deps.updateSite(c.req.valid("param").id, c.req.valid("json"));
+      const site = await deps.updateSite(prisma, c.req.valid("param").id, c.req.valid("json"));
       await deps.audit(c, { action: "site.update", target: `site:${site.id}` });
 
       return c.json({ data: { id: site.id, moneySiteId: site.moneySiteId } }, 200);

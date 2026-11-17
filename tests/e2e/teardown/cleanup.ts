@@ -1,10 +1,10 @@
 import { readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
-import { prisma } from "@repo/db";
 import { z } from "zod";
 
 import { cleanupDirectory } from "../helpers/cleanup-record";
+import { prisma } from "../helpers/database";
 
 const recordSchema = z.object({ kind: z.enum(["user", "site", "waitlist"]), value: z.string() });
 

@@ -1,4 +1,4 @@
-import { prisma, type Site } from "@repo/db";
+import type { PrismaClient, Site } from "@repo/db";
 import { DomainError } from "@repo/errors";
 import * as Sites from "@repo/sites";
 
@@ -26,23 +26,34 @@ const throwIfAny = (issues: ReadonlyArray<ScheduleIssue>): void => {
 };
 
 export const configure = async (
+  prisma: PrismaClient,
   siteId: string,
   { autoPublishEnabled, bucketRefillAt, bucketTarget, cadenceDays }: AutoPublishInput,
 ): Promise<Site> => {
   const schedule = { autoPublishEnabled, bucketRefillAt, bucketTarget, cadenceDays };
   throwIfAny(configIssues(schedule));
-  await Sites.load(siteId);
+  await Sites.load(prisma, siteId);
 
-  return Sites.updateSchedule(siteId, schedule);
+  return Sites.updateSchedule(prisma, siteId, schedule);
 };
 
-export const setCadence = (siteId: string, cadenceDays: number | null): Promise<Site> => {
+export const setCadence = (
+  prisma: PrismaClient,
+  siteId: string,
+  cadenceDays: number | null,
+): Promise<Site> => {
   throwIfAny(countIssue("cadenceDays", cadenceDays, MAX_CADENCE_DAYS));
 
-  return Sites.updateSchedule(siteId, { autoPublishEnabled: cadenceDays !== null, cadenceDays });
+  return Sites.updateSchedule(prisma, siteId, {
+    autoPublishEnabled: cadenceDays !== null,
+    cadenceDays,
+  });
 };
 
-export const applyNetworkDefaults = async ({ overwrite, ...schedule }: NetworkDefaultsInput) => {
+export const applyNetworkDefaults = async (
+  prisma: PrismaClient,
+  { overwrite, ...schedule }: NetworkDefaultsInput,
+) => {
   throwIfAny(networkDefaultsIssues(schedule));
   const { bucketRefillAt, bucketTarget, cadenceDays } = schedule;
 

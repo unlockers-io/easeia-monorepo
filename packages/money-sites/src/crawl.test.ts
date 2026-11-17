@@ -1,8 +1,10 @@
-import { JobKind, prisma } from "@repo/db";
+import { JobKind, createPrismaClient } from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { crawlSitemap, MoneySiteNotFoundError, requestCrawl } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("money-site crawls", () => {
   const domain = `money-${crypto.randomUUID()}.test`;
@@ -46,7 +48,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("money-site crawls", () => 
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await crawlSitemap(site.id);
+    const result = await crawlSitemap(prisma, site.id);
     const pages = await prisma.moneySitePage.findMany({ where: { moneySiteId: site.id } });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -55,10 +57,12 @@ describe.runIf(process.env.TEST_DATABASE === "true")("money-site crawls", () => 
     );
     expect(result).toEqual({ discovered: 2, enqueued: 1, upserted: 1 });
     expect(pages.map((page) => page.url)).toEqual([`https://${domain}/blog/a`]);
-    expect(await countJobs({ kinds: [JobKind.CRAWL_MONEY_SITE_PAGE] })).toBeGreaterThanOrEqual(1);
+    expect(
+      await countJobs(prisma, { kinds: [JobKind.CRAWL_MONEY_SITE_PAGE] }),
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("refuses to queue a crawl for a money site that does not exist", async () => {
-    await expect(requestCrawl("missing")).rejects.toBeInstanceOf(MoneySiteNotFoundError);
+    await expect(requestCrawl(prisma, "missing")).rejects.toBeInstanceOf(MoneySiteNotFoundError);
   });
 });

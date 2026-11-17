@@ -4,7 +4,7 @@ import {
   type MoneySiteCreate,
   type MoneySiteUpdate,
 } from "@repo/api-types";
-import { JobKind, Prisma, prisma } from "@repo/db";
+import { JobKind, Prisma, type PrismaClient } from "@repo/db";
 import { enqueue } from "@repo/jobs";
 
 import { MoneySiteDomainTakenError, MoneySiteNotFoundError } from "./errors";
@@ -29,36 +29,39 @@ const writing = async <T>(id: string | undefined, write: () => Promise<T>): Prom
   }
 };
 
-export const listMoneySites = () =>
+export const listMoneySites = (prisma: PrismaClient) =>
   prisma.moneySite.findMany({
     include: { _count: { select: { pages: true } } },
     orderBy: { domain: "asc" },
   });
 
-export const createMoneySite = (input: MoneySiteCreate) =>
+export const createMoneySite = (prisma: PrismaClient, input: MoneySiteCreate) =>
   writing(undefined, () => prisma.moneySite.create({ data: moneySiteCreateSchema.parse(input) }));
 
-export const updateMoneySite = (id: string, input: MoneySiteUpdate) =>
+export const updateMoneySite = (prisma: PrismaClient, id: string, input: MoneySiteUpdate) =>
   writing(id, () =>
     prisma.moneySite.update({ data: moneySiteUpdateSchema.parse(input), where: { id } }),
   );
 
-export const deleteMoneySite = (id: string) =>
+export const deleteMoneySite = (prisma: PrismaClient, id: string) =>
   writing(id, () => prisma.moneySite.delete({ where: { id } }));
 
-export const requestCrawl = async (id: string): Promise<{ id: string }> => {
+export const requestCrawl = async (prisma: PrismaClient, id: string): Promise<{ id: string }> => {
   const site = await prisma.moneySite.findUnique({ select: { id: true }, where: { id } });
 
   if (site === null) {
     throw new MoneySiteNotFoundError(id);
   }
 
-  const job = await enqueue({ kind: JobKind.CRAWL_MONEY_SITE, payload: { moneySiteId: id } });
+  const job = await enqueue(prisma, {
+    kind: JobKind.CRAWL_MONEY_SITE,
+    payload: { moneySiteId: id },
+  });
 
   return { id: job.id };
 };
 
-export const detail = async (id: string) => {
+export const detail = async (prisma: PrismaClient, id: string) => {
   const [moneySite, [embedded], crawled] = await Promise.all([
     prisma.moneySite.findUnique({
       include: {

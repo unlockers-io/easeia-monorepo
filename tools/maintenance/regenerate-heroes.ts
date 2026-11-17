@@ -1,8 +1,10 @@
 import "dotenv/config";
 
 import { remove } from "@repo/blob";
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { generateHero } from "@repo/hero";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const DEFAULT_SINCE_DAYS = 45;
 const USD_PER_IMAGE = 0.041;
@@ -106,7 +108,7 @@ const main = async (): Promise<number> => {
     const staleKeys = post.images.map((image) => image.blobKey);
 
     try {
-      await generateHero({
+      await generateHero(prisma, {
         post: {
           id: post.id,
           siteId: post.siteId,

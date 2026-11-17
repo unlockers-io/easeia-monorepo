@@ -5,9 +5,11 @@ vi.hoisted(() => {
   Object.assign(process.env, {
     DATABASE_URL: "postgresql://test:test@localhost:5440/easeia_test",
     REDIS_URL: "redis://localhost:6381",
-    WP_ENCRYPTION_KEY: "test-encryption-key",
+    WP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
 });
+
+import { prisma } from "../lib/db";
 
 import { makeHandleGenerateImage } from "./generate-image";
 
@@ -37,7 +39,7 @@ describe("handleGenerateImage", () => {
     });
 
     await handle(ctx);
-    expect(generateHero).toHaveBeenCalledExactlyOnceWith({
+    expect(generateHero).toHaveBeenCalledExactlyOnceWith(prisma, {
       post: expect.objectContaining({ id: "p1" }),
       site: { imageStyle: post.site.imageStyle },
     });

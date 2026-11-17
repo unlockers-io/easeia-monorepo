@@ -1,8 +1,10 @@
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import * as MoneySites from "@repo/money-sites";
 import * as Sites from "@repo/sites";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]?.trim();
@@ -28,16 +30,16 @@ const main = async (): Promise<void> => {
 
   const moneySite =
     existing === null
-      ? await MoneySites.createMoneySite({ ...data, domain })
-      : await MoneySites.updateMoneySite(existing.id, data);
+      ? await MoneySites.createMoneySite(prisma, { ...data, domain })
+      : await MoneySites.updateMoneySite(prisma, existing.id, data);
 
   console.log("MoneySite:", moneySite.id, moneySite.domain);
 
-  const sites = await Sites.list();
+  const sites = await Sites.list(prisma);
   const unassigned = sites.filter((site) => site.isEnabled && site.moneySiteId === null);
 
   for (const site of unassigned) {
-    await Sites.update(site.id, { moneySiteId: moneySite.id });
+    await Sites.update(prisma, site.id, { moneySiteId: moneySite.id });
   }
 
   console.log(`assigned moneySiteId to ${unassigned.length} PBN sites`);

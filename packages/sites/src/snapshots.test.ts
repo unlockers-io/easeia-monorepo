@@ -1,11 +1,14 @@
-import { JobKind, prisma } from "@repo/db";
+import { JobKind, createPrismaClient } from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { closeJobs } from "@repo/jobs/worker";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { requestSnapshots } from "./index";
 
-const snapshotJobs = (siteId: string) => countJobs({ kinds: [JobKind.SNAPSHOT_SITE], siteId });
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
+
+const snapshotJobs = (siteId: string) =>
+  countJobs(prisma, { kinds: [JobKind.SNAPSHOT_SITE], siteId });
 
 describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
   "requestSnapshots",
@@ -35,8 +38,8 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       today.setUTCHours(0, 0, 0, 0);
       await prisma.siteSnapshot.create({ data: { date: today, reachable: true, siteId: taken } });
 
-      await requestSnapshots(now);
-      await requestSnapshots(now);
+      await requestSnapshots(prisma, now);
+      await requestSnapshots(prisma, now);
 
       expect(await snapshotJobs(due)).toBe(1);
       expect(await snapshotJobs(disabled)).toBe(0);

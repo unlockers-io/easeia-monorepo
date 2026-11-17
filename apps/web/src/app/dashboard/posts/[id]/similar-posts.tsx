@@ -18,6 +18,7 @@ import {
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
+import { getPrisma } from "@/lib/db";
 import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
@@ -37,7 +38,7 @@ export const SimilarPostsCard = async ({ postId }: { postId: string }) => {
     );
   }
 
-  if (!(await Posts.hasEmbedding(postId))) {
+  if (!(await Posts.hasEmbedding(getPrisma(), postId))) {
     return (
       <Card>
         <CardHeader>
@@ -53,7 +54,7 @@ export const SimilarPostsCard = async ({ postId }: { postId: string }) => {
     );
   }
 
-  const rows = await Posts.findSimilar(postId, LIMIT);
+  const rows = await Posts.findSimilar(getPrisma(), postId, LIMIT);
 
   return (
     <Card>

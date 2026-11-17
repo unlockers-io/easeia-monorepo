@@ -13,10 +13,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { JobKindBadge, JobStatusBadge } from "@/components/job-status-badge";
+import { getPrisma } from "@/lib/db";
 
 const JobDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const job = await getJob(id);
+  const job = await getJob(getPrisma(), id);
 
   if (!job) {
     notFound();

@@ -1,10 +1,12 @@
 import { createFakeOpenAi } from "@repo/ai/testing";
-import { JobKind, prisma } from "@repo/db";
+import { JobKind, createPrismaClient } from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { heroUrls } from "@repo/posts";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { generateHero } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 describe.runIf(process.env.TEST_DATABASE === "true")("durable hero completion", () => {
   let siteId = "";
@@ -43,18 +45,20 @@ describe.runIf(process.env.TEST_DATABASE === "true")("durable hero completion", 
     await prisma.$executeRawUnsafe(
       'CREATE TRIGGER thermo_fail_hero BEFORE INSERT ON "Job" FOR EACH ROW EXECUTE FUNCTION thermo_fail_hero()',
     );
-    await expect(generateHero({ post, site }, deps)).rejects.toThrow(
+    await expect(generateHero(prisma, { post, site }, deps)).rejects.toThrow(
       "injected hero intent failure",
     );
     expect(await prisma.postImage.count({ where: { postId: post.id } })).toBe(0);
-    expect(await heroUrls([post.id])).toEqual(new Map());
+    expect(await heroUrls(prisma, [post.id])).toEqual(new Map());
     await prisma.$executeRawUnsafe('DROP TRIGGER thermo_fail_hero ON "Job"');
-    await generateHero({ post, site }, deps);
+    await generateHero(prisma, { post, site }, deps);
     expect(await prisma.postImage.count({ where: { postId: post.id } })).toBe(1);
-    expect(await heroUrls([post.id])).toEqual(new Map([[post.id, "https://cdn.test/image.jpg"]]));
+    expect(await heroUrls(prisma, [post.id])).toEqual(
+      new Map([[post.id, "https://cdn.test/image.jpg"]]),
+    );
 
     const touched = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
     expect(touched.updatedAt.getTime()).toBeGreaterThan(post.updatedAt.getTime());
-    expect(await countJobs({ kinds: [JobKind.TRIGGER_DEPLOY], siteId })).toBe(1);
+    expect(await countJobs(prisma, { kinds: [JobKind.TRIGGER_DEPLOY], siteId })).toBe(1);
   });
 });

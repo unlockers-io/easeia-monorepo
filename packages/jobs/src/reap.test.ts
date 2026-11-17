@@ -1,7 +1,9 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { reapStuckJobs } from "./worker";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -37,7 +39,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("reapStuckJobs", () => {
     const delayed = await seed({ attempts: 0, startedAt: null, status: JobStatus.QUEUED });
     const finished = await seed({ attempts: 1, startedAt: stale, status: JobStatus.DONE });
 
-    const reaped = await reapStuckJobs(HOUR_MS);
+    const reaped = await reapStuckJobs(prisma, HOUR_MS);
     const rows = await prisma.job.findMany({ where: { id: { in: createdIds } } });
     const statusOf = new Map(rows.map((row) => [row.id, row.status]));
 

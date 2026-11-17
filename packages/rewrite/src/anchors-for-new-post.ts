@@ -1,5 +1,4 @@
-import type { Niche } from "@repo/db";
-import { prisma } from "@repo/db";
+import type { Niche, PrismaClient } from "@repo/db";
 import { postPublicUrl } from "@repo/sites";
 
 import type { AnchorSpec } from "./prompt";
@@ -16,6 +15,7 @@ const truncateAnchorText = (text: string, max = 60): string =>
   text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 
 export const selectAnchorsForNewPost = async (
+  prisma: PrismaClient,
   input: AnchorsForNewPostInput,
 ): Promise<Array<AnchorSpec>> => {
   const site = await prisma.site.findUnique({

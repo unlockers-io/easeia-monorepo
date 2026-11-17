@@ -1,5 +1,7 @@
-import { prisma, type Niche } from "@repo/db";
+import type { Niche } from "@repo/db";
 import { type MoneyEdge, networkLinkEdges, type PbnEdge } from "@repo/links";
+
+import { getPrisma } from "@/lib/db";
 
 type PbnSiteSummary = {
   domain: string;
@@ -25,7 +27,7 @@ type NetworkGraphData = {
 
 const loadNetworkGraphData = async (): Promise<NetworkGraphData> => {
   const [sites, edges] = await Promise.all([
-    prisma.site.findMany({
+    getPrisma().site.findMany({
       include: {
         _count: { select: { posts: true } },
         moneySite: {
@@ -40,7 +42,7 @@ const loadNetworkGraphData = async (): Promise<NetworkGraphData> => {
       orderBy: { domain: "asc" },
       where: { isEnabled: true },
     }),
-    networkLinkEdges(),
+    networkLinkEdges(getPrisma()),
   ]);
 
   const moneySites = new Map<string, MoneySiteSummary>();

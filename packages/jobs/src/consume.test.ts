@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { Queue, type Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -9,6 +9,8 @@ import { queueName } from "./transport";
 import { closeJobs, consume, dispatchPendingJobs } from "./worker";
 
 import { enqueue, JobSkippedError, type ConsumerContext } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const KIND = JobKind.SNAPSHOT_SITE;
 
@@ -48,10 +50,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         onFailure?: (ctx: ConsumerContext<typeof KIND>) => Promise<void>;
       } = {},
     ) => {
-      worker = consume({ handler, kind: KIND, ...options });
-      const { id } = await enqueue({ kind: KIND, payload: { siteId: "site_unused" } });
+      worker = consume(prisma, { handler, kind: KIND, ...options });
+      const { id } = await enqueue(prisma, { kind: KIND, payload: { siteId: "site_unused" } });
       createdIds.push(id);
-      await dispatchPendingJobs();
+      await dispatchPendingJobs(prisma);
 
       for (let tick = 0; tick < 400; tick += 1) {
         await queue.promoteJobs();

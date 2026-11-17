@@ -2,11 +2,13 @@ import "dotenv/config";
 
 import { readFile } from "node:fs/promises";
 
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import * as Sites from "@repo/sites";
 import { z } from "zod";
 
 import { seedAdmin } from "./admin";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const seedSchema = z.array(
   z.object({
@@ -15,7 +17,7 @@ const seedSchema = z.array(
 );
 
 const main = async () => {
-  await seedAdmin();
+  await seedAdmin(prisma);
 
   const file = process.argv.at(2);
 
@@ -24,7 +26,7 @@ const main = async () => {
     const entries = seedSchema.parse(raw);
 
     for (const entry of entries) {
-      const site = await Sites.ensure(entry.domain);
+      const site = await Sites.ensure(prisma, entry.domain);
 
       console.log(`ensured ${site.domain}`);
     }

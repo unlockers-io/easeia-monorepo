@@ -1,5 +1,5 @@
 import { assertAiConfigured } from "@repo/ai";
-import { BackfillKind, JobKind, PostStatus, prisma } from "@repo/db";
+import { BackfillKind, JobKind, PostStatus } from "@repo/db";
 import { enqueue } from "@repo/jobs";
 import * as Sites from "@repo/sites";
 
@@ -15,9 +15,9 @@ export const rewriteBackfill = createBackfill({
   }),
   kind: BackfillKind.REWRITE,
   label: "network rewrite",
-  members: async ({ force }: { force: boolean }) => {
+  members: async (prisma, { force }: { force: boolean }) => {
     assertAiConfigured();
-    const sites = await Sites.list();
+    const sites = await Sites.list(prisma);
 
     const [posts, moneySites] = await Promise.all([
       prisma.post.findMany({
@@ -43,14 +43,11 @@ export const rewriteBackfill = createBackfill({
     {
       enqueue: async (run, tx) => {
         for (const moneySiteId of run.moneySiteIds) {
-          await enqueue(
-            {
-              kind: JobKind.CRAWL_MONEY_SITE,
-              payload: { moneySiteId },
-              run: { id: run.id, member: moneySiteId, phase: "CRAWL_MONEY_SITE" },
-            },
-            tx,
-          );
+          await enqueue(tx, {
+            kind: JobKind.CRAWL_MONEY_SITE,
+            payload: { moneySiteId },
+            run: { id: run.id, member: moneySiteId, phase: "CRAWL_MONEY_SITE" },
+          });
         }
       },
       name: "CRAWL_MONEY_SITE",

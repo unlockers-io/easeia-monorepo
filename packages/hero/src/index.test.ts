@@ -1,8 +1,11 @@
 import { AiBudgetExceededError } from "@repo/ai";
 import { createFakeOpenAi } from "@repo/ai/testing";
+import { createPrismaClient } from "@repo/db";
 import { describe, expect, it } from "vitest";
 
 import { buildBodyImagePrompt, buildHeroPrompt, generateHero } from "./index";
+
+const prisma = createPrismaClient("postgresql://user:pass@localhost:5432/db");
 
 const audioStyle = "Professional audio studio scene, recording and mixing gear.";
 const fashionStyle = "Street fashion editorial, contemporary urban styling.";
@@ -122,6 +125,7 @@ describe("generateHero", () => {
     const calls: Record<string, unknown> = {};
 
     await generateHero(
+      prisma,
       { post, site },
       {
         blob: {
@@ -135,7 +139,7 @@ describe("generateHero", () => {
           },
         },
         generateImage: fake.ai.generateImage,
-        setHero: (postId, image) => {
+        setHero: (_prisma, postId, image) => {
           calls.setHero = { ...image, postId };
 
           return Promise.resolve();
@@ -163,7 +167,7 @@ describe("generateHero", () => {
   it("propagates generation failures (caller decides what to do)", async () => {
     const fake = createFakeOpenAi({ allowanceMicroUsd: 0 });
     await expect(
-      generateHero({ post, site }, { generateImage: fake.ai.generateImage }),
+      generateHero(prisma, { post, site }, { generateImage: fake.ai.generateImage }),
     ).rejects.toBeInstanceOf(AiBudgetExceededError);
   });
 });

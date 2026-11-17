@@ -4,6 +4,8 @@ import type { backfills } from "@repo/backfill";
 import { commonErrors, jsonResponse, orchestratorStatusSchema } from "@/lib/openapi-schemas";
 import { createProtectedRouter, type Guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 export type RunRouteDependencies = Guards & {
   readStatus: (typeof backfills)[keyof typeof backfills]["readStatus"];
 };
@@ -20,7 +22,7 @@ export const createRunRouter = (deps: RunRouteDependencies) => {
       summary: "Read run status",
       tags: ["Network"],
     }),
-    async (c) => c.json(await deps.readStatus(), 200),
+    async (c) => c.json(await deps.readStatus(prisma), 200),
   );
 
   return app;

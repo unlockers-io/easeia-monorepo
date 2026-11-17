@@ -1,6 +1,6 @@
-import { type Job, JobStatus, prisma } from "@repo/db";
+import { type Job, JobStatus, type PrismaClient } from "@repo/db";
 
-export const reapStuckJobs = async (maxAgeMs: number): Promise<Array<Job>> =>
+export const reapStuckJobs = async (prisma: PrismaClient, maxAgeMs: number): Promise<Array<Job>> =>
   prisma.job.updateManyAndReturn({
     data: {
       finishedAt: new Date(),

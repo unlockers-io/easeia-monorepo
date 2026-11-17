@@ -1,5 +1,6 @@
 import { crawlPost } from "@repo/links";
 
+import { prisma } from "../lib/db";
 import type { JobContext } from "../lib/job-log";
 
 export const handleCrawlLinks = async ({
@@ -7,7 +8,7 @@ export const handleCrawlLinks = async ({
   payload,
 }: JobContext<"CRAWL_LINKS">): Promise<void> => {
   log.set({ postId: payload.postId });
-  const summary = await crawlPost(payload.postId);
+  const summary = await crawlPost(prisma, payload.postId);
 
   if (summary) {
     log.set(summary);

@@ -10,6 +10,7 @@ import {
 import { connection } from "next/server";
 import { SkeletonSuspense } from "skullet/react";
 
+import { getPrisma } from "@/lib/db";
 import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../lib/provider-card";
@@ -41,7 +42,7 @@ const BucketsContent = async () => {
   await connection();
   // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
-  const buckets = await AutoPublish.readBuckets(new Date(nowMs));
+  const buckets = await AutoPublish.readBuckets(getPrisma(), new Date(nowMs));
 
   const rows: Array<BucketRow> = buckets.map((bucket) => ({
     autoPublishEnabled: bucket.autoPublishEnabled,

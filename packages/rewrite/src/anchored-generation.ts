@@ -1,4 +1,5 @@
 import { generateStructured } from "@repo/ai";
+import type { PrismaClient } from "@repo/db";
 import type { ZodType } from "zod";
 
 import type { AnchorSpec } from "./prompt";
@@ -21,13 +22,11 @@ export const findMissingAnchors = (
   anchors: ReadonlyArray<AnchorSpec>,
 ): Array<AnchorSpec> => anchors.filter((a) => !body.includes(a.url));
 
-export const generateWithAnchors = async <T extends { body: string }>({
-  anchors,
-  insertInstruction,
-  prompt,
-  schema,
-}: AnchoredGenerationInput<T>): Promise<AnchoredGeneration<T>> => {
-  const first = await generateStructured({ prompt, schema });
+export const generateWithAnchors = async <T extends { body: string }>(
+  prisma: PrismaClient,
+  { anchors, insertInstruction, prompt, schema }: AnchoredGenerationInput<T>,
+): Promise<AnchoredGeneration<T>> => {
+  const first = await generateStructured(prisma, { prompt, schema });
   const missingFirst = findMissingAnchors(first.body, anchors);
 
   if (missingFirst.length === 0) {
@@ -36,7 +35,7 @@ export const generateWithAnchors = async <T extends { body: string }>({
 
   const urls = missingFirst.map((a) => a.url).join(", ");
 
-  const retried = await generateStructured({
+  const retried = await generateStructured(prisma, {
     prompt: `${prompt}\n\nIMPORTANT: your previous output was missing these links: ${urls}. ${insertInstruction}`,
     schema,
   });

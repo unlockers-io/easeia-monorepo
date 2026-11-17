@@ -1,4 +1,11 @@
-import { JobKind, LinkSource, LinkType, PostStatus, prisma, type SiteLanguage } from "@repo/db";
+import {
+  JobKind,
+  LinkSource,
+  LinkType,
+  PostStatus,
+  createPrismaClient,
+  type SiteLanguage,
+} from "@repo/db";
 import { countJobs } from "@repo/jobs";
 import { closeJobs } from "@repo/jobs/worker";
 import * as Posts from "@repo/posts";
@@ -23,6 +30,8 @@ import {
   SuggestionAppliedError,
   SuggestionNotFoundError,
 } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const run = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const domain = (name: string): string => `${name}-${run}.tld`;
@@ -64,8 +73,8 @@ const embed = (vector: string, ids: ReadonlyArray<string>) =>
   ]);
 
 const setBody = async (id: string, body: string): Promise<void> => {
-  const post = await Posts.get(id);
-  await Posts.reviseBody(id, { body, from: post.body });
+  const post = await Posts.get(prisma, id);
+  await Posts.reviseBody(prisma, id, { body, from: post.body });
 };
 
 const bodyOf = async (id: string): Promise<string> => {
@@ -75,13 +84,13 @@ const bodyOf = async (id: string): Promise<string> => {
 };
 
 const inboundOf = async (id: string): Promise<number> => {
-  const counts = await countInternalInboundLinks([id]);
+  const counts = await countInternalInboundLinks(prisma, [id]);
 
   return counts.get(id) ?? 0;
 };
 
 const pendingIds = async (fromPostId: string): Promise<Array<string>> => {
-  const { data } = await listSuggestions({ fromPostId, limit: 50 });
+  const { data } = await listSuggestions(prisma, { fromPostId, limit: 50 });
 
   return data.map((r) => r.id);
 };
@@ -123,8 +132,8 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
   });
 
   const suggestFromSource = async () => {
-    await suggestForPost(source);
-    const { data: rows } = await listSuggestions({ fromPostId: source, limit: 50 });
+    await suggestForPost(prisma, source);
+    const { data: rows } = await listSuggestions(prisma, { fromPostId: source, limit: 50 });
 
     const to = (toPostId: string) => {
       const row = rows.find((r) => r.toPostId === toPostId);
@@ -143,8 +152,8 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     const unrelatedPost = await createPost(alpha, "unrelated");
     await embed(unrelated, [unrelatedPost]);
 
-    expect(await suggestForPost(source)).toEqual({ internal: 1, pbn: 1 });
-    const { data: rows } = await listSuggestions({ fromPostId: source, limit: 50 });
+    expect(await suggestForPost(prisma, source)).toEqual({ internal: 1, pbn: 1 });
+    const { data: rows } = await listSuggestions(prisma, { fromPostId: source, limit: 50 });
     expect(
       rows
         .map((r) => ({ toPostId: r.toPostId, toUrl: r.toUrl, type: r.type }))
@@ -157,28 +166,28 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
 
   it("keeps pending and rejected suggestions out of every live read", async () => {
     const { internal, pbn } = await suggestFromSource();
-    await rejectSuggestion(pbn.id);
+    await rejectSuggestion(prisma, pbn.id);
 
     expect(await inboundOf(sibling)).toBe(0);
-    expect(await pbnBacklinkSummary(beta)).toEqual({
+    expect(await pbnBacklinkSummary(prisma, beta)).toEqual({
       backlinks: 0,
       referringPosts: 0,
       referringSites: 0,
     });
-    expect(await recentPbnBacklinks(beta, 10)).toEqual([]);
+    expect(await recentPbnBacklinks(prisma, beta, 10)).toEqual([]);
     expect(await pendingIds(source)).toEqual([internal.id]);
-    const { pbnEdges } = await networkLinkEdges();
+    const { pbnEdges } = await networkLinkEdges(prisma);
     expect(pbnEdges.filter((e) => e.fromSiteId === alpha)).toEqual([]);
   });
 
   it("approve-and-apply writes the anchor into the source body and makes the link live", async () => {
-    const before = await countPbnBacklinks();
+    const before = await countPbnBacklinks(prisma);
     const { internal, pbn } = await suggestFromSource();
 
-    await approveSuggestion(internal.id);
-    await approveSuggestions(source, [pbn.id]);
+    await approveSuggestion(prisma, internal.id);
+    await approveSuggestions(prisma, source, [pbn.id]);
 
-    const live = await outboundLinks(source);
+    const live = await outboundLinks(prisma, source);
 
     expect(live.map((link) => link.id).toSorted()).toEqual([internal.id, pbn.id].toSorted());
     expect(await bodyOf(source)).toBe(
@@ -192,15 +201,15 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
       ].join("\n"),
     );
     expect(await inboundOf(sibling)).toBe(1);
-    expect(await countPbnBacklinks()).toBe(before + 1);
-    expect(await pbnBacklinkSummary(beta)).toEqual({
+    expect(await countPbnBacklinks(prisma)).toBe(before + 1);
+    expect(await pbnBacklinkSummary(prisma, beta)).toEqual({
       backlinks: 1,
       referringPosts: 1,
       referringSites: 1,
     });
-    const backlinks = await recentPbnBacklinks(beta, 10);
+    const backlinks = await recentPbnBacklinks(prisma, beta, 10);
     expect(backlinks.map((l) => l.fromPost.id)).toEqual([source]);
-    const { pbnEdges } = await networkLinkEdges();
+    const { pbnEdges } = await networkLinkEdges(prisma);
     expect(pbnEdges.filter((e) => e.fromSiteId === alpha)).toEqual([
       { count: 1, fromSiteId: alpha, toSiteId: beta },
     ]);
@@ -215,11 +224,11 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     );
 
     const present = await createPost(beta, "present");
-    const toPeer = await suggestLink(english, peer);
-    const toPresent = await suggestLink(english, present);
-    await editSuggestionAnchor(toPeer.id, "Edited [anchor]");
+    const toPeer = await suggestLink(prisma, english, peer);
+    const toPresent = await suggestLink(prisma, english, present);
+    await editSuggestionAnchor(prisma, toPeer.id, "Edited [anchor]");
 
-    await approveSuggestions(english, [toPeer.id, toPresent.id]);
+    await approveSuggestions(prisma, english, [toPeer.id, toPresent.id]);
 
     expect(await bodyOf(english)).toBe(
       [
@@ -243,7 +252,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
     const inline = `Read the [sibling post](${internal.toUrl}).`;
     await setBody(source, inline);
 
-    await approveSuggestions(source, [internal.id]);
+    await approveSuggestions(prisma, source, [internal.id]);
 
     expect(await bodyOf(source)).toBe(inline);
     expect(await inboundOf(sibling)).toBe(1);
@@ -252,18 +261,20 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
   it("re-embeds and re-crawls a live post whose body an approval changed", async () => {
     const { internal } = await suggestFromSource();
 
-    await approveSuggestion(internal.id);
+    await approveSuggestion(prisma, internal.id);
 
-    expect(await countJobs({ kinds: [JobKind.EMBED], postId: source })).toBe(1);
-    expect(await countJobs({ kinds: [JobKind.CRAWL_LINKS], postId: source })).toBe(1);
+    expect(await countJobs(prisma, { kinds: [JobKind.EMBED], postId: source })).toBe(1);
+    expect(await countJobs(prisma, { kinds: [JobKind.CRAWL_LINKS], postId: source })).toBe(1);
   });
 
   it("refuses to reject or re-anchor a suggestion already in the body", async () => {
     const { internal } = await suggestFromSource();
-    await approveSuggestion(internal.id);
+    await approveSuggestion(prisma, internal.id);
 
-    await expect(rejectSuggestion(internal.id)).rejects.toBeInstanceOf(SuggestionAppliedError);
-    await expect(editSuggestionAnchor(internal.id, "Other")).rejects.toBeInstanceOf(
+    await expect(rejectSuggestion(prisma, internal.id)).rejects.toBeInstanceOf(
+      SuggestionAppliedError,
+    );
+    await expect(editSuggestionAnchor(prisma, internal.id, "Other")).rejects.toBeInstanceOf(
       SuggestionAppliedError,
     );
     expect(await inboundOf(sibling)).toBe(1);
@@ -272,15 +283,15 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
   it("returns the pending suggestion instead of suggesting the same pair twice", async () => {
     const { internal } = await suggestFromSource();
 
-    const again = await suggestLink(source, sibling);
-    await approveSuggestions(source, [again.id]);
+    const again = await suggestLink(prisma, source, sibling);
+    await approveSuggestions(prisma, source, [again.id]);
 
     expect(again.id).toBe(internal.id);
     expect(await inboundOf(sibling)).toBe(1);
   });
 
   it("refuses to approve a suggestion that does not exist", async () => {
-    await expect(approveSuggestion(`missing-${run}`)).rejects.toBeInstanceOf(
+    await expect(approveSuggestion(prisma, `missing-${run}`)).rejects.toBeInstanceOf(
       SuggestionNotFoundError,
     );
   });
@@ -299,7 +310,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
       ].join(" "),
     );
 
-    expect(await crawlPost(source)).toEqual({ external: 1, internal: 1, pbn: 1, total: 3 });
+    expect(await crawlPost(prisma, source)).toEqual({ external: 1, internal: 1, pbn: 1, total: 3 });
 
     const rows = await prisma.link.findMany({
       orderBy: { position: "asc" },
@@ -317,11 +328,11 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
 
   it("prunes approved links whose anchor vanished and keeps pending suggestions", async () => {
     const { internal, pbn } = await suggestFromSource();
-    await approveSuggestion(internal.id);
+    await approveSuggestion(prisma, internal.id);
     expect(await inboundOf(sibling)).toBe(1);
 
     await setBody(source, "<p>Rewritten.</p>");
-    await crawlPost(source);
+    await crawlPost(prisma, source);
 
     expect(await inboundOf(sibling)).toBe(0);
     expect(
@@ -331,10 +342,10 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
 
   it("replaces an approved suggestion with the crawled anchor that carries it", async () => {
     const { internal } = await suggestFromSource();
-    await approveSuggestion(internal.id);
+    await approveSuggestion(prisma, internal.id);
     await setBody(source, `<p><a href="${internal.toUrl}">sibling</a></p>`);
 
-    await crawlPost(source);
+    await crawlPost(prisma, source);
 
     const rows = await prisma.link.findMany({
       select: { source: true },
@@ -358,7 +369,7 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
       ].join("\n"),
     );
 
-    expect(await pruneFabricatedLinks(source)).toEqual({ stripped: [fake] });
+    expect(await pruneFabricatedLinks(prisma, source)).toEqual({ stripped: [fake] });
     expect(await bodyOf(source)).toBe(
       [
         "See guia and guide.",
@@ -380,9 +391,9 @@ describe.runIf(withDatabaseAndRedis)("Link module", () => {
         `<a href="https://${domain("money")}.evil.tld/x">lookalike</a>`,
       ].join(" "),
     );
-    await crawlPost(source);
+    await crawlPost(prisma, source);
 
-    const { moneyEdges } = await networkLinkEdges();
+    const { moneyEdges } = await networkLinkEdges(prisma);
     expect(moneyEdges.filter((e) => e.moneySiteId === money.id)).toEqual([
       { count: 1, fromSiteId: alpha, moneySiteId: money.id },
     ]);

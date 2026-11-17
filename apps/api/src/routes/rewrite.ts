@@ -13,6 +13,8 @@ import {
 } from "@/lib/openapi-schemas";
 import { guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 import { createRunRouter, type RunRouteDependencies } from "./run-router";
 
 type RewriteRouteDependencies = RunRouteDependencies & {
@@ -35,7 +37,10 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
       tags: ["Network"],
     }),
     async (c) => {
-      const { runId } = await dependencies.start({ force: c.req.valid("json").force ?? false });
+      const { runId } = await dependencies.start(prisma, {
+        force: c.req.valid("json").force ?? false,
+      });
+
       await dependencies.audit(c, { action: "rewrite.trigger", target: "network" });
 
       return c.json({ runId }, 202);
@@ -63,7 +68,7 @@ const createRewriteRoutes = (dependencies: RewriteRouteDependencies) => {
     async (c) => {
       const id = c.req.valid("param").id;
 
-      const job = await dependencies.requestRewrite(id, {
+      const job = await dependencies.requestRewrite(prisma, id, {
         force: c.req.valid("json").force ?? false,
       });
 

@@ -1,7 +1,9 @@
 import "dotenv/config";
 
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { forSite, type TopPage } from "@repo/search-console";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 // Striking distance: pages Google already shows on pages 1-3 but not in the
 // top 3. A rewrite pass moves these; position > 30 usually needs links, not
@@ -43,7 +45,7 @@ const main = async () => {
   const candidates: Array<Candidate> = [];
 
   for (const site of sites) {
-    const searchConsole = await forSite(site.domain);
+    const searchConsole = await forSite(prisma, site.domain);
 
     if (searchConsole.status === "not_connected") {
       throw new Error("No Google connection. Connect Search Console in the dashboard first.");

@@ -1,11 +1,12 @@
 import { dataForSeo } from "@repo/dataforseo";
-import { prisma, type Prisma } from "@repo/db";
+import type { Prisma } from "@repo/db";
 import { computeHealthScore } from "@repo/health";
 import { JobSkippedError } from "@repo/jobs";
 import { log } from "@repo/observability";
 import { forSite } from "@repo/search-console";
 import * as Sites from "@repo/sites";
 
+import { prisma } from "../lib/db";
 import type { JobContext } from "../lib/job-log";
 
 type Outcome<T> = { kind: "ok"; value: T } | { error: string; kind: "err" };
@@ -68,7 +69,8 @@ const fetchPublishingStats = async (siteId: string) => {
 
 const checkReachability = async (siteId: string): Promise<boolean> => {
   try {
-    const site = await Sites.find(siteId);
+    // oxlint-disable-next-line unicorn/no-array-method-this-argument -- Sites.find looks a Site up; it is not Array#find
+    const site = await Sites.find(prisma, siteId);
 
     if (!site) {
       return false;
@@ -105,7 +107,7 @@ const fetchGsc = async (
   errorCode: "not_connected" | "not_verified" | null;
   impressions: number | null;
 }> => {
-  const site = await forSite(domain);
+  const site = await forSite(prisma, domain);
 
   if (site.status !== "ok") {
     return { avgPosition: null, clicks: null, errorCode: site.status, impressions: null };
@@ -134,7 +136,8 @@ const handleSnapshotSite = async ({
 }: JobContext<"SNAPSHOT_SITE">): Promise<void> => {
   const { siteId } = payload;
   jobLog.set({ siteId });
-  const site = await Sites.find(siteId);
+  // oxlint-disable-next-line unicorn/no-array-method-this-argument -- Sites.find looks a Site up; it is not Array#find
+  const site = await Sites.find(prisma, siteId);
 
   if (!site) {
     throw new JobSkippedError("Site no longer exists");

@@ -3,7 +3,6 @@ import "dotenv/config";
 
 import { serve } from "@hono/node-server";
 import { createRoute, z } from "@hono/zod-openapi";
-import { prisma } from "@repo/db";
 import { log } from "@repo/observability";
 import { honoEvlog, initApiLogger } from "@repo/observability/hono";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
@@ -11,6 +10,7 @@ import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 
+import { prisma } from "./lib/db";
 import { env } from "./lib/env";
 import { apiDocConfig, createOpenAPIApp } from "./lib/openapi";
 import { errorHandler, notFound } from "./middleware/error-handler";

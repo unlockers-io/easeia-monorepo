@@ -26,6 +26,7 @@ import { handleSnapshotSite } from "./handlers/snapshot-site";
 import { handleSuggestLinks } from "./handlers/suggest-links";
 import { handleTriggerDeploy } from "./handlers/trigger-deploy";
 import { skipWhenAiUnconfigured } from "./lib/ai-unavailable";
+import { prisma } from "./lib/db";
 import { env } from "./lib/env";
 import { type Handler, withJobLog } from "./lib/job-log";
 
@@ -114,7 +115,7 @@ const scheduleOf = (tick: JobDefinition<JobKind>["tick"]): JobRegistration["tick
 
 const register = <K extends JobKind>(kind: K): JobRegistration<K> => {
   const { aiOptional, handle, serial, tick } = JOBS[kind];
-  const published = forPublishedMember(handle);
+  const published = forPublishedMember(prisma, handle);
 
   return {
     concurrency: serial ? 1 : env.WORKER_CONCURRENCY,

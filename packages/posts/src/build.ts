@@ -1,5 +1,5 @@
 import type { BuildAuthor, BuildImage, BuildPost } from "@easeia/astro-content";
-import { type Post, type PostImage, PostStatus, type Prisma, prisma } from "@repo/db";
+import { type Post, type PostImage, PostStatus, type Prisma, type PrismaClient } from "@repo/db";
 
 export const deployedWhere = {
   OR: [
@@ -60,6 +60,7 @@ export const buildProjection = (post: Post): string => {
 };
 
 export const listForBuild = async (
+  prisma: PrismaClient,
   siteId: string,
   author: BuildAuthor | null,
 ): Promise<Array<BuildPost>> => {
@@ -72,7 +73,10 @@ export const listForBuild = async (
   return posts.map(({ images, ...post }) => toBuildPost(post, images, author));
 };
 
-export const listBuildImages = async (siteId: string): Promise<Array<BuildImage>> => {
+export const listBuildImages = async (
+  prisma: PrismaClient,
+  siteId: string,
+): Promise<Array<BuildImage>> => {
   const images = await prisma.postImage.findMany({
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     where: { post: { ...deployedWhere, siteId } },

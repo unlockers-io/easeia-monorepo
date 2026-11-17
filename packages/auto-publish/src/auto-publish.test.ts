@@ -1,5 +1,5 @@
 import { AiNotConfiguredError } from "@repo/ai";
-import { JobKind, Niche, type Prisma, PostStatus, prisma } from "@repo/db";
+import { JobKind, Niche, type Prisma, PostStatus, createPrismaClient } from "@repo/db";
 import { countJobs, enqueue } from "@repo/jobs";
 import { closeJobs } from "@repo/jobs/worker";
 import * as Posts from "@repo/posts";
@@ -8,6 +8,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import * as AutoPublish from "./index";
 import { AutoPublishConfigError } from "./index";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const HOOK = "https://deploy.test/hook";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,7 +31,7 @@ const stampOf = async (id: string) => {
 };
 
 const tickFor = async (ids: ReadonlyArray<string>) => {
-  const result = await AutoPublish.tick();
+  const result = await AutoPublish.tick(prisma);
   const mine = new Set(ids);
 
   return {
@@ -39,9 +41,10 @@ const tickFor = async (ids: ReadonlyArray<string>) => {
   };
 };
 
-const generating = (siteId: string) => countJobs({ kinds: [JobKind.GENERATE_POST], siteId });
+const generating = (siteId: string) =>
+  countJobs(prisma, { kinds: [JobKind.GENERATE_POST], siteId });
 
-const publishJobs = (postId: string) => countJobs({ kinds: [JobKind.PUBLISH], postId });
+const publishJobs = (postId: string) => countJobs(prisma, { kinds: [JobKind.PUBLISH], postId });
 
 describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
   "Auto-publish",
@@ -65,7 +68,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
     const createDraft = async (siteId: string, scheduledAt?: Date) => {
       sequence += 1;
 
-      const { post } = await Posts.create({
+      const { post } = await Posts.create(prisma, {
         body: "<p>Body.</p>",
         categories: ["Casamentos"],
         niches: [Niche.WEDDING],
@@ -183,9 +186,9 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const draft = await createDraft(siteId);
 
         const outcomes = await Promise.allSettled([
-          AutoPublish.publishNext(siteId),
-          AutoPublish.publishNext(siteId),
-          AutoPublish.publishDraft(draft),
+          AutoPublish.publishNext(prisma, siteId),
+          AutoPublish.publishNext(prisma, siteId),
+          AutoPublish.publishDraft(prisma, draft),
         ]);
 
         expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1);
@@ -199,15 +202,19 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         expect(await statusOf(draft)).toBe(PostStatus.SCHEDULED);
         expect(await publishJobs(draft)).toBe(1);
         expect(await stampOf(siteId)).not.toBeNull();
-        expect(await AutoPublish.publishNext(siteId)).toBeNull();
+        expect(await AutoPublish.publishNext(prisma, siteId)).toBeNull();
       });
 
       it("never claims a scheduled draft as a bucket draft", async () => {
         const siteId = await createSite();
         const scheduled = await createDraft(siteId, new Date(Date.now() + DAY_MS));
 
-        await expect(AutoPublish.publishDraft(scheduled)).rejects.toBeInstanceOf(PostStateError);
-        await expect(Posts.removeBucketDraft(scheduled)).rejects.toBeInstanceOf(PostStateError);
+        await expect(AutoPublish.publishDraft(prisma, scheduled)).rejects.toBeInstanceOf(
+          PostStateError,
+        );
+        await expect(Posts.removeBucketDraft(prisma, scheduled)).rejects.toBeInstanceOf(
+          PostStateError,
+        );
         expect(await statusOf(scheduled)).toBe(PostStatus.DRAFT);
         expect(await stampOf(siteId)).toBeNull();
       });
@@ -217,7 +224,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("queues one bucket's worth when refills race", async () => {
         const siteId = await createSite({ bucketRefillAt: 2, bucketTarget: 4 });
 
-        await Promise.all([AutoPublish.refill(siteId), AutoPublish.refill(siteId)]);
+        await Promise.all([AutoPublish.refill(prisma, siteId), AutoPublish.refill(prisma, siteId)]);
 
         expect(await generating(siteId)).toBe(4);
       });
@@ -225,13 +232,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("counts in-flight GENERATE_POST Jobs as supply", async () => {
         const siteId = await createSite({ bucketRefillAt: 3, bucketTarget: 5 });
         await createDraft(siteId);
-        await enqueue({ kind: JobKind.GENERATE_POST, payload: { siteId }, siteId });
+        await enqueue(prisma, { kind: JobKind.GENERATE_POST, payload: { siteId }, siteId });
 
-        const first = await AutoPublish.refill(siteId);
+        const first = await AutoPublish.refill(prisma, siteId);
 
         expect(first).toMatchObject({ queued: 3, supply: { drafts: 1, inflight: 1, total: 2 } });
         expect(await generating(siteId)).toBe(4);
-        expect(await AutoPublish.refill(siteId)).toMatchObject({
+        expect(await AutoPublish.refill(prisma, siteId)).toMatchObject({
           queued: 0,
           supply: { drafts: 1, inflight: 4, total: 5 },
         });
@@ -255,14 +262,16 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         ]);
         expect(await generating(large)).toBe(20);
         expect(await generating(disabled)).toBe(0);
-        expect(await AutoPublish.refill(unconfigured)).toMatchObject({ queued: 0 });
+        expect(await AutoPublish.refill(prisma, unconfigured)).toMatchObject({ queued: 0 });
       });
 
       it("refuses to queue generations without AI", async () => {
         const siteId = await createSite({ bucketRefillAt: 1, bucketTarget: 2 });
         delete process.env.OPENAI_API_KEY;
 
-        await expect(AutoPublish.refill(siteId)).rejects.toBeInstanceOf(AiNotConfiguredError);
+        await expect(AutoPublish.refill(prisma, siteId)).rejects.toBeInstanceOf(
+          AiNotConfiguredError,
+        );
         expect(await generating(siteId)).toBe(0);
       });
     });
@@ -274,7 +283,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         const needyDraft = await createDraft(needy);
         await createDraft(needy, daysAgo(-1));
 
-        const buckets = await AutoPublish.readBuckets(new Date());
+        const buckets = await AutoPublish.readBuckets(prisma, new Date());
         const byId = new Map(buckets.map((bucket) => [bucket.id, bucket]));
 
         expect(byId.get(missed)).toMatchObject({ missedCadence: true, needsRefill: false });
@@ -291,7 +300,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       it("stores a schedule, and a cadence alone turns auto-publish on or off", async () => {
         const siteId = await createSite({ bucketRefillAt: 2, bucketTarget: 4 });
 
-        await AutoPublish.configure(siteId, {
+        await AutoPublish.configure(prisma, siteId, {
           autoPublishEnabled: false,
           bucketRefillAt: 3,
           bucketTarget: 6,
@@ -304,10 +313,10 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
           cadenceDays: 5,
         });
 
-        await AutoPublish.setCadence(siteId, 2);
+        await AutoPublish.setCadence(prisma, siteId, 2);
         expect(await siteRow(siteId)).toMatchObject({ autoPublishEnabled: true, cadenceDays: 2 });
 
-        await AutoPublish.setCadence(siteId, null);
+        await AutoPublish.setCadence(prisma, siteId, null);
         expect(await siteRow(siteId)).toMatchObject({
           autoPublishEnabled: false,
           bucketRefillAt: 3,
@@ -327,13 +336,13 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
         ];
 
         for (const input of rejections) {
-          await expect(AutoPublish.configure(siteId, input)).rejects.toBeInstanceOf(
+          await expect(AutoPublish.configure(prisma, siteId, input)).rejects.toBeInstanceOf(
             AutoPublishConfigError,
           );
         }
 
         await expect(
-          AutoPublish.applyNetworkDefaults({
+          AutoPublish.applyNetworkDefaults(prisma, {
             bucketRefillAt: null,
             bucketTarget: null,
             cadenceDays: null,
@@ -341,7 +350,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
           }),
         ).rejects.toThrow(/at least one section/v);
         await expect(
-          AutoPublish.applyNetworkDefaults({
+          AutoPublish.applyNetworkDefaults(prisma, {
             bucketRefillAt: 9,
             bucketTarget: 4,
             cadenceDays: 3,

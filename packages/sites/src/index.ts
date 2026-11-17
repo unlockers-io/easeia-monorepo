@@ -7,7 +7,7 @@ import {
   type SiteCreateInput,
   type SiteUpdatePatch,
 } from "@repo/api-types";
-import { Prisma, prisma, type Site } from "@repo/db";
+import { Prisma, type PrismaClient, type Site } from "@repo/db";
 
 import { parseDeployHook } from "./deploy-hook";
 import { SiteDisabledError } from "./disabled-error";
@@ -37,10 +37,10 @@ export const isDeployable = (site: Pick<Site, "isEnabled" | "vercelDeployHookUrl
 export { find, load } from "./load";
 
 export const requireEnabled = async (
+  tx: Prisma.TransactionClient,
   siteId: string,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<Site> => {
-  const site = await load(siteId, tx);
+  const site = await load(tx, siteId);
 
   if (!site.isEnabled) {
     throw new SiteDisabledError(site.domain);
@@ -50,10 +50,10 @@ export const requireEnabled = async (
 };
 
 export const requirePublishable = async (
+  tx: Prisma.TransactionClient,
   siteId: string,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<Site> => {
-  const site = await requireEnabled(siteId, tx);
+  const site = await requireEnabled(tx, siteId);
 
   if (!hasDeployHook(site)) {
     throw new SiteDeployHookMissingError();
@@ -62,10 +62,10 @@ export const requirePublishable = async (
   return site;
 };
 
-export const list = (): Promise<Array<Site>> =>
+export const list = (prisma: PrismaClient): Promise<Array<Site>> =>
   prisma.site.findMany({ orderBy: { domain: "asc" } });
 
-export const listEnabled = () =>
+export const listEnabled = (prisma: PrismaClient) =>
   prisma.site.findMany({
     orderBy: { domain: "asc" },
     select: { domain: true, id: true },
@@ -88,10 +88,14 @@ const writing = async <T>(write: () => Promise<T>): Promise<T> => {
   }
 };
 
-export const create = (input: SiteCreateInput): Promise<Site> =>
+export const create = (prisma: PrismaClient, input: SiteCreateInput): Promise<Site> =>
   writing(() => prisma.site.create({ data: siteCreateSchema.parse(input) }));
 
-export const ensure = async (domain: string, niches: Site["niches"] = []): Promise<Site> => {
+export const ensure = async (
+  prisma: PrismaClient,
+  domain: string,
+  niches: Site["niches"] = [],
+): Promise<Site> => {
   const normalized = siteDomainSchema.parse(domain);
 
   return prisma.site.upsert({
@@ -116,7 +120,11 @@ export const buildAuthor = (
 const buildProjection = (site: Site): string =>
   JSON.stringify([site.domain, site.language, buildAuthor(site)]);
 
-export const update = (siteId: string, input: SiteUpdatePatch): Promise<Site> => {
+export const update = (
+  prisma: PrismaClient,
+  siteId: string,
+  input: SiteUpdatePatch,
+): Promise<Site> => {
   const patch = siteUpdatePatchSchema.parse(input);
 
   return writing(() =>
@@ -131,7 +139,7 @@ export const update = (siteId: string, input: SiteUpdatePatch): Promise<Site> =>
       const site = await tx.site.update({ data: patch, where: { id: siteId } });
 
       if (buildProjection(before) !== buildProjection(site)) {
-        await requestRedeploy(siteId, tx);
+        await requestRedeploy(prisma, siteId, tx);
       }
 
       return site;
@@ -147,9 +155,9 @@ type Schedule = Partial<
 >;
 
 export const updateSchedule = (
+  tx: Prisma.TransactionClient,
   siteId: string,
   schedule: Schedule,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<Site> => tx.site.update({ data: schedule, where: { id: siteId } });
 
 export const updateEnabledSchedules = async (

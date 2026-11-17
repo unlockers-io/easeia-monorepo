@@ -1,9 +1,11 @@
-import { prisma, type Site } from "@repo/db";
+import type { Site } from "@repo/db";
 import { type OnPageCounts, summarizeOnPage } from "@repo/health";
 import { countInternalInboundLinks } from "@repo/links";
 import { deployedWhere } from "@repo/posts";
 import { postPublicUrl } from "@repo/sites";
 import { cacheLife } from "next/cache";
+
+import { getPrisma } from "@/lib/db";
 
 import { discoverSitemap, isSameSite } from "./discover-sitemap";
 
@@ -89,12 +91,15 @@ export const fetchOnPageSeo = async (siteId: string): Promise<OnPageSeoReport> =
   "use cache";
   cacheLife("minutes");
 
-  const posts = await prisma.post.findMany({
+  const posts = await getPrisma().post.findMany({
     select: { excerpt: true, id: true, title: true },
     where: { ...deployedWhere, siteId },
   });
 
-  const inboundCount = await countInternalInboundLinks(posts.map((p) => p.id));
+  const inboundCount = await countInternalInboundLinks(
+    getPrisma(),
+    posts.map((p) => p.id),
+  );
 
   const summary = summarizeOnPage(
     posts.map((p) => ({
@@ -119,8 +124,8 @@ export const fetchSiteStats = async (siteId: string): Promise<SiteStats> => {
   cacheLife("minutes");
 
   const [postsTotal, lastPost] = await Promise.all([
-    prisma.post.count({ where: { ...deployedWhere, siteId } }),
-    prisma.post.findFirst({
+    getPrisma().post.count({ where: { ...deployedWhere, siteId } }),
+    getPrisma().post.findFirst({
       orderBy: { publishedAt: "desc" },
       select: { publishedAt: true },
       where: { ...deployedWhere, siteId },
@@ -145,7 +150,7 @@ export const fetchRecentPosts = async (siteId: string, limit = 10): Promise<Arra
   "use cache";
   cacheLife("minutes");
 
-  const posts = await prisma.post.findMany({
+  const posts = await getPrisma().post.findMany({
     orderBy: { publishedAt: "desc" },
     select: {
       categories: true,
@@ -171,7 +176,7 @@ export const fetchRecentPosts = async (siteId: string, limit = 10): Promise<Arra
 export const fetchNicheCounts = async (
   siteId: string,
 ): Promise<Array<{ count: number; niche: string }>> => {
-  const posts = await prisma.post.findMany({ select: { niches: true }, where: { siteId } });
+  const posts = await getPrisma().post.findMany({ select: { niches: true }, where: { siteId } });
   const counts = new Map<string, number>();
 
   for (const post of posts) {
@@ -195,7 +200,7 @@ export const fetchWeeklyPublishes = async (
   firstWeek.setDate(now.getDate() - (WEEKS - 1) * 7 - now.getDay());
   firstWeek.setHours(0, 0, 0, 0);
 
-  const posts = await prisma.post.findMany({
+  const posts = await getPrisma().post.findMany({
     select: { publishedAt: true },
     where: { publishedAt: { gte: firstWeek }, siteId },
   });

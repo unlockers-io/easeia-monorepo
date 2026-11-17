@@ -1,4 +1,10 @@
-import { type BackfillPhase, type JobKind, JobStatus, prisma, type Prisma } from "@repo/db";
+import {
+  type BackfillPhase,
+  type JobKind,
+  JobStatus,
+  type PrismaClient,
+  type Prisma,
+} from "@repo/db";
 
 import type { JobPayloads } from "./payloads";
 import { inFlight } from "./reads";
@@ -26,8 +32,8 @@ const rowFor = <K extends JobKind>(input: EnqueueInput<K>): Prisma.JobUncheckedC
 });
 
 export const enqueue = async <K extends JobKind>(
+  tx: Prisma.TransactionClient,
   input: EnqueueInput<K>,
-  tx: Prisma.TransactionClient = prisma,
 ) => {
   const data = rowFor(input);
 
@@ -59,11 +65,14 @@ const enqueueUnless = (blocking: Prisma.JobWhereInput) => {
       where: { ...blocking, kind: input.kind, siteId: input.siteId },
     });
 
-    return busy > 0 ? null : enqueue(input, tx);
+    return busy > 0 ? null : enqueue(tx, input);
   };
 
-  return <K extends JobKind>(input: EnqueueInput<K>, tx?: Prisma.TransactionClient) =>
-    tx === undefined ? prisma.$transaction((db) => insert(input, db)) : insert(input, tx);
+  return <K extends JobKind>(
+    prisma: PrismaClient,
+    input: EnqueueInput<K>,
+    tx?: Prisma.TransactionClient,
+  ) => (tx === undefined ? prisma.$transaction((db) => insert(input, db)) : insert(input, tx));
 };
 
 export const enqueueUnlessInFlight = enqueueUnless(inFlight);
@@ -74,11 +83,10 @@ type CompletedJob<K extends JobKind> = Omit<EnqueueInput<K>, "delayMs"> & {
   id: string;
 };
 
-export const recordCompletedJob = async <K extends JobKind>({
-  finishedAt,
-  id,
-  ...input
-}: CompletedJob<K>): Promise<void> => {
+export const recordCompletedJob = async <K extends JobKind>(
+  prisma: PrismaClient,
+  { finishedAt, id, ...input }: CompletedJob<K>,
+): Promise<void> => {
   const row = {
     ...rowFor(input),
     attempts: 1,
@@ -91,7 +99,7 @@ export const recordCompletedJob = async <K extends JobKind>({
   await prisma.job.upsert({ create: { id, ...row }, update: row, where: { id } });
 };
 
-export const skipJob = (id: string, reason: string, tx: Prisma.TransactionClient = prisma) =>
+export const skipJob = (tx: Prisma.TransactionClient, id: string, reason: string) =>
   tx.job.updateMany({
     data: { finishedAt: new Date(), lastError: reason, status: JobStatus.SKIPPED },
     where: { id, status: JobStatus.QUEUED },

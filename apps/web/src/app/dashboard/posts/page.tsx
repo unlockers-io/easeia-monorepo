@@ -1,5 +1,5 @@
 import { postListQuerySchema } from "@repo/api-types";
-import { JobKind, PostStatus, prisma } from "@repo/db";
+import { JobKind, PostStatus } from "@repo/db";
 import { findLatestJobByPost } from "@repo/jobs";
 import * as Posts from "@repo/posts";
 import * as Sites from "@repo/sites";
@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/tabs";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { getPrisma } from "@/lib/db";
 import { parseNiches } from "@/lib/search-params";
 
 import PostsTable, { type PostRow } from "./posts-table";
@@ -43,7 +44,7 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
   const siteId = params.siteId?.trim() ?? "";
 
   const [{ data: posts }, total, sites] = await Promise.all([
-    Posts.list({
+    Posts.list(getPrisma(), {
       limit: 100,
       niche: niches,
       q,
@@ -51,11 +52,12 @@ const PostsPage = async ({ searchParams }: { searchParams: Promise<SearchParams>
       sort: postListQuerySchema.shape.sort.safeParse(params.sort).data ?? "newest",
       status: filter.status,
     }),
-    prisma.post.count(),
-    Sites.list(),
+    getPrisma().post.count(),
+    Sites.list(getPrisma()),
   ]);
 
   const latestJobs = await findLatestJobByPost(
+    getPrisma(),
     JobKind.PUBLISH,
     posts.map((p) => p.id),
   );

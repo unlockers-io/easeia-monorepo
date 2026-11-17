@@ -5,11 +5,12 @@ import * as Posts from "@repo/posts";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/access";
+import { getPrisma } from "@/lib/db";
 import { withAuth } from "@/lib/server-action";
 
 export const createPostAction = async (input: PostCreateInput) =>
   withAuth(async () => {
-    const { post } = await Posts.create(input);
+    const { post } = await Posts.create(getPrisma(), input);
     await audit({ action: "post.create", target: `post:${post.id}` });
     revalidatePath("/dashboard/posts");
 
@@ -18,7 +19,7 @@ export const createPostAction = async (input: PostCreateInput) =>
 
 export const publishPostAction = async (id: string) =>
   withAuth(async () => {
-    await Posts.publish(id);
+    await Posts.publish(getPrisma(), id);
     await audit({ action: "post.publish", target: `post:${id}` });
     revalidatePath(`/dashboard/posts/${id}`);
     revalidatePath("/dashboard/posts");
@@ -26,14 +27,14 @@ export const publishPostAction = async (id: string) =>
 
 export const deletePostAction = async (id: string) =>
   withAuth(async () => {
-    await Posts.remove(id);
+    await Posts.remove(getPrisma(), id);
     await audit({ action: "post.delete", target: `post:${id}` });
     revalidatePath("/dashboard/posts");
   });
 
 export const rewritePostAction = async (postId: string) =>
   withAuth(async () => {
-    const job = await Posts.requestRewrite(postId, { force: true });
+    const job = await Posts.requestRewrite(getPrisma(), postId, { force: true });
     await audit({ action: "rewrite.trigger", target: `post:${postId}` });
 
     return job;

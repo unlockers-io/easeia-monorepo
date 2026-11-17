@@ -1,4 +1,4 @@
-import { JobKind, JobStatus, prisma, type Site } from "@repo/db";
+import { JobKind, JobStatus, type Site } from "@repo/db";
 import {
   SEO_DESCRIPTION_MAX,
   SEO_DESCRIPTION_MIN,
@@ -33,6 +33,7 @@ import { SkeletonSuspense } from "skullet/react";
 
 import { CardSuspense } from "@/components/card-suspense";
 import { StatGrid, type StatItem } from "@/components/stat-grid";
+import { getPrisma } from "@/lib/db";
 import { readIntegrations } from "@/lib/integrations";
 
 import { IntegrationNotConfiguredCard } from "../../lib/provider-card";
@@ -71,8 +72,8 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
 
   const [site, moneySiteOptions] = await Promise.all([
-    Sites.find(id),
-    prisma.moneySite.findMany({
+    Sites.find(getPrisma(), id),
+    getPrisma().moneySite.findMany({
       orderBy: { domain: "asc" },
       select: { domain: true, id: true, name: true },
       where: { isEnabled: true },
@@ -259,7 +260,7 @@ const SitePage = async ({ params }: { params: Promise<{ id: string }> }) => {
 const SiteStatGrid = async ({ siteId }: { siteId: string }) => {
   const [stats, rewriteCount] = await Promise.all([
     fetchSiteStats(siteId),
-    countJobs({ kinds: [JobKind.REWRITE_POST], siteId, status: JobStatus.DONE }),
+    countJobs(getPrisma(), { kinds: [JobKind.REWRITE_POST], siteId, status: JobStatus.DONE }),
   ]);
 
   const items: ReadonlyArray<StatItem> = [

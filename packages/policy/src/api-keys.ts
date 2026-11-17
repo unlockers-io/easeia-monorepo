@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { apiKeyCreateSchema, type ApiKeyCreate } from "@repo/api-types";
-import { prisma } from "@repo/db";
+import type { PrismaClient } from "@repo/db";
 
 import { apiKeySummarySchema, type ApiKeySummary } from "./api-key-summary";
 import type { Actor } from "./authorize";
@@ -35,7 +35,10 @@ const bearerToken = (authorization: string | undefined) => {
   return token.startsWith(TOKEN_NAMESPACE) ? token : undefined;
 };
 
-export const authenticate = async (authorization: string | undefined): Promise<Actor | null> => {
+export const authenticate = async (
+  prisma: PrismaClient,
+  authorization: string | undefined,
+): Promise<Actor | null> => {
   const token = bearerToken(authorization);
 
   if (token === undefined) {
@@ -56,6 +59,7 @@ export const authenticate = async (authorization: string | undefined): Promise<A
 };
 
 export const createApiKey = async (
+  prisma: PrismaClient,
   input: ApiKeyCreate,
 ): Promise<ApiKeySummary & { token: string }> => {
   const { name, scopes, siteId } = apiKeyCreateSchema.parse(input);
@@ -75,7 +79,7 @@ export const createApiKey = async (
   return { ...key, scopes, token };
 };
 
-export const listApiKeys = async (): Promise<Array<ApiKeySummary>> => {
+export const listApiKeys = async (prisma: PrismaClient): Promise<Array<ApiKeySummary>> => {
   const keys = await prisma.apiKey.findMany({
     orderBy: { createdAt: "desc" },
     select: summaryFields,
@@ -84,6 +88,6 @@ export const listApiKeys = async (): Promise<Array<ApiKeySummary>> => {
   return apiKeySummarySchema.array().parse(keys);
 };
 
-export const revokeApiKey = async (id: string): Promise<void> => {
+export const revokeApiKey = async (prisma: PrismaClient, id: string): Promise<void> => {
   await prisma.apiKey.update({ data: { revokedAt: new Date() }, where: { id } });
 };

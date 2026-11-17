@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { prisma } from "@repo/db";
 
 import { verificationLink } from "../fixtures/verification.fixture";
 import { recordCleanup } from "../helpers/cleanup-record";
+import { prisma } from "../helpers/database";
 import { makeTestEmail } from "../helpers/test-email";
 import { makeTestUsername } from "../helpers/test-user";
 import { webUrl } from "../urls";

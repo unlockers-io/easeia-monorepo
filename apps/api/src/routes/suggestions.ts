@@ -18,6 +18,8 @@ import {
 } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
+import { prisma } from "../lib/db";
+
 type SuggestionListInput = z.infer<typeof suggestionListQuerySchema>;
 
 type SuggestionListItem = z.infer<typeof suggestionPublicSchema>;
@@ -138,10 +140,10 @@ const createSuggestionRoutes = (dependencies: SuggestionRouteDependencies) => {
 
 const suggestionRoutes = createSuggestionRoutes({
   ...guards,
-  approveSuggestion,
-  editSuggestionAnchor,
-  listSuggestions,
-  rejectSuggestion,
+  approveSuggestion: (id) => approveSuggestion(prisma, id),
+  editSuggestionAnchor: (id, anchorText) => editSuggestionAnchor(prisma, id, anchorText),
+  listSuggestions: (input) => listSuggestions(prisma, input),
+  rejectSuggestion: (id) => rejectSuggestion(prisma, id),
 });
 
 export { createSuggestionRoutes, suggestionRoutes };

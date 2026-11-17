@@ -1,4 +1,4 @@
-import { JobKind, JobStatus, prisma } from "@repo/db";
+import { JobKind, JobStatus, createPrismaClient } from "@repo/db";
 import { countJobs, listJobs } from "@repo/jobs";
 import { runDelayedJobsNow } from "@repo/jobs/testing";
 import { closeJobs, consume } from "@repo/jobs/worker";
@@ -6,21 +6,23 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { deploy, requestRedeploy } from "./index";
 
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
+
 type PostHook = (hook: URL, init: RequestInit) => Promise<Response>;
 
 const HOOK = "https://deploy.test/hook";
 
 const consumeDeploys = (postHook: PostHook) =>
-  consume({
+  consume(prisma, {
     concurrency: 1,
     handler: async ({ payload }) => {
-      await deploy(payload.siteId, postHook);
+      await deploy(prisma, payload.siteId, postHook);
     },
     kind: JobKind.TRIGGER_DEPLOY,
   });
 
 const deploys = (siteId: string, status?: JobStatus) =>
-  countJobs({ kinds: [JobKind.TRIGGER_DEPLOY], siteId, status });
+  countJobs(prisma, { kinds: [JobKind.TRIGGER_DEPLOY], siteId, status });
 
 const settled = (siteId: string, count: number, timeout = 5000) =>
   vi.waitFor(
@@ -32,7 +34,7 @@ const settled = (siteId: string, count: number, timeout = 5000) =>
 
 const ok = () => Promise.resolve(new Response("ok"));
 
-const windowElapses = () => runDelayedJobsNow(JobKind.TRIGGER_DEPLOY);
+const windowElapses = () => runDelayedJobsNow(prisma, JobKind.TRIGGER_DEPLOY);
 
 describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS === "true")(
   "Sites redeploy",
@@ -68,8 +70,8 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const siteId = sites.disabled ?? "";
       const postHook = vi.fn<PostHook>(ok);
 
-      expect(await requestRedeploy(siteId)).toBe("disabled");
-      expect(await deploy(siteId, postHook)).toBe("disabled");
+      expect(await requestRedeploy(prisma, siteId)).toBe("disabled");
+      expect(await deploy(prisma, siteId, postHook)).toBe("disabled");
       expect(await deploys(siteId)).toBe(0);
       expect(postHook).not.toHaveBeenCalled();
     });
@@ -78,8 +80,8 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const siteId = sites[name] ?? "";
       const postHook = vi.fn<PostHook>(ok);
 
-      expect(await requestRedeploy(siteId)).toBe("no-deploy-hook");
-      expect(await deploy(siteId, postHook)).toBe("no-deploy-hook");
+      expect(await requestRedeploy(prisma, siteId)).toBe("no-deploy-hook");
+      expect(await deploy(prisma, siteId, postHook)).toBe("no-deploy-hook");
       expect(await deploys(siteId)).toBe(0);
       expect(postHook).not.toHaveBeenCalled();
     });
@@ -88,7 +90,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const siteId = sites.coalesce ?? "";
       const postHook = vi.fn<PostHook>(ok);
 
-      const outcomes = await Promise.all([1, 2, 3].map(() => requestRedeploy(siteId)));
+      const outcomes = await Promise.all([1, 2, 3].map(() => requestRedeploy(prisma, siteId)));
 
       expect(outcomes.toSorted()).toEqual(["coalesced", "coalesced", "queued"]);
       expect(await deploys(siteId)).toBe(1);
@@ -109,7 +111,7 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
       const outcomes = [];
 
       for (const _ of [1, 2, 3]) {
-        outcomes.push(await requestRedeploy(siteId));
+        outcomes.push(await requestRedeploy(prisma, siteId));
       }
 
       await windowElapses();
@@ -134,14 +136,18 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       const worker = consumeDeploys(postHook);
 
-      expect(await requestRedeploy(siteId)).toBe("queued");
+      expect(await requestRedeploy(prisma, siteId)).toBe("queued");
       await windowElapses();
       await vi.waitFor(() => {
         expect(postHook).toHaveBeenCalledOnce();
       });
       expect(await deploys(siteId, JobStatus.RUNNING)).toBe(1);
 
-      const duringRun = await Promise.all([requestRedeploy(siteId), requestRedeploy(siteId)]);
+      const duringRun = await Promise.all([
+        requestRedeploy(prisma, siteId),
+        requestRedeploy(prisma, siteId),
+      ]);
+
       release(undefined);
       await windowElapses();
       await settled(siteId, 2);
@@ -161,10 +167,15 @@ describe.runIf(process.env.TEST_DATABASE === "true" && process.env.TEST_REDIS ==
 
       const worker = consumeDeploys(postHook);
 
-      expect(await requestRedeploy(siteId)).toBe("queued");
+      expect(await requestRedeploy(prisma, siteId)).toBe("queued");
       await windowElapses();
       await vi.waitFor(async () => {
-        const { data } = await listJobs({ kinds: [JobKind.TRIGGER_DEPLOY], limit: 1, siteId });
+        const { data } = await listJobs(prisma, {
+          kinds: [JobKind.TRIGGER_DEPLOY],
+          limit: 1,
+          siteId,
+        });
+
         expect(data[0]).toMatchObject({
           attempts: 1,
           lastError: expect.stringContaining("503"),

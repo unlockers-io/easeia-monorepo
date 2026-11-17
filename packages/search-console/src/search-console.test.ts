@@ -1,12 +1,14 @@
 import { randomBytes } from "node:crypto";
 
-import { prisma } from "@repo/db";
+import { createPrismaClient } from "@repo/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GoogleAuthError } from "./errors";
 import type { Google, SearchConsoleApi } from "./google";
 import { createSearchConsole, isConnected } from "./search-console";
 import { storeConnection } from "./tokens";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL ?? "");
 
 const HOUR_MS = 3_600_000;
 const USER_ID = "search-console-test-user";
@@ -30,7 +32,7 @@ const fakeGoogle = (verified: ReadonlyArray<string> = ["sc-domain:easeia.dev"]) 
 };
 
 const connect = (expiresAt: number) =>
-  storeConnection({
+  storeConnection(prisma, {
     googleEmail: "owner@easeia.dev",
     tokens: {
       access_token: "stored-access",
@@ -41,7 +43,7 @@ const connect = (expiresAt: number) =>
   });
 
 const connectedSite = async (google: Google, domain = "easeia.dev") => {
-  const site = await createSearchConsole(google).forSite(domain);
+  const site = await createSearchConsole(google).forSite(prisma, domain);
 
   if (site.status !== "ok") {
     throw new Error(`expected a connected site, got ${site.status}`);
@@ -74,7 +76,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
     it("reports not_connected when no Google account is connected", async () => {
       const google = fakeGoogle();
 
-      const site = await createSearchConsole(google).forSite("easeia.dev");
+      const site = await createSearchConsole(google).forSite(prisma, "easeia.dev");
 
       expect(site).toEqual({ status: "not_connected" });
       expect(google.searchConsole).not.toHaveBeenCalled();
@@ -84,6 +86,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
       await connect(Date.now() + HOUR_MS);
 
       const site = await createSearchConsole(fakeGoogle(["sc-domain:other.dev"])).forSite(
+        prisma,
         "easeia.dev",
       );
 
@@ -126,9 +129,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
       const searchConsole = createSearchConsole(google);
 
       const sites = await Promise.all([
-        searchConsole.forSite("easeia.dev"),
-        searchConsole.forSite("easeia.dev"),
-        searchConsole.forSite("easeia.dev"),
+        searchConsole.forSite(prisma, "easeia.dev"),
+        searchConsole.forSite(prisma, "easeia.dev"),
+        searchConsole.forSite(prisma, "easeia.dev"),
       ]);
 
       const [site] = sites;
@@ -170,8 +173,8 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
       google.refreshAccessToken.mockRejectedValueOnce(new Error("invalid_grant"));
       const searchConsole = createSearchConsole(google);
 
-      await expect(searchConsole.forSite("easeia.dev")).rejects.toThrow("invalid_grant");
-      const site = await searchConsole.forSite("easeia.dev");
+      await expect(searchConsole.forSite(prisma, "easeia.dev")).rejects.toThrow("invalid_grant");
+      const site = await searchConsole.forSite(prisma, "easeia.dev");
 
       expect(site.status).toBe("ok");
       expect(google.refreshAccessToken).toHaveBeenCalledTimes(2);
@@ -182,9 +185,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
       const google = fakeGoogle();
       google.refreshAccessToken.mockResolvedValueOnce({});
 
-      await expect(createSearchConsole(google).forSite("easeia.dev")).rejects.toBeInstanceOf(
-        GoogleAuthError,
-      );
+      await expect(
+        createSearchConsole(google).forSite(prisma, "easeia.dev"),
+      ).rejects.toBeInstanceOf(GoogleAuthError);
     });
   });
 
@@ -298,10 +301,10 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
 
   describe("isConnected", () => {
     it("reflects whether any Google account is connected", async () => {
-      const before = await isConnected();
+      const before = await isConnected(prisma);
       await connect(Date.now() + HOUR_MS);
 
-      expect([before, await isConnected()]).toEqual([false, true]);
+      expect([before, await isConnected(prisma)]).toEqual([false, true]);
     });
   });
 
@@ -310,7 +313,7 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
       await connect(Date.now() + HOUR_MS);
       const google = fakeGoogle(["sc-domain:easeia.dev", "https://other.dev/"]);
 
-      const sites = await createSearchConsole(google).listVerifiedSites(USER_ID);
+      const sites = await createSearchConsole(google).listVerifiedSites(prisma, USER_ID);
 
       expect(sites).toEqual([
         { permission: "siteOwner", siteUrl: "sc-domain:easeia.dev" },
@@ -319,7 +322,9 @@ describe.runIf(process.env.TEST_DATABASE === "true")("Search Console", () => {
     });
 
     it("returns no properties for a user without a connection", async () => {
-      expect(await createSearchConsole(fakeGoogle()).listVerifiedSites(USER_ID)).toEqual([]);
+      expect(await createSearchConsole(fakeGoogle()).listVerifiedSites(prisma, USER_ID)).toEqual(
+        [],
+      );
     });
   });
 });

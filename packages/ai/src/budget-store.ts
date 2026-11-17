@@ -1,11 +1,11 @@
-import { prisma } from "@repo/db";
+import type { PrismaClient } from "@repo/db";
 
 type AiBudgetStore = {
   reserve: (month: string, amount: number, limit: number) => Promise<boolean>;
   settle: (month: string, reserved: number, cost: number) => Promise<void>;
 };
 
-const budgetStore: AiBudgetStore = {
+const budgetStore = (prisma: PrismaClient): AiBudgetStore => ({
   reserve: async (month, amount, limit) => {
     if (amount > limit) {
       return false;
@@ -36,7 +36,7 @@ const budgetStore: AiBudgetStore = {
       where: { month },
     });
   },
-};
+});
 
 export { budgetStore };
 

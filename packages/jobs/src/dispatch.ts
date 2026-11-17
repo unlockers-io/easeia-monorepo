@@ -1,10 +1,10 @@
-import { JobStatus, prisma } from "@repo/db";
+import { JobStatus, type PrismaClient } from "@repo/db";
 
 import { describeError, JOB_ATTEMPTS, jobName, queueFor } from "./transport";
 
 const RECHECK_MS = 30_000;
 
-export const dispatchPendingJobs = async (): Promise<void> => {
+export const dispatchPendingJobs = async (prisma: PrismaClient): Promise<void> => {
   const now = new Date();
 
   const rows = await prisma.job.findMany({

@@ -84,8 +84,8 @@ const sites = mountForTest(
     ...common,
     createSite: vi.fn(),
     listSites: vi.fn().mockResolvedValue([]),
-    loadSite: vi.fn((id: string) => Promise.resolve(fakeSite({ id }))),
-    updateSite: vi.fn((id: string) => Promise.resolve(fakeSite({ id }))),
+    loadSite: vi.fn((_prisma: unknown, id: string) => Promise.resolve(fakeSite({ id }))),
+    updateSite: vi.fn((_prisma: unknown, id: string) => Promise.resolve(fakeSite({ id }))),
   }),
 );
 

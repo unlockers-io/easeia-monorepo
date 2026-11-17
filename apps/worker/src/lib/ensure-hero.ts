@@ -2,6 +2,8 @@ import { generateHero as defaultGenerateHero } from "@repo/hero";
 import { log } from "@repo/observability";
 import * as Posts from "@repo/posts";
 
+import { prisma } from "./db";
+
 export type EnsureHeroDeps = {
   generateHero: typeof defaultGenerateHero;
   heroOf: typeof Posts.heroOf;
@@ -22,7 +24,7 @@ type EnsureHeroInput = {
 export const makeEnsureHero =
   (deps: EnsureHeroDeps) =>
   async ({ autogenEnabled, post, site }: EnsureHeroInput): Promise<void> => {
-    if ((await deps.heroOf(post.id)) !== null) {
+    if ((await deps.heroOf(prisma, post.id)) !== null) {
       return;
     }
 
@@ -36,7 +38,7 @@ export const makeEnsureHero =
     }
 
     try {
-      await deps.generateHero({ post, site });
+      await deps.generateHero(prisma, { post, site });
     } catch (error) {
       log.warn({
         err: error,

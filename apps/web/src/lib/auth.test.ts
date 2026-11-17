@@ -1,18 +1,20 @@
-import { authEnvSchema, parseEnv } from "@repo/auth/env";
+import { parseEnv } from "@repo/auth/env";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createGetAuth } from "./auth";
+import { envSchema } from "./env";
 
 const createAuthMock = vi.fn(() => ({ options: {} }));
 
 const buildAuth = () => {
-  const getAuth = createGetAuth(createAuthMock, () => parseEnv(authEnvSchema));
+  const getAuth = createGetAuth(createAuthMock, () => parseEnv(envSchema));
   void getAuth().options;
 };
 
 describe("web auth configuration", () => {
   beforeEach(() => {
     createAuthMock.mockClear();
+    vi.stubEnv("DATABASE_URL", "postgresql://user:pass@localhost:5432/db");
   });
   afterEach(() => {
     vi.unstubAllEnvs();
