@@ -11,6 +11,7 @@ type WelcomeEmailProps = {
   userEmail: string;
   username?: string;
   verificationUrl: string;
+  year: number;
 };
 
 const WelcomeEmail = ({
@@ -18,9 +19,10 @@ const WelcomeEmail = ({
   userEmail,
   username,
   verificationUrl,
+  year,
 }: WelcomeEmailProps) => {
   return (
-    <BaseLayout preview="Welcome to Easeia. Verify your email to get started.">
+    <BaseLayout preview="Welcome to Easeia. Verify your email to get started." year={year}>
       <Heading className="mt-0 mb-4 text-2xl font-semibold tracking-tight text-balance break-words text-foreground">
         Welcome to Easeia.
       </Heading>

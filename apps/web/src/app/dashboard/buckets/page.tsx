@@ -40,7 +40,6 @@ const SAMPLE_BUCKETS: ReadonlyArray<BucketRow> = ["a", "b", "c"].map((siteId) =>
 
 const BucketsContent = async () => {
   await connection();
-  // eslint-disable-next-line react-hooks-js/purity -- Server Component, not a re-rendering hook
   const nowMs = Date.now();
   const buckets = await AutoPublish.readBuckets(getPrisma(), new Date(nowMs));
 
