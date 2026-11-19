@@ -11,7 +11,7 @@ import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { AuthEmailField } from "@/components/auth-email-field";
 import { AuthSwitchLink } from "@/components/auth-switch-link";
@@ -27,6 +27,7 @@ const LoginForm = ({ searchParams, signupOpen }: Props & { signupOpen: boolean }
   const { push, refresh } = useRouter();
   const [showUnverifiedNotice, setShowUnverifiedNotice] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isNavigating, startNavigation] = useTransition();
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
@@ -56,8 +57,10 @@ const LoginForm = ({ searchParams, signupOpen }: Props & { signupOpen: boolean }
       }
 
       const { from } = await searchParams;
-      push(safeRedirectPath(from));
-      refresh();
+      startNavigation(() => {
+        push(safeRedirectPath(from));
+        refresh();
+      });
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -66,7 +69,8 @@ const LoginForm = ({ searchParams, signupOpen }: Props & { signupOpen: boolean }
     validators: { onDynamic: loginSchema },
   });
 
-  const isLoading = useSelector(form.store, (s) => s.isSubmitting);
+  const isSubmitting = useSelector(form.store, (s) => s.isSubmitting);
+  const isLoading = isSubmitting || isNavigating;
 
   return (
     <ClientReadyForm

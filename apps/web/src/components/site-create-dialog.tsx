@@ -27,7 +27,7 @@ import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useState, useTransition } from "react";
 import { z } from "zod";
 
 import { createSiteAction } from "@/app/dashboard/sites/actions";
@@ -68,6 +68,7 @@ export const SiteCreateDialog = () => {
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
 
   const form = useForm({
     defaultValues,
@@ -86,10 +87,10 @@ export const SiteCreateDialog = () => {
         return;
       }
 
-      setOpen(false);
-      form.reset();
-      router.push(`/dashboard/sites/${result.data}`);
-      router.refresh();
+      startNavigation(() => {
+        router.push(`/dashboard/sites/${result.data}`);
+        router.refresh();
+      });
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -194,7 +195,7 @@ export const SiteCreateDialog = () => {
                 </Field>
               )}
             </form.Field>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
+            <form.Subscribe selector={(state) => state.isSubmitting || isNavigating}>
               {(pending) => (
                 <Button disabled={pending} type="submit">
                   {pending ? "Adding site…" : "Create site"}
