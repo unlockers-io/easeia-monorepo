@@ -24,7 +24,7 @@ import { useClientReady } from "@repo/ui/hooks/use-client-ready";
 import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import type { z } from "zod";
 
 import { NicheToggleGroup } from "@/components/niche-toggle-group";
@@ -107,6 +107,7 @@ const TextField = ({
 export const NewPostForm = ({ sites }: { sites: ReadonlyArray<SiteOption> }) => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
   const ready = useClientReady();
 
   const form = useForm({
@@ -139,7 +140,9 @@ export const NewPostForm = ({ sites }: { sites: ReadonlyArray<SiteOption> }) => 
         return;
       }
 
-      router.push(`/dashboard/posts/${result.data}`);
+      startNavigation(() => {
+        router.push(`/dashboard/posts/${result.data}`);
+      });
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -351,7 +354,7 @@ export const NewPostForm = ({ sites }: { sites: ReadonlyArray<SiteOption> }) => 
       </Card>
 
       <div className="flex items-center justify-end gap-2">
-        <form.Subscribe selector={(state) => state.isSubmitting}>
+        <form.Subscribe selector={(state) => state.isSubmitting || isNavigating}>
           {(pending) => (
             <Button disabled={pending} type="submit">
               {pending ? "Saving…" : "Save"}

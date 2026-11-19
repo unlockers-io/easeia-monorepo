@@ -9,7 +9,7 @@ import { focusFirstInvalidField } from "@repo/ui/lib/focus-first-invalid-field";
 import { revalidateLogic, useForm, useSelector } from "@tanstack/react-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { AuthPasswordField } from "@/components/auth-password-field";
@@ -19,6 +19,7 @@ import { resetPasswordSchema } from "@/lib/form-schemas";
 const ResetPasswordForm = ({ token }: { token: string }) => {
   const { push } = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [isNavigating, startNavigation] = useTransition();
 
   const form = useForm({
     defaultValues: { confirmPassword: "", password: "" },
@@ -40,7 +41,9 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
       }
 
       toast.success("Password reset. Sign in with your new password.");
-      push("/login");
+      startNavigation(() => {
+        push("/login");
+      });
     },
     onSubmitInvalid: ({ formApi }) => {
       focusFirstInvalidField(formApi.formId);
@@ -49,7 +52,8 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
     validators: { onDynamic: resetPasswordSchema },
   });
 
-  const isLoading = useSelector(form.store, (s) => s.isSubmitting);
+  const isSubmitting = useSelector(form.store, (s) => s.isSubmitting);
+  const isLoading = isSubmitting || isNavigating;
 
   return (
     <ClientReadyForm
