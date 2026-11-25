@@ -16,6 +16,7 @@ overrides:
   # Each pin is the lowest release that carries the fix.
   # Prisma config merges plain records; v8 fixes recursive-graph stack exhaustion.
   "@prisma/config>deepmerge-ts": "^8.0.0"
+  "@prisma/config>effect": "^3.22.1"
   "body-parser@>=2.0.0 <2.4.0": "^2.4.0"
   esbuild: "^0.28.1"
   mysql2: "^3.23.1"
