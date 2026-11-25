@@ -10,13 +10,13 @@
   "dependencies": {
     "@repo/ai": "workspace:*",
     "@repo/rewrite": "workspace:*",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.10",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.2"
   }
 }

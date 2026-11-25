@@ -33,18 +33,18 @@
     "@repo/rewrite": "workspace:*",
     "@repo/search-console": "workspace:*",
     "@repo/sites": "workspace:*",
-    "bullmq": "^6.0.9",
-    "dotenv": "^17.4.2",
+    "bullmq": "^6.7.10",
+    "dotenv": "^18.0.10",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@rollup/plugin-alias": "^6.0.0",
-    "@types/node": "^26.6.2",
-    "tsdown": "^0.23.0",
+    "@rollup/plugin-alias": "^6.0.1",
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1",
-    "zod-compiler": "^2.0.7"
+    "vitest": "^5.1.1",
+    "zod-compiler": "^2.0.14"
   }
 }
