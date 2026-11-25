@@ -8,7 +8,6 @@ import {
 } from "@repo/links";
 import type { z } from "zod";
 
-import type { suggestionPublicSchema } from "@/lib/openapi-schemas";
 import {
   commonErrors,
   idParamSchema,
@@ -16,6 +15,7 @@ import {
   suggestionPageSchema,
   suggestionDecisionSchema,
 } from "@/lib/openapi-schemas";
+import type { suggestionPublicSchema } from "@/lib/openapi-schemas";
 import { createProtectedRouter, guards, type Guards } from "@/lib/protected-router";
 
 import { prisma } from "../lib/db";
