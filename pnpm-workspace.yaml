@@ -16,6 +16,7 @@ overrides:
   # Each pin is the lowest release that carries the fix.
   # Prisma config merges plain records; v8 fixes recursive-graph stack exhaustion.
   "@prisma/config>deepmerge-ts": "^8.0.0"
+  "@prisma/config>effect": "^3.22.1"
   "body-parser@>=2.0.0 <2.4.0": "^2.4.0"
   esbuild: "^0.28.1"
   mysql2: "^3.23.1"
@@ -37,7 +38,6 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   sharp: true
-  vue-demi: true
 
 minimumReleaseAgeExclude:
   - "@dashfoo/*"
@@ -46,22 +46,10 @@ minimumReleaseAgeExclude:
   - "@walletwright/*"
   - astro-awesomeness
   - oxlint-config-awesomeness
-  - "@bruits/satteri-darwin-arm64@0.10.3"
-  - "@bruits/satteri-darwin-x64@0.10.3"
-  - "@bruits/satteri-linux-arm64-gnu@0.10.3"
-  - "@bruits/satteri-linux-arm64-musl@0.10.3"
-  - "@bruits/satteri-linux-x64-gnu@0.10.3"
-  - "@bruits/satteri-linux-x64-musl@0.10.3"
-  - "@bruits/satteri-wasm32-wasi@0.10.3"
-  - "@bruits/satteri-win32-arm64-msvc@0.10.3"
-  - "@bruits/satteri-win32-x64-msvc@0.10.3"
-  - satteri@0.10.3
 
 nodeLinker: hoisted
 
 trustPolicy: no-downgrade
 trustPolicyExclude:
   - prisma@7.10.0
-  - resend@6.18.1
-  - semver@6.3.1
   - tsrs@0.25.0-ts7.1.0-beta

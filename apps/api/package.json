@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@easeia/astro-content": "workspace:*",
-    "@hono/node-server": "^2.1.1",
+    "@hono/node-server": "^2.1.11",
     "@hono/zod-openapi": "^1.6.3",
     "@repo/api-types": "workspace:*",
     "@repo/auth": "workspace:*",
@@ -33,10 +33,10 @@
     "@repo/portless-env": "workspace:*",
     "@repo/posts": "workspace:*",
     "@repo/sites": "workspace:*",
-    "@scalar/hono-api-reference": "^0.12.5",
-    "@scalar/openapi-to-markdown": "^0.6.0",
-    "dotenv": "^17.4.2",
-    "hono": "^4.13.9",
+    "@scalar/hono-api-reference": "^0.12.24",
+    "@scalar/openapi-to-markdown": "^1.7.12",
+    "dotenv": "^18.0.10",
+    "hono": "^4.13.21",
     "hono-rate-limiter": "^0.5.4",
     "zod": "^4.6.7"
   },
@@ -44,12 +44,12 @@
     "@repo/ai": "workspace:*",
     "@repo/config-vitest": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@rollup/plugin-alias": "^6.0.0",
+    "@rollup/plugin-alias": "^6.0.1",
     "@total-typescript/ts-reset": "^0.6.1",
-    "@types/node": "^26.6.2",
-    "tsdown": "^0.23.0",
+    "@types/node": "^26.6.6",
+    "tsdown": "^0.23.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1",
-    "zod-compiler": "^2.0.7"
+    "vitest": "^5.1.1",
+    "zod-compiler": "^2.0.14"
   }
 }

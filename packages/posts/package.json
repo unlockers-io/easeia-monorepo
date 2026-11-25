@@ -20,15 +20,15 @@
     "@repo/errors": "workspace:*",
     "@repo/jobs": "workspace:*",
     "@repo/sites": "workspace:*",
-    "@truto/turndown-plugin-gfm": "^1.0.5",
-    "turndown": "^7.2.0"
+    "@truto/turndown-plugin-gfm": "^1.0.7",
+    "turndown": "^7.2.5"
   },
   "devDependencies": {
     "@repo/config-vitest": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^26.6.2",
-    "@types/turndown": "^5.0.5",
+    "@types/node": "^26.6.6",
+    "@types/turndown": "^5.0.6",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.1.1"
   }
 }
