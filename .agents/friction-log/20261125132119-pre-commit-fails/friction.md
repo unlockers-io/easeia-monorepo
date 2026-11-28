@@ -1,6 +1,7 @@
 ---
 title: 'pre-commit fails on a commit that stages only a friction-log entry'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#82'
 ---
 
 ### Expected Behavior
