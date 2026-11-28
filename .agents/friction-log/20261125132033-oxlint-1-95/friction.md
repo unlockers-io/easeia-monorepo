@@ -1,6 +1,7 @@
 ---
 title: 'oxlint 1.95 needs a newer tsrs, and pnpm trustPolicy blocks every newer tsrs and prisma 7.10.1'
 severity: 'minor'
+issue: 'unlockers-io/easeia-monorepo#81'
 ---
 
 ### Expected Behavior
